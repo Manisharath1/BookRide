@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
+import DatePicker from "react-datepicker";
 
 
 // Enhanced API hook with better error handling and caching
@@ -63,7 +64,7 @@ const useAPI = () => {
 };
 
 // Enhanced Pending Booking Item Component
-const PendingBookingItem = ({ booking, onApprove, fetchBookings }) => {
+const PendingBookingItem = ({ booking, fetchBookings }) => {
   const navigate = useNavigate();
   const [driverDetails, setDriverDetails] = useState({
     driverName: "",
@@ -119,7 +120,7 @@ const PendingBookingItem = ({ booking, onApprove, fetchBookings }) => {
       }
 
       // Get reason for assignment, prefilled with location if available
-      const defaultReason = `Pickup from ${booking.location}`;
+      const defaultReason = ` ${booking.reason}`;
       let reason = null;
       
       // Use a custom prompt that forces user to enter reason or click cancel
@@ -242,21 +243,43 @@ const PendingBookingItem = ({ booking, onApprove, fetchBookings }) => {
   };
 
   // Reset fields to original booking data
-  const handleResetFields = () => {
-    setDriverDetails({
-      driverName: booking.guestName || "",
-      driverNumber: booking.guestPhone || "",
-      vehicleId: booking.vehicleInfo || "",
-      vehicleName: booking.vehicleName || ""
-    });
-    setError("");
-    setMessage("");
-  };
+  // const handleResetFields = () => {
+  //   setDriverDetails({
+  //     driverName: booking.guestName || "",
+  //     driverNumber: booking.guestPhone || "",
+  //     vehicleId: booking.vehicleInfo || "",
+  //     vehicleName: booking.vehicleName || ""
+  //   });
+  //   setError("");
+  //   setMessage("");
+  // };
 
-  // Format the booking date for display
-  const formatDate = (dateString) => {
-    const date = new Date(dateString);
-    return date.toLocaleString();
+  // // Format the booking date for display
+  // const formatDate = (dateString) => {
+  //   const date = new Date(dateString);
+  //   return date.toLocaleString();
+  // };
+
+  const handleReschedule = async (bookingId, newDate) => {
+    try {
+      const token = localStorage.getItem("token");
+      const response = await axios.put(
+        "http://localhost:5000/api/bookings/reschedule",
+        {
+          bookingId,
+          newDate
+        },
+        {
+          headers: { Authorization: `Bearer ${token}` }
+        }
+      );
+  
+      window.alert(response.data.message || "Rescheduled successfully");
+      fetchBookings(); // reload updated data
+    } catch (err) {
+      console.error("Failed to reschedule:", err);
+      toast.error("Error rescheduling booking");
+    }
   };
 
   return (
@@ -265,9 +288,22 @@ const PendingBookingItem = ({ booking, onApprove, fetchBookings }) => {
         <div>
           <p className="font-semibold text-lg">Name: {booking.userId?.username || "Unknown"}</p>
           <p className="font-semibold text-lg">Location: {booking.location}</p>
-          <p className="text-sm text-gray-600">
-            Requested: {booking.createdAt ? formatDate(booking.createdAt) : "N/A"}
-          </p>
+          <p className="font-semibold text-lg">Reason: {booking.reason}</p>
+          <div className="flex items-center gap-2">
+            <p className="text-sm text-gray-600 whitespace-nowrap">
+              Scheduled:
+            </p>
+            <DatePicker
+              selected={booking.scheduledAt ? new Date(booking.scheduledAt) : null}
+              onChange={(date) => handleReschedule(booking._id, date)}
+              showTimeSelect
+              dateFormat="Pp"
+              placeholderText="Pick date & time"
+              className="border px-2 py-1 rounded w-full"
+            />
+          </div>
+
+
         </div>
         <Badge variant="outline" className="bg-yellow-100 text-yellow-800">
           Pending
@@ -337,7 +373,7 @@ const PendingBookingItem = ({ booking, onApprove, fetchBookings }) => {
 };
 
 // Booking List Item for History View
-const BookingHistoryItem = ({ booking, onCompleteBooking  }) => {
+const BookingHistoryItem = ({ booking, onCompleteBooking,  }) => {
 
   const navigate = useNavigate();
   const [isCompleting, setIsCompleting] = useState(false);
@@ -422,16 +458,18 @@ const BookingHistoryItem = ({ booking, onCompleteBooking  }) => {
       setIsCompleting(false);
     }
   };
-  
+
   return (
     <div className="bg-gray-50 p-4 rounded shadow-sm mb-4 border border-gray-200">
       <div className="flex justify-between items-start">
         <div>
           <p className="font-semibold text-lg">Name: {booking.userId?.username || "Unknown"}</p>
           <p className="font-medium">{booking.location}</p>
+          <p className="font-semibold text-lg">Reason: {booking.reason}</p>
           <p className="text-sm text-gray-600">
-            {booking.createdAt && `Booked: ${formatDate(booking.createdAt)}`}
+            {booking.scheduledAt && `Booked: ${formatDate(booking.scheduledAt)}`}
           </p>
+          
         </div>
 
         <div className="flex flex-col gap-2 items-end">
@@ -489,191 +527,6 @@ const BookingHistoryItem = ({ booking, onCompleteBooking  }) => {
     </div>
   );
 };
-
-// Book for Guest Modal Component
-// const BookForGuestModal = ({ isOpen, onClose, onSubmit }) => {
-//   const [bookingData, setBookingData] = useState({
-//     guestName: "",
-//     guestPhone: "",
-//     location: "",
-//     notes: "",
-//     vehicleId: ""
-//   });
-//   const [vehicles, setVehicles] = useState([]);
-//   // const [isLoading, setIsLoading] = useState(false);
-//   const [error, setError] = useState("");
-//   const [isSubmitting, setIsSubmitting] = useState(false);
-//   const [loading, setLoading] = useState(true);
-
-//   useEffect(() => {
-//     if (isOpen) {
-//       fetchVehicles();
-//     }
-//   }, [isOpen]);
-  
-//   const fetchVehicles = async () => {
-//     try {
-//       setLoading(true);
-//       const token = localStorage.getItem("token");
-//       const response = await axios.get(
-//         "http://localhost:5000/api/vehicles/getVehicles",
-//         { headers: { Authorization: `Bearer ${token}` } }
-//       );
-//       console.log("Fetched Vehicles:", response.data); // Debugging log
-//       setVehicles(response.data);
-//       setLoading(false);
-//     } catch (error) {
-//       console.error("Failed to fetch vehicles:", error);
-//       setLoading(false);
-//     }
-//   };
-  
-
-//   const handleChange = (e) => {
-//     setBookingData({
-//       ...bookingData,
-//       [e.target.name]: e.target.value
-//     });
-//     if (error) setError("");
-//   };
-
-//   const handleVehicleSelect = (value) => {
-//     console.log("Selected Vehicle ID:", value); // Debugging log
-//     setBookingData((prev) => ({
-//       ...prev,
-//       vehicleId: value,
-//     }));
-//     if (error) setError("");
-//   };
-  
-//   const handleSubmit = async (e) => {
-//     e.preventDefault();
-    
-//     // Validate form
-//     if (!bookingData.guestName || !bookingData.guestPhone || !bookingData.location || !bookingData.vehicleId) {
-//       setError("Please fill in all required fields.");
-//       return;
-//     }
-    
-//     setIsSubmitting(true);
-    
-//     try {
-//       await onSubmit(bookingData);
-//       onClose();
-//     } catch (err) {
-//       setError(err.message || "Failed to create booking");
-//     } finally {
-//       setIsSubmitting(false);
-//     }
-//   };
-
-//   if (!isOpen) return null;
-
-//   return (
-//     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-//       <div className="bg-white rounded-lg p-6 w-full max-w-md">
-//         <h3 className="text-xl font-semibold mb-4">Book for Guest</h3>
-        
-//         <form onSubmit={handleSubmit}>
-//           <div className="space-y-4">
-//             <div>
-//               <label htmlFor="guestName" className="block text-sm font-medium mb-1">Guest Name *</label>
-//               <Input
-//                 id="guestName"
-//                 name="guestName"
-//                 value={bookingData.guestName}
-//                 onChange={handleChange}
-//                 required
-//               />
-//             </div>
-            
-//             <div>
-//               <label htmlFor="guestPhone" className="block text-sm font-medium mb-1">Guest Phone *</label>
-//               <Input
-//                 id="guestPhone"
-//                 name="guestPhone"
-//                 value={bookingData.guestPhone}
-//                 onChange={handleChange}
-//                 required
-//               />
-//             </div>
-            
-//             <div>
-//               <label htmlFor="location" className="block text-sm font-medium mb-1">Pickup Location *</label>
-//               <Input
-//                 id="location"
-//                 name="location"
-//                 value={bookingData.location}
-//                 onChange={handleChange}
-//                 required
-//               />
-//             </div>
-            
-//             <div>
-//               <label htmlFor="vehicle" className="block text-sm font-medium mb-1">Select Vehicle *</label>
-//               {loading  ? (
-//                 <div className="text-sm text-gray-500">Loading vehicles...</div>
-//               ) : (
-//                 <Select 
-//                   onValueChange={handleVehicleSelect} 
-//                   value={bookingData.vehicleId}
-//                 >
-//                   <SelectTrigger>
-//                     <SelectValue placeholder="Select a vehicle" />
-//                   </SelectTrigger>
-//                   <SelectContent>
-//                     {vehicles.length > 0 ? (
-//                       vehicles.map((vehicle) => (
-//                         <SelectItem 
-//                           key={vehicle.id} 
-//                           value={vehicle.id}
-//                           disabled={vehicle.status !== 'available'}
-//                         >
-//                           {vehicle.name } - {vehicle.status} 
-//                           {vehicle.status !== 'available' && ` (${vehicle.status})`}
-//                         </SelectItem>
-//                       ))
-//                     ) : (
-//                       <div className="px-2 py-4 text-sm text-gray-500">
-//                         No vehicles available
-//                       </div>
-//                     )}
-//                   </SelectContent>
-//                 </Select>
-//               )}
-//             </div>
-            
-//             <div>
-//               <label htmlFor="notes" className="block text-sm font-medium mb-1">Special Notes</label>
-//               <Input
-//                 id="notes"
-//                 name="notes"
-//                 value={bookingData.notes}
-//                 onChange={handleChange}
-//               />
-//             </div>
-//           </div>
-          
-//           {error && (
-//             <Alert variant="destructive" className="mt-4">
-//               <AlertDescription>{error}</AlertDescription>
-//             </Alert>
-//           )}
-          
-//           <div className="flex justify-end space-x-2 mt-6">
-//             <Button type="button" variant="outline" onClick={onClose} disabled={isSubmitting}>
-//               Cancel
-//             </Button>
-//             <Button type="submit" disabled={isSubmitting || vehicles.length === 0}>
-//               {isSubmitting ? "Creating..." : "Create Booking"}
-//             </Button>
-//           </div>
-//         </form>
-//       </div>
-//     </div>
-//   );
-// };
-
 
 
 // Main Dashboard Component

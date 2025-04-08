@@ -7,7 +7,7 @@ const Notification = require("../models/Notification");
 // ✅ Create a new booking
 const createBooking = async (req, res) => {
   try {
-    const { location, vehicleId, reason  } = req.body;
+    const { location, vehicleId, reason, scheduledAt  } = req.body;
     
     if (!location || !vehicleId) {
       return res.status(400).json({ message: 'Location and reason are required' });
@@ -29,7 +29,8 @@ const createBooking = async (req, res) => {
       driverNumber: vehicle.driverNumber,
       location: location,
       reason: reason,
-      status: 'pending'
+      status: 'pending',
+      scheduledAt
     });
     
     const savedBooking = await newBooking.save();
@@ -346,7 +347,7 @@ const cancelBooking = async (req, res) => {
       userId: booking.userId,
       message: `Your ride to ${booking.location} was cancelled by the manager.`
     });
-    
+
   } catch (err) {
     console.error("Error canceling booking:", err);
     res.status(500).json({ error: err.message });
@@ -388,13 +389,33 @@ const getUserBookings = async (req, res) => {
 
 const getNotifications = async (req, res) => {
   try {
-    const notifications = await Notification.find({ userId: req.userId }).sort({ createdAt: -1 });
+    const notifications = await Notification.find({ userId: req.userId }).sort({ scheduledAt: -1 });
     res.json(notifications);
   } catch (err) {
     res.status(500).json({ error: "Failed to fetch notifications" });
   }
 };
 
+const reschedule = async (req, res) => {
+  const { bookingId, newDate } = req.body;
+
+  if (!mongoose.Types.ObjectId.isValid(bookingId)) {
+    return res.status(400).json({ error: "Invalid booking ID" });
+  }
+
+  try {
+    const booking = await Booking.findById(bookingId);
+    if (!booking) return res.status(404).json({ error: "Booking not found" });
+
+    booking.scheduledAt = newDate;
+    await booking.save();
+
+    res.json({ message: "Booking rescheduled", booking });
+  } catch (err) {
+    console.error("Reschedule error:", err);
+    res.status(500).json({ error: "Failed to reschedule" });
+  }
+};
 
 // ✅ Export the functions
 module.exports = {
@@ -406,5 +427,6 @@ module.exports = {
   completeBooking,
   cancelBooking,
   getUserBookings,
-  getNotifications
+  getNotifications,
+  reschedule
 };

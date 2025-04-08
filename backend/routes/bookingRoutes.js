@@ -22,6 +22,8 @@ router.post("/complete", authMiddleware, bookingController.completeBooking);
 router.post("/cancel", authMiddleware, bookingController.cancelBooking);
 
 router.get("/notifications", authMiddleware, bookingController.getNotifications);
+router.put("/reschedule", authMiddleware, bookingController.reschedule);
+
 
 
 module.exports = router;

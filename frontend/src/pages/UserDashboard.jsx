@@ -3,6 +3,10 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import axios from "axios";
 import { Bell, Home } from "lucide-react";
+import DatePicker from "react-datepicker";
+import "react-datepicker/dist/react-datepicker.css";
+
+
 
 const UserDashboard = () => {
   const [username, setUsername] = useState("");
@@ -17,6 +21,9 @@ const UserDashboard = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("vehicles");
   const [notifications, setNotifications] = useState("[]");
+  const [selectedDate, setSelectedDate] = useState(null); // date + time
+
+
 
   const navigate = useNavigate();
 
@@ -105,7 +112,12 @@ const UserDashboard = () => {
       const token = localStorage.getItem("token");
       await axios.post(
         "http://localhost:5000/api/bookings/create",
-        { location, vehicleId: selectedVehicle._id, reason },
+        {
+          location,
+          vehicleId: selectedVehicle._id,
+          reason,
+          scheduledAt: selectedDate
+        },
         { headers: { Authorization: `Bearer ${token}` } }
       );
       alert("Ride booked successfully!");
@@ -120,6 +132,8 @@ const UserDashboard = () => {
       alert("Failed to book ride");
     }
   };
+
+  // const today = new Date().toISOString().split("T")[0];
 
   useEffect(() => {
     const fetchNotifications = async () => {
@@ -457,7 +471,7 @@ const UserDashboard = () => {
                               {booking.reason || "-"}
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap">
-                              {new Date(booking.createdAt).toLocaleDateString()}
+                              {new Date(booking.scheduledAt).toLocaleDateString()}
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap">
                               <span
@@ -543,9 +557,9 @@ const UserDashboard = () => {
                       }`}
                     >
                       <p className="text-gray-800">{note.message}</p>
-                      <p className="text-sm text-gray-500 mt-1">
-                        {new Date(note.createdAt).toLocaleString()}
-                      </p>
+                      {/* <p className="text-sm text-gray-500 mt-1">
+                        {new Date(bookings.scheduledAt).toLocaleString()}
+                      </p> */}
                     </li>
                   ))}
                 </ul>
@@ -562,6 +576,19 @@ const UserDashboard = () => {
           <div className="bg-white p-6 rounded-lg shadow-md w-96">
             <h3 className="text-xl font-semibold mb-4">Book Vehicle</h3>
             <form onSubmit={handleBookingSubmit}>
+              <div className="mb-4">
+                <label className="block mb-1 text-sm text-gray-700">Select Date & Time *</label>
+                <DatePicker
+                  selected={selectedDate}
+                  onChange={(date) => setSelectedDate(date)}
+                  showTimeSelect
+                  dateFormat="Pp" // fancy format like 4/9/2025, 3:30 PM
+                  className="w-full p-2 border rounded"
+                  minDate={new Date()}
+                  placeholderText="Pick a date and time"
+                  required
+                />
+              </div>
               <input
                 type="text"
                 placeholder="Enter Location"
@@ -577,13 +604,6 @@ const UserDashboard = () => {
               onChange={(e) => setReason(e.target.value)}
               className="w-full p-2 border rounded mb-4"
             />
-              {/* Google Maps Embed */}
-              <iframe
-                title="Google Map"
-                src={`https://www.google.com/maps/embed/v1/place?key=YOUR_GOOGLE_MAPS_API_KEY&q=${encodeURIComponent(location || 'Bhubaneswar, Odisha')}`}
-                className="w-full h-40 mb-4"
-                allowFullScreen
-              ></iframe>
               <button
                 type="submit"
                 className="bg-blue-500 hover:bg-blue-600 text-white py-2 px-4 rounded w-full"
