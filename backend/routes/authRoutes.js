@@ -21,7 +21,7 @@ router.get("/user", authMiddleware, async (req, res) => {
       const user = await User.findById(req.userId);
       if (!user) return res.status(404).json({ error: "User not found" });
   
-      res.json({ username: user.username });
+      res.json({ username: user.username, number: user.number });
     } catch (err) {
       console.error("Error fetching user:", err);
       res.status(500).json({ error: "Internal Server Error" });

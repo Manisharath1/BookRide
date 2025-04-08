@@ -6,6 +6,7 @@ import { Bell, Home } from "lucide-react";
 
 const UserDashboard = () => {
   const [username, setUsername] = useState("");
+  const [number, setNumber] = useState("");
   const [vehicles, setVehicles] = useState([]);
   const [location, setLocation] = useState("");
   const [reason, setReason] = useState("");
@@ -34,6 +35,7 @@ const UserDashboard = () => {
       })
       .then((response) => {
         setUsername(response.data.username);
+        setNumber(response.data.number);
       })
       .catch((error) => {
         console.error("Failed to fetch user data:", error);
@@ -137,9 +139,29 @@ const UserDashboard = () => {
     fetchNotifications();
   }, []);
 
+  useEffect(() => {
+    if (activeTab === "notifications") {
+      const token = localStorage.getItem("token");
+      axios.post("http://localhost:5000/api/notifications/mark-read", {}, {
+        headers: { Authorization: `Bearer ${token}` }
+      })
+      .then(() => {
+        // Optionally update local state
+        setNotifications(prev =>
+          prev.map(n => ({ ...n, read: true }))
+        );
+      })
+      .catch((err) => {
+        console.error("Failed to mark notifications as read:", err);
+      });
+    }
+  }, [activeTab]);
+  
+
   const unreadCount = Array.isArray(notifications)
   ? notifications.filter(n => !n.read).length
   : 0;
+  
   
   const subscribeUserToPush = async () => {
     if (!("serviceWorker" in navigator)) {
@@ -185,6 +207,23 @@ const UserDashboard = () => {
     } catch (err) {
       console.error(err);
       alert("Failed to complete ride");
+    }
+  };
+
+  const handleCancelBooking = async (bookingId) => {
+    try {
+      const token = localStorage.getItem("token");
+      await axios.post(
+        `http://localhost:5000/api/bookings/cancel`,
+        { bookingId: bookingId },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      alert("Ride cancelled successfully!");
+      fetchBookings();
+      fetchVehicles();
+    } catch (err) {
+      console.error(err);
+      alert("Failed to cancel ride");
     }
   };
 
@@ -444,6 +483,14 @@ const UserDashboard = () => {
                                   Complete
                                 </button>
                               )}
+                              {booking.status === "pending" &&(
+                                <button 
+                                  onClick={() => handleCancelBooking(booking._id)}
+                                  className="ml-8 bg-red-200 text-red-800 border-red-900 px-2 font-semibold rounded-md hover:bg-red-300"
+                                >
+                                  Cancel
+                                </button>
+                              )}
                             </td>
                           </tr>
                         ))}
@@ -464,6 +511,12 @@ const UserDashboard = () => {
                     Username
                   </label>
                   <p className="py-2 px-3 bg-gray-100 rounded">{username}</p>
+                </div>
+                <div className="mb-4">
+                  <label className="block text-gray-700 text-sm font-bold mb-2">
+                    Number
+                  </label>
+                  <p className="py-2 px-3 bg-gray-100 rounded">{number}</p>
                 </div>
                 {/* Add more profile information here */}
               </div>

@@ -340,8 +340,13 @@ const cancelBooking = async (req, res) => {
       vehicle.status = "available";
       await vehicle.save();
     }
-
     res.json({ message: "Booking cancelled successfully", booking });
+
+    await Notification.create({
+      userId: booking.userId,
+      message: `Your ride to ${booking.location} was cancelled by the manager.`
+    });
+    
   } catch (err) {
     console.error("Error canceling booking:", err);
     res.status(500).json({ error: err.message });

@@ -65,6 +65,7 @@ app.use("/api/bookings", bookingRoutes);
 app.use("/api/security", securityRoutes);
 app.use("/api/vehicles", vehicleRoutes);
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+app.use('/api/notifications', require('./routes/notification'));
 
 
 app.get("/", (req, res) => {
