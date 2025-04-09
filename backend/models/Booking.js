@@ -45,7 +45,7 @@ const bookingSchema = new mongoose.Schema({
   },
   status: { 
     type: String, 
-    enum: ["pending", "approved", "completed", "cancelled", "in", "out"], 
+    enum: ["pending", "approved", "completed", "cancelled", "merged"], 
     default: "pending",
     index: true // Add index for faster queries on status
   },
@@ -56,6 +56,26 @@ const bookingSchema = new mongoose.Schema({
   notes: { 
     type: String 
   },
+
+  mergedFrom: [
+    {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Booking",
+    },
+  ],
+
+  mergedInto: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Booking",
+    default: null,
+  },
+
+  mergedBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "User", // Assuming you have a User model
+    default: null,
+  },
+
   createdBy: { 
     type: mongoose.Schema.Types.ObjectId, ref: 'User', required: false 
   },

@@ -417,6 +417,40 @@ const reschedule = async (req, res) => {
   }
 };
 
+const mergeRide = async (req, res) => {
+
+  const { bookingIds, newDetails } = req.body;
+
+  try {
+    // Fetch the bookings being merged
+    const bookingsToMerge = await Booking.find({ _id: { $in: bookingIds } });
+
+    if (bookingsToMerge.length < 2) {
+      return res.status(400).json({ error: "Need at least two bookings to merge." });
+    }
+
+    // Create the merged booking (combine fields however your logic wants)
+    const mergedBooking = new Booking({
+      ...newDetails,
+      mergedFrom: bookingIds, // track original IDs
+    });
+
+    await mergedBooking.save();
+
+    // Optionally update or delete old bookings
+    await Booking.updateMany(
+      { _id: { $in: bookingIds } },
+      { $set: { status: "merged", mergedInto: mergedBooking._id } }
+    );
+
+    res.status(200).json({ mergedBooking });
+  } catch (err) {
+    console.error("Merge failed:", err);
+    res.status(500).json({ error: "Merge attempt crashed and burned." });
+  }
+
+};
+
 // ✅ Export the functions
 module.exports = {
   createBooking,
@@ -428,5 +462,6 @@ module.exports = {
   cancelBooking,
   getUserBookings,
   getNotifications,
-  reschedule
+  reschedule,
+  mergeRide
 };

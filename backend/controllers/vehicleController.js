@@ -176,10 +176,36 @@ const uploadVehicleImage = (req, res, next) => {
   });
 };
 
+const getDrivers = async (req, res) =>{
+  try {
+    const vehicles = await Vehicle.find({}, "driverName driverNumber");
+    
+    // Avoid sending duplicates
+    const seen = new Set();
+    const drivers = vehicles
+      .map((v) => ({
+        name: v.driverName,
+        number: v.driverNumber
+      }))
+      .filter((driver) => {
+        const id = `${driver.name}_${driver.number}`;
+        if (seen.has(id)) return false;
+        seen.add(id);
+        return true;
+      });
+
+    res.json(drivers);
+  } catch (err) {
+    console.error("Failed to fetch drivers:", err);
+    res.status(500).json({ error: "Something went terribly wrong. Probably your code." });
+  }
+};
+
 module.exports = {
   addVehicle,
   getVehicles,
   updateVehicle,
   deleteVehicle,
-  uploadVehicleImage
+  uploadVehicleImage,
+  getDrivers
 };

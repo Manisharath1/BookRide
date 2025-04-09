@@ -23,6 +23,7 @@ router.post("/cancel", authMiddleware, bookingController.cancelBooking);
 
 router.get("/notifications", authMiddleware, bookingController.getNotifications);
 router.put("/reschedule", authMiddleware, bookingController.reschedule);
+router.post("/merge", authMiddleware, bookingController.mergeRide);
 
 
 

@@ -8,5 +8,6 @@ router.post("/newVehicle", authMiddleware, vehicleController.uploadVehicleImage,
 router.get("/getVehicles", authMiddleware, vehicleController.getVehicles);
 router.put("/:id", authMiddleware, vehicleController.uploadVehicleImage, vehicleController.updateVehicle);
 router.delete("/:id", authMiddleware, vehicleController.deleteVehicle);
+router.get("/drivers", vehicleController.getDrivers);
 
 module.exports = router;

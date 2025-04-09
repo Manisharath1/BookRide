@@ -14,6 +14,7 @@ import {
   Car, 
   Home, 
   Calendar,
+  Merge,
 } from "lucide-react";
 import { toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
@@ -72,9 +73,12 @@ const PendingBookingItem = ({ booking, fetchBookings }) => {
     vehicleId: "",
     vehicleName: ""
   });
+  const [drivers, setDrivers] = useState([]);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [vehicles, setVehicles] = useState([]);
  
   
   useEffect(() => {
@@ -282,6 +286,40 @@ const PendingBookingItem = ({ booking, fetchBookings }) => {
     }
   };
 
+  useEffect(() => {
+    async function fetchDrivers() {
+      try {
+        const res = await fetch("http://localhost:5000/api/vehicles/drivers"); // change this to your actual endpoint
+        const data = await res.json();
+        setDrivers(data); // assuming data is an array of driver objects
+      } catch (error) {
+        console.error("Failed to fetch drivers:", error);
+      }
+    }
+    fetchDrivers();
+  },[]);
+
+  const fetchVehicles = async () => {
+    try {
+      setLoading(true);
+      const token = localStorage.getItem("token");
+      const response = await axios.get(
+        "http://localhost:5000/api/vehicles/getVehicles",
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      setVehicles(response.data);
+      setLoading(false);
+    } catch (error) {
+      console.error("Failed to fetch vehicles:", error);
+      setError("Failed to load vehicles. Please try again.");
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchVehicles();
+  }, []);
+
   return (
     <div className="bg-gray-50 p-4 rounded shadow-md mb-4 border border-gray-200">
       <div className="flex justify-between items-start mb-2">
@@ -312,14 +350,52 @@ const PendingBookingItem = ({ booking, fetchBookings }) => {
       
       <div className="space-y-2 mt-4 bg-white p-3 rounded border border-gray-200">
         <h4 className="text-sm font-medium mb-2">Driver Assignment</h4>
-        <Input
+        <select
+          name="vehicleName"
+          value={driverDetails.vehicleName}
+          onChange={(e) => {
+            const selected = vehicles.find(v => v.name === e.target.value);
+            setDriverDetails((prev) => ({
+              ...prev,
+              vehicleName: selected?.name || "",
+              driverName: selected?.driverName || "",
+              driverNumber: selected?.driverNumber || ""
+            }));
+          }}
+          disabled={isSubmitting || loading}
+          required
+          className="w-full border border-gray-300 rounded px-3 py-2"
+        >
+          <option value="">Select a vehicle</option>
+          {vehicles.map((vehicle) => (
+            <option key={vehicle.vehicleID} value={vehicle.name}>
+              {vehicle.name}
+            </option>
+          ))}
+        </select>
+        <select
           name="driverName"
-          placeholder="Driver Name *"
           value={driverDetails.driverName}
-          onChange={handleChange}
+          onChange={(e) => {
+            const selectedDriver = drivers.find(d => d.name === e.target.value);
+            setDriverDetails(prev => ({
+              ...prev,
+              driverName: selectedDriver?.name || "",
+              driverNumber: selectedDriver?.number || ""
+            }));
+          }}
           disabled={isSubmitting}
           required
-        />
+          className="w-full border border-gray-300 rounded px-3 py-2"
+        >
+          <option value="">Select a driver</option>
+          {Array.isArray(drivers) &&
+            drivers.map((driver, index) => (
+              <option key={index} value={driver.name}>
+                {driver.name}
+              </option>
+          ))}
+        </select>
         <Input
           name="driverNumber"
           placeholder="Driver Number *"
@@ -328,14 +404,7 @@ const PendingBookingItem = ({ booking, fetchBookings }) => {
           disabled={isSubmitting}
           required
         />
-        <Input
-          name="vehicleName"
-          placeholder="Vehicle Name *"
-          value={driverDetails.vehicleName}
-          onChange={handleChange}
-          disabled={isSubmitting}
-          required
-        />
+        
       </div>
       
       <div className="flex flex-wrap gap-2 mt-4">
@@ -718,6 +787,7 @@ const ManagerDashboard = () => {
     { name: "Home", path: "/manager", icon: <Home size={20} /> },
     { name: "Bookings", path: "/guest-booking", icon: <Calendar size={20} /> },
     { name: "Vehicles", path: "/get-vehicles", icon: <Car size={20} /> },
+    { name: "Merge Rides", path: "/merge-ride", icon: <Merge size={20} /> },
    
   ];
   

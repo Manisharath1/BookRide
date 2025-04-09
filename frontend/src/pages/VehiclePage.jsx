@@ -6,6 +6,7 @@ import {
   Car, 
   Home, 
   Calendar,
+  Merge,
  } from "lucide-react";
 import { Alert, AlertDescription } from '@/components/ui/alert';
 
@@ -284,6 +285,7 @@ const VehiclePage = () => {
     { name: "Home", path: "/manager", icon: <Home size={20} /> },
     { name: "Bookings", path: "/guest-booking", icon: <Calendar size={20} /> },
     { name: "Vehicles", path: "/get-vehicles", icon: <Car size={20} /> },
+    { name: "Merge Rides", path: "/merge-ride", icon: <Merge size={20} /> },
   ];
 
   const toggleSidebar = () => {
@@ -350,88 +352,89 @@ const VehiclePage = () => {
           </div>
         )}
         <div className="flex-1 p-6 overflow-y-auto">
-            {/* Success message */}
-            {updateMessage && (
-              <Alert className="mb-4 border-green-500 bg-green-50">
-                <AlertDescription className="text-green-700">{updateMessage}</AlertDescription>
-              </Alert>
-            )}
+          {/* Success message */}
+          {updateMessage && (
+            <Alert className="mb-4 border-green-500 bg-green-50">
+              <AlertDescription className="text-green-700">{updateMessage}</AlertDescription>
+            </Alert>
+          )}
             
-            {/* Render different content based on active tab */}
-            {activeTab === "vehicles" && (
-              <div>
-              {loading ? (
-                <p>Loading vehicles...</p>
-              ) : (
-                <div className="grid flex-1 grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {vehicles.map((vehicle) => (
-                    <div
-                      key={vehicle._id}
-                      className="bg-white border border-blue-300 rounded-lg p-4 shadow-md"
-                    >
-                      {/* Vehicle Image Header */}
-                      <div className="flex justify-between items-start mb-3">
-                        <h3 className="text-lg font-semibold">
-                          Vehicle - {vehicle.name}
-                        </h3>
-                        <div className="w-16 h-16 rounded-md overflow-hidden ml-2 flex-shrink-0">
-                          {vehicle.imagePath ? (
-                            <img 
-                              src={`http://localhost:5000${vehicle.imagePath}`}
-                              alt="Vehicle" 
-                              className="w-full h-full object-cover transform rotate-0 hover:scale-110 transition-transform duration-300"
-                              style={{
-                                filter: "drop-shadow(2px 3px 2px rgba(0, 0, 0, 0.3))"
-                              }}
-                            />
-                          ) : (
-                            <img 
-                              src="/api/placeholder/160/120" 
-                              alt="Vehicle" 
-                              className="w-full h-full object-cover transform rotate-0 hover:scale-110 transition-transform duration-300"
-                              style={{
-                                filter: "drop-shadow(2px 3px 2px rgba(0, 0, 0, 0.3))"
-                              }}
-                            />
-                          )}
-                        </div>
+          {/* Render different content based on active tab */}
+          {activeTab === "vehicles" && (
+            <div>
+            {loading ? (
+              <p>Loading vehicles...</p>
+            ) : (
+              <div className="grid flex-1 grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {vehicles.map((vehicle) => (
+                  <div
+                    key={vehicle._id}
+                    className="bg-white border border-blue-300 rounded-lg p-4 shadow-md"
+                  >
+                    {/* Vehicle Image Header */}
+                    <div className="flex justify-between items-start mb-3">
+                      <h3 className="text-lg font-semibold">
+                        Vehicle - {vehicle.name}
+                      </h3>
+                      <div className="w-16 h-16 rounded-md overflow-hidden ml-2 flex-shrink-0">
+                        {vehicle.imagePath ? (
+                          <img 
+                            src={`http://localhost:5000${vehicle.imagePath}`}
+                            alt="Vehicle" 
+                            className="w-full h-full object-cover transform rotate-0 hover:scale-110 transition-transform duration-300"
+                            style={{
+                              filter: "drop-shadow(2px 3px 2px rgba(0, 0, 0, 0.3))"
+                            }}
+                          />
+                        ) : (
+                          <img 
+                            src="/api/placeholder/160/120" 
+                            alt="Vehicle" 
+                            className="w-full h-full object-cover transform rotate-0 hover:scale-110 transition-transform duration-300"
+                            style={{
+                              filter: "drop-shadow(2px 3px 2px rgba(0, 0, 0, 0.3))"
+                            }}
+                          />
+                        )}
                       </div>
-                      
-                      <p className="text-gray-600">Vehicle No. - {vehicle.number}</p>
-                      <p className="text-gray-600">Driver Name - {vehicle.driverName}</p>
-                      <p className="text-gray-600">Driver Number - {vehicle.driverNumber}</p>
-                      <p
-                        className={`text-sm font-semibold mt-2 ${
-                          vehicle.status === "available"
-                            ? "text-green-600"
-                            : vehicle.status === "assigned"
-                            ? "text-yellow-600"
-                            : "text-red-600"
-                        }`}
-                      >
-                        Status: {vehicle.status}
-                      </p>
-                      <button
-                        onClick={() => handleOpenModal(vehicle)}
-                        className="mt-4 bg-blue-500 hover:bg-blue-600 text-white py-1 px-3 rounded"
-                      >
-                        Update
-                      </button>
                     </div>
-                  ))}
-                  {error && (
-                    <Alert variant="destructive" className="mt-4 border-red-500 bg-red-50">
-                      <AlertDescription className="text-red-700">{error}</AlertDescription>
-                    </Alert>
-                  )}
-                </div>
-              )}
-            </div>
+                    
+                    <p className="text-gray-600">Vehicle No. - {vehicle.number}</p>
+                    <p className="text-gray-600">Driver Name - {vehicle.driverName}</p>
+                    <p className="text-gray-600">Driver Number - {vehicle.driverNumber}</p>
+                    <p
+                      className={`text-sm font-semibold mt-2 ${
+                        vehicle.status === "available"
+                          ? "text-green-600"
+                          : vehicle.status === "assigned"
+                          ? "text-yellow-600"
+                          : "text-red-600"
+                      }`}
+                    >
+                      Status: {vehicle.status}
+                    </p>
+                    <button
+                      onClick={() => handleOpenModal(vehicle)}
+                      className="mt-4 bg-blue-500 hover:bg-blue-600 text-white py-1 px-3 rounded"
+                    >
+                      Update
+                    </button>
+                  </div>
+                ))}
+                {error && (
+                  <Alert variant="destructive" className="mt-4 border-red-500 bg-red-50">
+                    <AlertDescription className="text-red-700">{error}</AlertDescription>
+                  </Alert>
+                )}
+              </div>
             )}
           </div>
-          <Car className="fixed bottom-4 right-4 p-3 bg-blue-500 text-white rounded-full shadow-lg" size={60}
+          )}
+        </div>
+        
+        <Car className="fixed bottom-4 right-4 p-3 bg-blue-500 text-white rounded-full shadow-lg" size={60}
           onClick={() => setShowAddModal(true)} />
-
+          
           {/* Add Vehicle Modal */}
           {showAddModal && (
               <div className="overflow-y-auto fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
@@ -562,7 +565,7 @@ const VehiclePage = () => {
                 </div>
               </div>
             )}
-        </div>
+      </div>
 
       {/* Update Vehicle Modal */}
       {showModal && (
