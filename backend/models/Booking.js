@@ -63,6 +63,10 @@ const bookingSchema = new mongoose.Schema({
       ref: "Booking",
     },
   ],
+  isSharedRide: {
+    type: Boolean,
+    default: false,
+  },
 
   mergedInto: {
     type: mongoose.Schema.Types.ObjectId,
@@ -70,11 +74,11 @@ const bookingSchema = new mongoose.Schema({
     default: null,
   },
 
-  mergedBy: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: "User", // Assuming you have a User model
-    default: null,
-  },
+  // mergedBy: {
+  //   type: mongoose.Schema.Types.ObjectId,
+  //   ref: "User", // Assuming you have a User model
+  //   default: null,
+  // },
 
   createdBy: { 
     type: mongoose.Schema.Types.ObjectId, ref: 'User', required: false 
@@ -101,6 +105,16 @@ const bookingSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId, 
     ref: "Vehicle" 
   },
+
+  passengers: [
+    {
+      username: String,
+      number: String,
+      location: String,
+      reason: String,
+      bookingTime: Date
+    }
+  ],
 
   // Timestamps
   approvedAt: Date,

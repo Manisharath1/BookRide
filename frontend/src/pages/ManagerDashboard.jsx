@@ -19,6 +19,7 @@ import {
 import { toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import DatePicker from "react-datepicker";
+import Modal from "./Modal";
 
 
 // Enhanced API hook with better error handling and caching
@@ -79,6 +80,11 @@ const PendingBookingItem = ({ booking, fetchBookings }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [loading, setLoading] = useState(true);
   const [vehicles, setVehicles] = useState([]);
+
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [availableBookings, setAvailableBookings] = useState([]);
+  const [selectedBookings, setSelectedBookings] = useState([]);
+  const [primaryBookingId, setPrimaryBookingId] = useState(null);
  
   
   useEffect(() => {
@@ -316,6 +322,113 @@ const PendingBookingItem = ({ booking, fetchBookings }) => {
     }
   };
 
+  const handleMerge = async () => {
+    setIsSubmitting(true);
+    try {
+      const token = localStorage.getItem("token");
+      
+      if (!token) {
+        console.error("No token found");
+        navigate("/");
+        return;
+      }
+      
+      const response = await axios.get(
+        "http://localhost:5000/api/bookings/all",
+        {
+          headers: { Authorization: `Bearer ${token}` }
+        }
+      );
+      
+      if (response.data) {
+
+        const eligibleBookings = response.data.filter(b => 
+          b.status === 'pending' || b.status === 'approved'
+        );
+        
+        // Pre-select the current booking
+        setSelectedBookings([booking._id]);
+        setPrimaryBookingId(booking._id);
+        setAvailableBookings(eligibleBookings);
+        setIsModalOpen(true);
+      }
+    } catch (err) {
+      console.error("Error fetching bookings for merge:", err);
+      toast.error("Failed to load bookings for merging");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const submitMerge = async () => {
+    if (selectedBookings.length < 2) {
+      toast.error('Please select at least two bookings to merge');
+      return;
+    }
+  
+    if (!primaryBookingId) {
+      toast.error('Please select a primary booking');
+      return;
+    }
+  
+    setIsSubmitting(true);
+    try {
+      const token = localStorage.getItem("token");
+      
+      const response = await axios.post(
+        "http://localhost:5000/api/bookings/merge",
+        {
+          bookingIds: selectedBookings,
+          primaryBookingId,
+          newDetails: { isSharedRide: true }
+        },
+        {
+          headers: { 
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+      
+      toast.success(response.data.message || "Bookings successfully merged into a shared ride");
+      setIsModalOpen(false);
+      setSelectedBookings([]);
+      setPrimaryBookingId(null);
+      
+      // Refresh the bookings list
+      setTimeout(() => {
+        fetchBookings();
+      }, 500);
+    } catch (err) {
+      console.error("Merge error:", err.response || err);
+      toast.error(err.response?.data?.error || "Failed to merge bookings");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const toggleBookingSelection = (bookingId) => {
+    if (selectedBookings.includes(bookingId)) {
+      setSelectedBookings(selectedBookings.filter(id => id !== bookingId));
+      if (primaryBookingId === bookingId) {
+        setPrimaryBookingId(null);
+      }
+    } else {
+      setSelectedBookings([...selectedBookings, bookingId]);
+    }
+  };
+  
+  const setPrimary = (bookingId) => {
+    setPrimaryBookingId(bookingId);
+  };
+  
+  const closeModal = () => {
+    setIsModalOpen(false);
+    setSelectedBookings([]);
+    setPrimaryBookingId(null);
+  };
+
+
   useEffect(() => {
     fetchVehicles();
   }, []);
@@ -423,6 +536,14 @@ const PendingBookingItem = ({ booking, fetchBookings }) => {
         >
           Cancel Booking
         </Button>
+        <Button
+          onClick={handleMerge}
+          variant="outline" 
+          className="flex-1 sm:flex-none border-green-300 text-green-600 hover:bg-green-50"
+          disabled={isSubmitting}
+        >
+          Merge Booking
+        </Button>
       </div>
 
       {error && (
@@ -436,6 +557,91 @@ const PendingBookingItem = ({ booking, fetchBookings }) => {
           <AlertDescription>{message}</AlertDescription>
         </Alert>
       )}
+
+      {/* At the end of your JSX, just before the final closing div */}
+      <Modal 
+        isOpen={isModalOpen} 
+        onClose={closeModal}
+        title="Merge Bookings"
+      >
+        <div className="p-4">
+          <h2 className="text-lg font-semibold mb-4">Select bookings to merge into a shared ride</h2>
+          
+          {availableBookings.length === 0 ? (
+            <p className="text-gray-500">No eligible bookings found for merging.</p>
+          ) : (
+            <div className="space-y-4 max-h-96 overflow-y-auto">
+              {availableBookings.map(booking => (
+                <div 
+                  key={booking._id} 
+                  className={`p-3 border rounded-md ${
+                    selectedBookings.includes(booking._id) 
+                      ? 'border-blue-500 bg-blue-50' 
+                      : 'border-gray-200'
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center">
+                      <input
+                        type="checkbox"
+                        id={`booking-${booking._id}`}
+                        checked={selectedBookings.includes(booking._id)}
+                        onChange={() => toggleBookingSelection(booking._id)}
+                        className="mr-3"
+                      />
+                      <label htmlFor={`booking-${booking._id}`} className="flex-1">
+                        <span className="font-medium">{booking.userId?.username || "Unknown"}</span>
+                        <div className="text-sm text-gray-600">
+                          Location: {booking.location}
+                        </div>
+                        <div className="text-xs text-gray-500">
+                          {new Date(booking.scheduledAt).toLocaleString()} • 
+                          Status: <span className="capitalize">{booking.status}</span>
+                        </div>
+                      </label>
+                    </div>
+                    
+                    {selectedBookings.includes(booking._id) && (
+                      <div>
+                        <input
+                          type="radio"
+                          id={`primary-${booking._id}`}
+                          name="primaryBooking"
+                          checked={primaryBookingId === booking._id}
+                          onChange={() => setPrimary(booking._id)}
+                          className="mr-1"
+                        />
+                        <label htmlFor={`primary-${booking._id}`} className="text-sm">
+                          Primary
+                        </label>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+          
+          <div className="flex justify-between mt-6">
+            <Button
+              onClick={closeModal}
+              variant="outline"
+              className="border border-gray-300"
+              disabled={isSubmitting}
+            >
+              Cancel
+            </Button>
+            
+            <Button
+              onClick={submitMerge}
+              className="bg-green-600 text-white hover:bg-green-700 disabled:bg-gray-300"
+              disabled={selectedBookings.length < 2 || !primaryBookingId || isSubmitting}
+            >
+              {isSubmitting ? 'Processing...' : 'Create Shared Ride'}
+            </Button>
+          </div>
+        </div>
+      </Modal>
       
     </div>
   );
@@ -458,6 +664,10 @@ const BookingHistoryItem = ({ booking, onCompleteBooking,  }) => {
         return <Badge className="bg-red-100 text-red-800 hover:bg-white hover:text-red-800" >Cancelled</Badge>;
       case 'completed':
         return <Badge className="bg-blue-100 text-blue-800 hover:bg-white hover:text-blue-800">Completed</Badge>;
+      case 'pending':
+        return <Badge className="bg-yellow-100 text-yellow-800 hover:bg-white hover:text-yellow-800">Pending</Badge>;
+      case 'merged':
+        return <Badge className="bg-fuchsia-100 text-fuchsia-800 hover:bg-white hover:text-fuchsia-800">Shared</Badge>;
       default:
         return <Badge className="bg-gray-100 text-gray-800">{typeof status === 'string' ? status : 'Unknown'}</Badge>;
     }
@@ -533,7 +743,7 @@ const BookingHistoryItem = ({ booking, onCompleteBooking,  }) => {
       <div className="flex justify-between items-start">
         <div>
           <p className="font-semibold text-lg">Name: {booking.userId?.username || "Unknown"}</p>
-          <p className="font-medium">{booking.location}</p>
+          <p className="font-medium">Location: {booking.location}</p>
           <p className="font-semibold text-lg">Reason: {booking.reason}</p>
           <p className="text-sm text-gray-600">
             {booking.scheduledAt && `Booked: ${formatDate(booking.scheduledAt)}`}
@@ -544,7 +754,7 @@ const BookingHistoryItem = ({ booking, onCompleteBooking,  }) => {
         <div className="flex flex-col gap-2 items-end">
           {getStatusBadge(typeof booking.status === 'object' ? 'unknown' : booking.status)}
 
-          {booking.status === 'approved' && (
+          {booking.status === 'approved' || booking.status === 'merged'(
             <Button 
               onClick={handleComplete}
               disabled={isCompleting}
@@ -558,9 +768,12 @@ const BookingHistoryItem = ({ booking, onCompleteBooking,  }) => {
 
       
       <div className="mt-2 text-sm">
-        {booking.guestName && <p><span className="font-medium">Guest:</span> {booking.guestName}</p>}
-        {booking.guestPhone && <p><span className="font-medium">Phone:</span> {booking.guestPhone}</p>}
-        
+      
+      {booking.guestName && <p><span className="font-medium">Guest:</span> {booking.guestName}</p>}
+      {booking.guestPhone && <p><span className="font-medium">Phone:</span> {booking.guestPhone}</p>}
+  
+  
+          
         {/* Check if driver information is an object or string and handle accordingly */}
         {booking.driverName && (
           <div className="mt-2 pt-2 border-t border-gray-200">
@@ -600,7 +813,7 @@ const BookingHistoryItem = ({ booking, onCompleteBooking,  }) => {
 
 // Main Dashboard Component
 const ManagerDashboard = () => {
-  const [bookings, setBookings] = useState({ pending: [], approved: [], cancelled: [], all: [] });
+  const [bookings, setBookings] = useState({ pending: [], approved: [], cancelled: [],merged: [], all: [] });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
@@ -619,7 +832,7 @@ const ManagerDashboard = () => {
 
     if (!token) {
       console.error("No token found");
-      navigate("/"); // Redirect to login if no token
+      navigate("/"); 
       return;
     }
 
@@ -646,21 +859,26 @@ const ManagerDashboard = () => {
         apiCall("get", "/bookings/all")
       ]);
       
-      // Organize bookings by status
+    
       const approved = allBookings.filter(b => b.status === 'approved');
       const cancelled = allBookings.filter(b => b.status === 'cancelled');
       const completed = allBookings.filter(b => b.status === 'completed');
+      const merged = allBookings.filter(
+        b => b.status === 'merged' && b.isSharedRide
+      );
+      
       
       setBookings({ 
         pending: pendingBookings, 
-        approved, 
+        approved:approved.filter(b => !b.mergedFrom?.length), 
         cancelled,
         completed,
+        merged,
         all: allBookings 
       });
       setError("");
     }  catch (error) {
-      // Navigate to home page instead of setting error
+     
       navigate("/");
     } finally {
       setLoading(false);
@@ -668,7 +886,7 @@ const ManagerDashboard = () => {
   }, [apiCall, navigate]);
 
   useEffect(() => {
-    // Check authentication before fetching
+   
     if (!localStorage.getItem("token")) {
       navigate("/");
       return;
@@ -676,7 +894,7 @@ const ManagerDashboard = () => {
     
     fetchBookings();
     
-    // Set up polling for fresh data
+    
     const interval = setInterval(() => {
       fetchBookings();
     }, 60000); // Refresh every minute
@@ -691,9 +909,9 @@ const ManagerDashboard = () => {
         ...driverDetails
       });
       
-      // Add success message
+     
       setSuccessMessage("Booking has been successfully approved!");
-      // Display alert to ensure visibility
+   
       window.alert("Booking has been successfully approved!");
       
       await fetchBookings();
@@ -706,40 +924,40 @@ const ManagerDashboard = () => {
     try {
       // console.log("Completing booking:", bookingId);
       
-      // Show global success message in dashboard
+     
       setSuccessMessage("Booking completed successfully!");
       
-      // Find the booking to update
+    
       const bookingToComplete = bookings.approved.find(b => b._id === bookingId);
       
       if (bookingToComplete) {
         // console.log("Found booking to complete:", bookingToComplete);
         
-        // Remove from approved list
+        
         const updatedApproved = bookings.approved.filter(b => b._id !== bookingId);
         
-        // Add to completed list with updated status
+       
         const updatedBooking = {...bookingToComplete, status: 'completed'};
         
-        // Update both lists
+        
         setBookings(prev => ({
           ...prev,
           approved: updatedApproved,
           completed: [...prev.completed, updatedBooking]
         }));
         
-        // Fetch all bookings again to ensure data consistency after a longer delay
+        
         setTimeout(() => {
           fetchBookings();
         }, 2000);
         
-        // Clear success message after delay (longer than the refresh)
+        
         setTimeout(() => {
           setSuccessMessage("");
         }, 5000);
       } else {
         console.log("Could not find booking with ID:", bookingId);
-        // Refresh bookings anyway to ensure we have latest data
+       
         fetchBookings();
       }
     } catch (err) {
@@ -920,29 +1138,21 @@ const ManagerDashboard = () => {
         {/* Bookings Management */}
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle>Bookings Management</CardTitle>
-            
-            {/* Search and filter */}
-            {/* <div className="mt-2 relative">
-              <Search className="absolute left-2 top-2.5 h-4 w-4 text-gray-500" />
-              <Input 
-                placeholder="Search bookings..." 
-                className="pl-8"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
-            </div> */}
+            <CardTitle>Bookings Management</CardTitle> 
           </CardHeader>
           <CardContent>
             <Tabs defaultValue="pending" value={activeTab} onValueChange={setActiveTab}>
               {/* Responsive, scrollable tab list */}
               <div className="overflow-x-auto">
-                <TabsList className="grid grid-cols-4 sm:flex-nowrap gap-2 mb-4 min-w-max">
+                <TabsList className="grid grid-cols-5 sm:flex-nowrap gap-2 mb-2 min-w-max">
                   <TabsTrigger value="pending" className="px-4 py-2 text-sm whitespace-nowrap">
                     Pending ({bookings.pending?.length || 0})
                   </TabsTrigger>
                   <TabsTrigger value="approved" className="px-4 py-2 text-sm whitespace-nowrap">
                     Approved ({bookings.approved?.length || 0})
+                  </TabsTrigger>
+                  <TabsTrigger value="merged" className="px-4 py-2 text-sm whitespace-nowrap">
+                    Merged ({bookings.merged?.length || 0})
                   </TabsTrigger>
                   <TabsTrigger value="completed" className="px-4 py-2 text-sm whitespace-nowrap">
                     Completed ({bookings.completed?.length || 0})
@@ -953,84 +1163,104 @@ const ManagerDashboard = () => {
                 </TabsList>
               </div>
 
-              {/* Tab content styles are now consistent and scrollable */}
-              <TabsContent value="pending" className="mt-0">
-                {loading ? (
-                  <p className="text-center py-4">Loading bookings...</p>
-                ) : filterBookings(bookings.pending).length === 0 ? (
-                  <p className="text-center text-gray-500 py-8">No pending bookings available.</p>
-                ) : (
-                  <div className="max-h-[60vh] overflow-y-auto pr-1">
-                    {filterBookings(bookings.pending).map((booking) => (
-                      <PendingBookingItem
-                        key={booking._id}
-                        booking={booking}
-                        onApprove={handleApprove}
-                        fetchBookings={fetchBookings}
-                      />
-                    ))}
-                  </div>
-                )}
-              </TabsContent>
 
-              <TabsContent value="approved" className="mt-0">
-                {loading ? (
-                  <p className="text-center py-4">Loading bookings...</p>
-                ) : filterBookings(bookings.approved).length === 0 ? (
-                  <p className="text-center text-gray-500 py-8">No approved bookings found.</p>
-                ) : (
-                  <div className="max-h-[60vh] overflow-y-auto pr-1">
-                    {filterBookings(bookings.approved).map((booking) => (
-                      <BookingHistoryItem
-                        key={booking._id}
-                        booking={booking}
-                        onCompleteBooking={handleCompleteBooking}
-                      />
-                    ))}
-                  </div>
-                )}
-              </TabsContent>
+              <div>
+                {/* Tab content styles are now consistent and scrollable */}
+                <TabsContent value="pending" className="mt-0">
+                  {loading ? (
+                    <p className="text-center py-4">Loading bookings...</p>
+                  ) : filterBookings(bookings.pending).length === 0 ? (
+                    <p className="text-center text-gray-500 py-8">No pending bookings available.</p>
+                  ) : (
+                    <div className="max-h-[60vh] overflow-y-auto pr-1">
+                      {filterBookings(bookings.pending).map((booking) => (
+                        <PendingBookingItem
+                          key={booking._id}
+                          booking={booking}
+                          onApprove={handleApprove}
+                          fetchBookings={fetchBookings}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </TabsContent>
 
-              <TabsContent value="completed" className="mt-0">
-                {loading ? (
-                  <p className="text-center py-4">Loading bookings...</p>
-                ) : filterBookings(bookings.completed).length === 0 ? (
-                  <p className="text-center text-gray-500 py-8">No completed bookings found.</p>
-                ) : (
-                  <div className="max-h-[60vh] overflow-y-auto pr-1">
-                    {filterBookings(bookings.completed).map((booking) => (
-                      <BookingHistoryItem
-                        key={booking._id}
-                        booking={booking}
-                        onCompleteBooking={handleCompleteBooking}
-                      />
-                    ))}
-                  </div>
-                )}
-                {successMessage && (
-                  <Alert className="mt-2 mb-2 bg-green-100 border-green-500 text-green-800">
-                    <AlertDescription>{successMessage}</AlertDescription>
-                  </Alert>
-                )}
-              </TabsContent>
+                <TabsContent value="approved" className="mt-0">
+                  {loading ? (
+                    <p className="text-center py-4">Loading bookings...</p>
+                  ) : filterBookings(bookings.approved).length === 0 ? (
+                    <p className="text-center text-gray-500 py-8">No approved bookings found.</p>
+                  ) : (
+                    <div className="max-h-[60vh] overflow-y-auto pr-1">
+                      {filterBookings(bookings.approved).map((booking) => (
+                        <BookingHistoryItem
+                          key={booking._id}
+                          booking={booking}
+                          onCompleteBooking={handleCompleteBooking}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </TabsContent>
 
-              <TabsContent value="all" className="mt-0">
-                {loading ? (
-                  <p className="text-center py-4">Loading bookings...</p>
-                ) : filterBookings(bookings.all).length === 0 ? (
-                  <p className="text-center text-gray-500 py-8">No bookings found.</p>
-                ) : (
-                  <div className="max-h-[60vh] overflow-y-auto pr-1">
-                    {filterBookings(bookings.all).map((booking) => (
-                      <BookingHistoryItem
-                        key={booking._id}
-                        booking={booking}
-                        onCompleteBooking={handleCompleteBooking}
-                      />
-                    ))}
-                  </div>
-                )}
-              </TabsContent>
+                <TabsContent value="merged" className="mt-0">
+                  {loading ? (
+                    <p className="text-center py-4">Loading bookings...</p>
+                  ) : filterBookings(bookings.merged).length === 0 ? (
+                    <p className="text-center text-gray-500 py-8">No merged bookings found.</p>
+                  ) : (
+                    <div className="max-h-[60vh] overflow-y-auto pr-1">
+                      {filterBookings(bookings.merged).map((booking) => (
+                        <MergedBookingCard
+                          key={booking._id}
+                          booking={booking}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </TabsContent>
+
+                <TabsContent value="completed" className="mt-0">
+                  {loading ? (
+                    <p className="text-center py-4">Loading bookings...</p>
+                  ) : filterBookings(bookings.completed).length === 0 ? (
+                    <p className="text-center text-gray-500 py-8">No completed bookings found.</p>
+                  ) : (
+                    <div className="max-h-[60vh] overflow-y-auto pr-1">
+                      {filterBookings(bookings.completed).map((booking) => (
+                        <BookingHistoryItem
+                          key={booking._id}
+                          booking={booking}
+                          onCompleteBooking={handleCompleteBooking}
+                        />
+                      ))}
+                    </div>
+                  )}
+                  {successMessage && (
+                    <Alert className="mt-2 mb-2 bg-green-100 border-green-500 text-green-800">
+                      <AlertDescription>{successMessage}</AlertDescription>
+                    </Alert>
+                  )}
+                </TabsContent>
+
+                <TabsContent value="all" className="mt-0">
+                  {loading ? (
+                    <p className="text-center py-4">Loading bookings...</p>
+                  ) : filterBookings(bookings.all).length === 0 ? (
+                    <p className="text-center text-gray-500 py-8">No bookings found.</p>
+                  ) : (
+                    <div className="max-h-[60vh] overflow-y-auto pr-1">
+                      {filterBookings(bookings.all).map((booking) => (
+                        <BookingHistoryItem
+                          key={booking._id}
+                          booking={booking}
+                          onCompleteBooking={handleCompleteBooking}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </TabsContent>
+              </div>
             </Tabs>
           </CardContent>
 
@@ -1038,6 +1268,62 @@ const ManagerDashboard = () => {
       </div>
     </div>
   </div>
+  );
+};
+
+const MergedBookingCard = ({ booking }) => {
+  const formatDate = (dateStr) => {
+    if (!dateStr) return "N/A";
+    return new Date(dateStr).toLocaleString();
+  };
+
+  return (
+    <div className="bg-white p-4 rounded shadow-sm mb-4 border border-gray-200">
+      <div className="flex justify-between items-start mb-2">
+        <div>
+          <h3 className="text-lg font-bold text-purple-700">🚗 Shared Ride</h3>
+          <p><strong>Location:</strong> {booking.location || "Unknown"}</p>
+          <p><strong>Vehicle:</strong> {booking.vehicleName || "Unknown"}</p>
+          <p><strong>Driver Name:</strong> {booking.driverName || "Unknown"}</p>
+          <p><strong>Driver Number:</strong> {booking.driverNumber || "Unknown"}</p>
+          <p><strong>Booking Time:</strong> {formatDate(booking.scheduledAt)}</p>
+        </div>
+
+        <Badge className="bg-fuchsia-100 text-fuchsia-800 hover:bg-white hover:text-fuchsia-800">
+          Shared
+        </Badge>
+      </div>
+
+      <div className="mt-4">
+        <p className="font-semibold mb-2 text-gray-700">Passengers:</p>
+        {booking.passengers?.length > 0 ? (
+          <div className="space-y-4">
+            {booking.passengers.map((passenger, idx) => (
+              <div key={idx} className="bg-gray-50 p-3 border-l-4 border-blue-300 rounded">
+                <p><strong>Name:</strong> 
+                  {passenger.username 
+                    ? passenger.username 
+                    : passenger.guestName 
+                      ? passenger.guestName 
+                      : "Unknown"}
+                </p>
+                <p><strong>Phone:</strong> 
+                  {passenger.number 
+                    ? passenger.number 
+                    : passenger.guestPhone 
+                      ? passenger.guestPhone 
+                      : "N/A"}
+                </p>
+                <p><strong>Location:</strong> {passenger.location || "N/A"}</p>
+                <p><strong>Reason:</strong> {passenger.reason || "N/A"}</p>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="text-gray-500">No passenger information available.</p>
+        )}
+      </div>
+    </div>
   );
 };
 

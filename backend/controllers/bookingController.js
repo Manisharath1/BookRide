@@ -281,38 +281,38 @@ const getAllBookings = async (req, res) => {
 };
 
 //complete booking 
-  const completeBooking = async (req, res) => {
-    const { bookingId } = req.body;
+const completeBooking = async (req, res) => {
+  const { bookingId } = req.body;
 
-    if (!mongoose.Types.ObjectId.isValid(bookingId)) {
-      return res.status(400).json({ error: "Invalid booking ID format" });
+  if (!mongoose.Types.ObjectId.isValid(bookingId)) {
+    return res.status(400).json({ error: "Invalid booking ID format" });
+  }
+
+  try {
+    const booking = await Booking.findById(bookingId);
+    if (!booking) return res.status(404).json({ error: "Booking not found" });
+
+    if (booking.status !== "approved" && booking.status !== "merged") {
+      return res.status(400).json({ error: "Only approved bookings can be marked as completed" });
     }
 
-    try {
-      const booking = await Booking.findById(bookingId);
-      if (!booking) return res.status(404).json({ error: "Booking not found" });
+    booking.status = "completed";
+    booking.completedAt = new Date();
+    await booking.save();
 
-      if (booking.status !== "approved") {
-        return res.status(400).json({ error: "Only approved bookings can be marked as completed" });
-      }
-
-      booking.status = "completed";
-      booking.completedAt = new Date();
-      await booking.save();
-
-      // Free up the vehicle
-      const vehicle = await Vehicle.findById(booking.vehicleId);
-      if (vehicle) {
-        vehicle.status = "available";
-        await vehicle.save();
-      }
-      const populatedBooking = await Booking.findById(bookingId).populate("userId", "username");
-      res.json({ message: "Booking marked as completed successfully", booking: populatedBooking });
-    } catch (err) {
-      console.error("Error completing booking:", err);
-      res.status(500).json({ error: err.message });
+    // Free up the vehicle
+    const vehicle = await Vehicle.findById(booking.vehicleId);
+    if (vehicle) {
+      vehicle.status = "available";
+      await vehicle.save();
     }
-  };
+    const populatedBooking = await Booking.findById(bookingId).populate("userId", "username");
+    res.json({ message: "Booking marked as completed successfully", booking: populatedBooking });
+  } catch (err) {
+    console.error("Error completing booking:", err);
+    res.status(500).json({ error: err.message });
+  }
+};
 
 //cancel booking
 const cancelBooking = async (req, res) => {
@@ -418,38 +418,112 @@ const reschedule = async (req, res) => {
 };
 
 const mergeRide = async (req, res) => {
-
-  const { bookingIds, newDetails } = req.body;
-
+  const { bookingIds, primaryBookingId, newDetails = {} } = req.body;
+  
   try {
-    // Fetch the bookings being merged
-    const bookingsToMerge = await Booking.find({ _id: { $in: bookingIds } });
-
+    // Fetch the bookings being merged with user data
+    const bookingsToMerge = await Booking.find({ _id: { $in: bookingIds } })
+      .populate("userId");
+    
     if (bookingsToMerge.length < 2) {
       return res.status(400).json({ error: "Need at least two bookings to merge." });
     }
-
-    // Create the merged booking (combine fields however your logic wants)
+    
+    // Find the primary booking (whose vehicle and user we keep)
+    const primaryBooking = bookingsToMerge.find(booking => 
+      booking._id.toString() === primaryBookingId
+    );
+    
+    if (!primaryBooking) {
+      return res.status(400).json({ error: "Primary booking ID not found in bookings to merge." });
+    }
+    
+    // Get earliest booking time from all bookings
+    const earliestTime = bookingsToMerge.reduce((earliest, current) => {
+      return new Date(current.scheduledAt) < new Date(earliest) 
+        ? current.scheduledAt 
+        : earliest;
+    }, primaryBooking.scheduledAt);
+    
+    // Create passengers array with info from all merged bookings
+    const passengers = bookingsToMerge.map(booking => ({
+      username: booking.userId ? booking.userId.username : "Unknown",
+      number: booking.userId ? booking.userId.number : "N/A",
+      location: booking.location || "N/A",
+      reason: booking.reason || "N/A",
+      bookingTime: booking.scheduledAt
+    }));
+    
+    // Construct the merged booking
     const mergedBooking = new Booking({
+      userId: primaryBooking.userId,
+      location: primaryBooking.location,
+      vehicleId: primaryBooking.vehicleId,
+      vehicleName: primaryBooking.vehicleName,
+      driverName:primaryBooking.driverName,
+      driverNumber: primaryBooking.driverNumber,
+      status: "merged",
+      isSharedRide: true,
+      mergedFrom: bookingIds,
+      passengers,
       ...newDetails,
-      mergedFrom: bookingIds, // track original IDs
+      scheduledAt: newDetails.scheduledAt || earliestTime, // Override with any new details if provided
     });
-
+    // console.log("mergedBooking.scheduledAt:", mergedBooking.scheduledAt);
     await mergedBooking.save();
-
-    // Optionally update or delete old bookings
+    
+    // Mark primary vehicle as assigned
+    if (primaryBooking.vehicleId) {
+      await Vehicle.findByIdAndUpdate(primaryBooking.vehicleId, { status: 'assigned' });
+    }
+    
+    // Release vehicles from other bookings
+    const secondaryBookings = bookingsToMerge.filter(
+      booking => booking._id.toString() !== primaryBookingId
+    );
+    
+    for (const booking of secondaryBookings) {
+      if (booking.vehicleId) {
+        await Vehicle.findByIdAndUpdate(booking.vehicleId, { status: 'available' });
+      }
+    }
+    
+    // Update all original bookings as merged into this one
     await Booking.updateMany(
       { _id: { $in: bookingIds } },
-      { $set: { status: "merged", mergedInto: mergedBooking._id } }
+      {
+        $set: {
+          status: "merged",
+          mergedInto: mergedBooking._id
+        }
+      }
     );
-
-    res.status(200).json({ mergedBooking });
+    
+    // Fetch the complete merged booking with populated data to return
+    const completeMergedBooking = await Booking.findById(mergedBooking._id)
+      .populate("userId");
+    
+    res.status(200).json({
+      message: "Bookings successfully merged into a shared ride",
+      mergedBooking: {
+        _id: completeMergedBooking._id,
+        status: completeMergedBooking.status,
+        vehicleId: completeMergedBooking.vehicleId,
+        vehicleName: completeMergedBooking.vehicleName,
+        scheduledAt: completeMergedBooking.scheduledAt,
+        mergedFrom: completeMergedBooking.mergedFrom,
+        passengers: completeMergedBooking.passengers,
+        driverName:completeMergedBooking.driverName,
+        driverNumber:completeMergedBooking.driverNumber
+      }
+    });
+    
   } catch (err) {
     console.error("Merge failed:", err);
-    res.status(500).json({ error: "Merge attempt crashed and burned." });
+    res.status(500).json({ error: "Failed to merge bookings.", details: err.message });
   }
-
 };
+
 
 // ✅ Export the functions
 module.exports = {
