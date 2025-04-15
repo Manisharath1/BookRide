@@ -754,7 +754,7 @@ const BookingHistoryItem = ({ booking, onCompleteBooking,  }) => {
         <div className="flex flex-col gap-2 items-end">
           {getStatusBadge(typeof booking.status === 'object' ? 'unknown' : booking.status)}
 
-          {booking.status === 'approved' || booking.status === 'merged'(
+          {(booking.status === 'approved' || booking.status === 'merged') && (
             <Button 
               onClick={handleComplete}
               disabled={isCompleting}
@@ -922,42 +922,36 @@ const ManagerDashboard = () => {
 
   const handleCompleteBooking = async (bookingId) => {
     try {
-      // console.log("Completing booking:", bookingId);
+      // Make API call to update the booking status on the server
+      await apiCall("post", "/bookings/complete", { bookingId });
       
-     
       setSuccessMessage("Booking completed successfully!");
       
-    
-      const bookingToComplete = bookings.approved.find(b => b._id === bookingId);
+      const findBookingById = (id) => {
+        return bookings.approved.find(b => b._id === id) ||
+               bookings.merged.find(b => b._id === id);
+      };
+      
+      const bookingToComplete = findBookingById(bookingId);
       
       if (bookingToComplete) {
-        // console.log("Found booking to complete:", bookingToComplete);
-        
-        
         const updatedApproved = bookings.approved.filter(b => b._id !== bookingId);
-        
-       
+        const updatedMerged = bookings.merged.filter(b => b._id !== bookingId);
         const updatedBooking = {...bookingToComplete, status: 'completed'};
-        
         
         setBookings(prev => ({
           ...prev,
           approved: updatedApproved,
+          merged: updatedMerged,
           completed: [...prev.completed, updatedBooking]
         }));
-        
-        
-        setTimeout(() => {
-          fetchBookings();
-        }, 2000);
-        
-        
+      
+        // Instead, only remove the success message after some time
         setTimeout(() => {
           setSuccessMessage("");
         }, 5000);
       } else {
         console.log("Could not find booking with ID:", bookingId);
-       
         fetchBookings();
       }
     } catch (err) {
@@ -972,6 +966,10 @@ const ManagerDashboard = () => {
       navigate("/");
     }
   };
+
+  const filteredAllBookings = bookings.all.filter(
+    (b) => !b.mergedInto // this skips the ones that have already been merged into a shared ride
+  );
 
   // const handleCreateBooking = async (bookingData) => {
   //   try {
@@ -1005,7 +1003,7 @@ const ManagerDashboard = () => {
     { name: "Home", path: "/manager", icon: <Home size={20} /> },
     { name: "Bookings", path: "/guest-booking", icon: <Calendar size={20} /> },
     { name: "Vehicles", path: "/get-vehicles", icon: <Car size={20} /> },
-    { name: "Merge Rides", path: "/merge-ride", icon: <Merge size={20} /> },
+    { name: "Merge Rides", path: "/manager", icon: <Merge size={20} /> },
    
   ];
   
@@ -1212,9 +1210,10 @@ const ManagerDashboard = () => {
                     <div className="max-h-[60vh] overflow-y-auto pr-1">
                       {filterBookings(bookings.merged).map((booking) => (
                         <MergedBookingCard
-                          key={booking._id}
-                          booking={booking}
-                        />
+                        key={booking._id}
+                        booking={booking}
+                        onCompleteBooking={handleCompleteBooking}
+                      />
                       ))}
                     </div>
                   )}
@@ -1228,12 +1227,46 @@ const ManagerDashboard = () => {
                   ) : (
                     <div className="max-h-[60vh] overflow-y-auto pr-1">
                       {filterBookings(bookings.completed).map((booking) => (
-                        <BookingHistoryItem
-                          key={booking._id}
-                          booking={booking}
-                          onCompleteBooking={handleCompleteBooking}
-                        />
+                        booking.isSharedRide ? (
+                          <MergedBookingCard
+                            key={booking._id}
+                            booking={booking}
+                            // No need for onCompleteBooking since it's already completed
+                          />
+                        ) : (
+                          <BookingHistoryItem
+                            key={booking._id}
+                            booking={booking}
+                          />
+                        )
                       ))}
+                    </div>
+                  )}
+                </TabsContent>
+
+                <TabsContent value="all" className="mt-0">
+                  {loading ? (
+                    <p className="text-center py-4">Loading bookings...</p>
+                  ) : filterBookings(filteredAllBookings).length === 0 ? (
+                    <p className="text-center text-gray-500 py-8">No bookings found.</p>
+                  ) : (
+                    <div className="max-h-[60vh] overflow-y-auto pr-1">
+                      {filterBookings(filteredAllBookings).map((booking) =>
+                        booking.isSharedRide ? (
+                          <MergedBookingCard
+                            key={booking._id}
+                            booking={booking}
+                            onCompleteBooking={handleCompleteBooking}
+                          />
+                        ) : (
+                          <BookingHistoryItem
+                            key={booking._id}
+                            booking={booking}
+                            onCompleteBooking={handleCompleteBooking}
+                          />
+                        )
+                      )}
+                       
                     </div>
                   )}
                   {successMessage && (
@@ -1243,23 +1276,7 @@ const ManagerDashboard = () => {
                   )}
                 </TabsContent>
 
-                <TabsContent value="all" className="mt-0">
-                  {loading ? (
-                    <p className="text-center py-4">Loading bookings...</p>
-                  ) : filterBookings(bookings.all).length === 0 ? (
-                    <p className="text-center text-gray-500 py-8">No bookings found.</p>
-                  ) : (
-                    <div className="max-h-[60vh] overflow-y-auto pr-1">
-                      {filterBookings(bookings.all).map((booking) => (
-                        <BookingHistoryItem
-                          key={booking._id}
-                          booking={booking}
-                          onCompleteBooking={handleCompleteBooking}
-                        />
-                      ))}
-                    </div>
-                  )}
-                </TabsContent>
+
               </div>
             </Tabs>
           </CardContent>
@@ -1271,10 +1288,35 @@ const ManagerDashboard = () => {
   );
 };
 
-const MergedBookingCard = ({ booking }) => {
+const MergedBookingCard = ({ booking, onCompleteBooking }) => {
   const formatDate = (dateStr) => {
     if (!dateStr) return "N/A";
     return new Date(dateStr).toLocaleString();
+  };
+
+  const handleCompleteClick = async () => {
+    if (typeof onCompleteBooking === 'function') {
+      await onCompleteBooking(booking._id);
+    } else {
+      console.warn("onCompleteBooking is not a function");
+    }
+  };
+
+  // Determine the appropriate badge based on status
+  const getBadgeContent = () => {
+    if (booking.status === "completed") {
+      return (
+        <Badge className="bg-blue-100 text-blue-800 hover:bg-white hover:text-blue-800">
+          Completed
+        </Badge>
+      );
+    } else {
+      return (
+        <Badge className="bg-fuchsia-100 text-fuchsia-800 hover:bg-white hover:text-fuchsia-800">
+          Shared
+        </Badge>
+      );
+    }
   };
 
   return (
@@ -1289,9 +1331,20 @@ const MergedBookingCard = ({ booking }) => {
           <p><strong>Booking Time:</strong> {formatDate(booking.scheduledAt)}</p>
         </div>
 
-        <Badge className="bg-fuchsia-100 text-fuchsia-800 hover:bg-white hover:text-fuchsia-800">
-          Shared
-        </Badge>
+        <div className="flex flex-col items-end">
+          {getBadgeContent()}
+
+          {booking.status === "merged" && (
+            <div className="mt-4 flex justify-end">
+              <Button
+                onClick={handleCompleteClick}
+                className="bg-blue-600 text-white hover:bg-blue-700 px-4 py-2"
+              >
+                Complete
+              </Button>
+            </div>
+          )}
+        </div>
       </div>
 
       <div className="mt-4">
@@ -1326,5 +1379,7 @@ const MergedBookingCard = ({ booking }) => {
     </div>
   );
 };
+
+
 
 export default ManagerDashboard;

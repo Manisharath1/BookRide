@@ -7,7 +7,7 @@ import VehiclePage from "./pages/VehiclePage";
 import { ToastContainer } from "react-toastify";
 import 'react-toastify/dist/ReactToastify.css';
 import ViewPage from "./pages/ViewPage";
-import MergeRide from "./pages/MergeRide";
+
 
 function App() {
   return (
@@ -21,7 +21,7 @@ function App() {
         <Route path="/manager" element={<ManagerDashboard />} />
         <Route path="/guest-booking" element={<GuestBookingPage />} />
         <Route path="/get-vehicles" element={<VehiclePage />} />
-        <Route path="/merge-ride" element={<MergeRide />} />
+        {/* <Route path="/merge-ride" element={<MergeRide />} /> */}
         </Routes>
     </Router>
   );

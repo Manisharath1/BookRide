@@ -245,6 +245,12 @@ const UserDashboard = () => {
     setSidebarOpen(!sidebarOpen);
   };
 
+  const displayBookings = bookings.filter(booking => 
+    // Only show bookings that haven't been merged into another booking
+    !booking.mergedInto
+  );
+
+
   return (
     <div className="h-screen flex flex-col bg-gray-100">
       {/* Header */}
@@ -349,6 +355,7 @@ const UserDashboard = () => {
         {/* Main Content */}
         <div className="flex-1 p-6 overflow-y-auto">
           {/* Render different content based on active tab */}
+
           {activeTab === "vehicles" && (
             <div>
               <h2 className="text-3xl font-semibold mb-4">Available Vehicles</h2>
@@ -453,7 +460,7 @@ const UserDashboard = () => {
                         </tr>
                       </thead>
                       <tbody className="bg-white divide-y divide-gray-200">
-                        {bookings.map((booking) => (
+                        {displayBookings.map((booking) => (
                           <tr key={booking._id}>
                             <td className="px-6 py-4 whitespace-nowrap">
                               {booking.vehicleName || "N/A"}
@@ -474,8 +481,12 @@ const UserDashboard = () => {
                               {new Date(booking.scheduledAt).toLocaleDateString()}
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap">
-                              <span
-                                className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                            {booking.isSharedRide ? (
+                              <div>
+                                <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                                  Shared Ride
+                                </span>
+                                <span className={`ml-2 px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
                                   booking.status === "completed"
                                     ? "bg-green-100 text-green-800"
                                     : booking.status === "cancelled"
@@ -484,28 +495,50 @@ const UserDashboard = () => {
                                     ? "bg-yellow-100 text-yellow-800"
                                     : booking.status === "approved"
                                     ? "bg-blue-100 text-blue-800"
+                                    : booking.status === "merged"
+                                    ? "bg-fuchsia-100 text-fuchsia-800"
                                     : "bg-yellow-100 text-yellow-800"
-                                }`}
-                              >
+                                }`}>
+                                  {booking.status}
+                                </span>
+                                <div className="text-xs text-gray-500 mt-1">
+                                  Shared with {(booking.passengers?.length || 0) - 1} other passenger(s)
+                                </div>
+                              </div>
+                            ) : (
+                              <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                                booking.status === "completed"
+                                  ? "bg-green-100 text-green-800"
+                                  : booking.status === "cancelled"
+                                  ? "bg-red-100 text-red-800"
+                                  : booking.status === "pending" 
+                                  ? "bg-yellow-100 text-yellow-800"
+                                  : booking.status === "approved"
+                                  ? "bg-blue-100 text-blue-800"
+                                  : "bg-yellow-100 text-yellow-800"
+                              }`}>
                                 {booking.status}
                               </span>
-                              {booking.status === "approved" &&(
-                                <button 
-                                  onClick={() => handleCompleteBooking(booking._id)}
-                                  className="ml-8 bg-green-200 text-green-800 border-green-900 px-2 font-semibold rounded-md hover:bg-green-300"
-                                >
-                                  Complete
-                                </button>
-                              )}
-                              {booking.status === "pending" &&(
-                                <button 
-                                  onClick={() => handleCancelBooking(booking._id)}
-                                  className="ml-8 bg-red-200 text-red-800 border-red-900 px-2 font-semibold rounded-md hover:bg-red-300"
-                                >
-                                  Cancel
-                                </button>
-                              )}
-                            </td>
+                            )}
+                            
+                            {booking.status === "approved" && !booking.isSharedRide && (
+                              <button 
+                                onClick={() => handleCompleteBooking(booking._id)}
+                                className="ml-8 bg-green-200 text-green-800 border-green-900 px-2 font-semibold rounded-md hover:bg-green-300"
+                              >
+                                Complete
+                              </button>
+                            )}
+                            
+                            {booking.status === "pending" && (
+                              <button 
+                                onClick={() => handleCancelBooking(booking._id)}
+                                className="ml-8 bg-red-200 text-red-800 border-red-900 px-2 font-semibold rounded-md hover:bg-red-300"
+                              >
+                                Cancel
+                              </button>
+                            )}
+                          </td>
                           </tr>
                         ))}
                       </tbody>
