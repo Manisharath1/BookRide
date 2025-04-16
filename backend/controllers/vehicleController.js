@@ -44,7 +44,18 @@ const upload = multer({
 const addVehicle = async (req, res) => {
   try {
     // The upload middleware has already processed the file
-    const { name, number, vehicleID, driverName, driverNumber } = req.body;
+    const { 
+      name, 
+      number,
+      vehicleID,
+      driverName,
+      driverNumber,
+      chassisNumber,
+      insuranceDetails,
+      mvTaxPeriod,
+      pollutionClearance,
+      rcValidity
+    } = req.body;
     
     // Create vehicle object with image path if available
     const vehicleData = { 
@@ -52,7 +63,22 @@ const addVehicle = async (req, res) => {
       number, 
       vehicleID, 
       driverName, 
-      driverNumber 
+      driverNumber,
+      chassisNumber,
+      insuranceDetails: {
+        provider: insuranceDetails?.provider,
+        validFrom: insuranceDetails?.validFrom,
+        validTill: insuranceDetails?.validTill
+      },
+      mvTaxPeriod: {
+        from: mvTaxPeriod?.from,
+        to: mvTaxPeriod?.to
+      },
+      pollutionClearance: {
+        validFrom: pollutionClearance?.validFrom,
+        validTill: pollutionClearance?.validTill
+      },
+      rcValidity
     };
 
     // Add image path if file was uploaded
@@ -85,7 +111,19 @@ const getVehicles = async (req, res) => {
 // Update a vehicle with image
 const updateVehicle = async (req, res) => {
   const { id } = req.params;
-  const { vehicleID, status, name, number, driverName, driverNumber } = req.body;
+  const {
+    vehicleID,
+    status,
+    name,
+    number,
+    driverName,
+    driverNumber,
+    chassisNumber,
+    insuranceDetails,
+    mvTaxPeriod,
+    pollutionClearance,
+    rcValidity
+  } = req.body;
   
   try {
     // Get the existing vehicle to check for previous image
@@ -95,13 +133,28 @@ const updateVehicle = async (req, res) => {
     }
 
     // Prepare the update data
-    const updateData = { 
-      name, 
-      number, 
-      driverName, 
-      driverNumber, 
-      vehicleID, 
-      status 
+    const updateData = {
+      name,
+      number,
+      driverName,
+      driverNumber,
+      vehicleID,
+      status,
+      chassisNumber,
+      insuranceDetails: {
+        provider: insuranceDetails?.provider,
+        validFrom: insuranceDetails?.validFrom,
+        validTill: insuranceDetails?.validTill
+      },
+      mvTaxPeriod: {
+        from: mvTaxPeriod?.from,
+        to: mvTaxPeriod?.to
+      },
+      pollutionClearance: {
+        validFrom: pollutionClearance?.validFrom,
+        validTill: pollutionClearance?.validTill
+      },
+      rcValidity
     };
 
     // Add new image path if file was uploaded
