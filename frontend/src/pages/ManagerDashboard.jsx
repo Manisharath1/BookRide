@@ -20,7 +20,7 @@ import { toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import DatePicker from "react-datepicker";
 import Modal from "./Modal";
-
+import { LogOut , Clock, CheckCircle, XCircle } from "lucide-react";
 
 // Enhanced API hook with better error handling and caching
 const useAPI = () => {
@@ -1006,38 +1006,102 @@ const ManagerDashboard = () => {
     { name: "Merge Rides", path: "/manager", icon: <Merge size={20} /> },
    
   ];
+
+  const cards = [
+    {
+      title: "Pending Bookings",
+      value: bookings.pending?.length || 0,
+      icon: <Clock size={24} />,
+      color: "bg-violet-500",
+      textColor: "text-white"
+    },
+    {
+      title: "Approved Rides",
+      value: bookings.approved?.length || 0,
+      icon: <CheckCircle size={24} />,
+      color: "bg-cyan-500",
+      textColor: "text-white"
+    },
+    {
+      title: "Completed Rides",
+      value: bookings.completed?.length || 0,
+      icon: <Calendar size={24} />,
+      color: "bg-emerald-500",
+      textColor: "text-white"
+    },
+    {
+      title: "Cancelled Bookings",
+      value: bookings.cancelled?.length || 0,
+      icon: <XCircle size={24} />,
+      color: "bg-pink-500",
+      textColor: "text-white"
+    }
+  ];
   
   return (
-    <div className="flex flex-col min-h-screen bg-gray-100">
+    <div className="flex flex-col min-h-screen ">
       {/* Header/Navbar */}
-      <div className="bg-blue-600 text-white p-4 flex justify-between items-center">
-        <h2 className="text-2xl font-semibold">Welcome, {username || "User"} !</h2>
-        <Button variant="outline" className="text-red-500 text-lg border-white hover:bg-blue-900 hover:text-white" onClick={handleLogout}>Logout</Button>
+      <div className="flex h-screen overflow-hidden">
+      {/* Sidebar */}
+      <div className="hidden md:flex flex-col w-64 bg-blue-950 text-white flex-shrink-0 overflow-y-auto z-20">
+        <div className="flex items-center justify-between p-4 border-b border-blue-900">
+          <div className="flex items-center">
+            <div className="bg-blue-500 rounded-full p-1 mr-2">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-white" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
+              </svg>
+            </div>
+            <h2 className="text-white font-medium">Dashboard</h2>
+          </div>
+        </div>
+        <nav className="py-2">
+          <ul className="space-y-1">
+            {navItems.map((item) => (
+              <li key={item.name}>
+                <Link
+                  to={item.path}
+                  className="flex items-center py-2 px-4 mx-2 rounded-md text-gray-300 hover:bg-blue-900 transition-colors"
+                >
+                  <span className="mr-3">{item.icon}</span>
+                  {item.name}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </nav>
       </div>
 
-      <div className="flex flex-1">
-        {/* Sidebar */}
-        <div className="shadow-sm border-r hidden md:block bg-white w-64 flex-shrink-0 p-4 transition-all duration-300 overflow-y-auto">
-          <div className="flex items-center mb-6 border-b pb-2">
-            <Home className="mr-2" size={24} />
-            <h2 className="text-xl text-gray-700 font-bold">Dashboard</h2>
+      {/* Main Content Area */}
+      <div className="flex-1 flex flex-col">
+        {/* Navbar */}
+        <div className="sticky top-0 w-full h-20 overflow-hidden z-10">
+          <div className="absolute inset-0 bg-gradient-to-r from-pink-500 via-purple-500 to-blue-500">
+            <svg 
+              className="absolute bottom-0 w-full"
+              xmlns="http://www.w3.org/2000/svg" 
+              viewBox="0 0 1440 100"
+              preserveAspectRatio="none"
+            >
+              {/* <path 
+                fill="white" 
+                fillOpacity="1" 
+                d="M0,64L80,69.3C160,75,320,85,480,80C640,75,800,53,960,42.7C1120,32,1280,32,1360,32L1440,32L1440,100L1360,100C1280,100,1120,100,960,100C800,100,640,100,480,100C320,100,160,100,80,100L0,100Z"
+              /> */}
+            </svg>
           </div>
-          <nav className="mt-6">
-            <ul className="space-y-1">
-              {navItems.map((item) => (
-                <li key={item.name}>
-                  <Link
-                    to={item.path}
-                    className="flex items-center py-3 px-4 rounded-md hover:bg-blue-50 text-gray-700 hover:text-blue-600 transition-colors"
-                  >
-                    <span className="mr-3">{item.icon}</span>
-                    {item.name}
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </nav>
+
+          <div className="relative flex justify-between items-center p-4">
+            <h2 className="text-2xl font-bold text-white">Welcome, {username}!</h2>
+            <button 
+              onClick={handleLogout}
+              className="bg-transparent hover:bg-white/10 text-white font-medium py-2 px-4 rounded-lg flex items-center transition-all"
+            >
+              <span>Logout</span>
+              <LogOut className="ml-2 h-5 w-5" />
+            </button>
+          </div>
         </div>
+        
 
 
         {/* Mobile menu button */}
@@ -1086,205 +1150,188 @@ const ManagerDashboard = () => {
             </nav>
           </div>
         </div>
-
-      <div className="container mx-auto p-4 lg:p-6 space-y-6">
-        {error && (
-          <Alert variant="destructive" className="mb-4">
-            <AlertDescription>{error}</AlertDescription>
-          </Alert>
-        )}
-
-        <div className="grid md:grid-cols-2 gap-6">
-          {/* Statistics Cards */}
-          <Card className="border-red-200">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-lg">Pending Bookings</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-3xl font-bold text-blue-600">{bookings.pending?.length || 0}</p>
-            </CardContent>
-          </Card>
+        
+        <div className="container mx-auto p-4 lg:p-6 space-y-6">
+          {error && (
+            <Alert variant="destructive" className="mb-4">
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
           
-          <Card className="border-red-200">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-lg">Approved Rides</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-3xl font-bold text-green-600">{bookings.approved?.length || 0}</p>
-            </CardContent>
-          </Card>
-
-          <Card className="border-red-200">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-lg">Completed Rides</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-3xl font-bold text-blue-600">{bookings.completed?.length || 0}</p>
-            </CardContent>
-          </Card>
-          
-          <Card className="border-red-200">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-lg">Cancelled Bookings</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-3xl font-bold text-red-600">{bookings.cancelled?.length || 0}</p>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Bookings Management */}
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle>Bookings Management</CardTitle> 
-          </CardHeader>
-          <CardContent>
-            <Tabs defaultValue="pending" value={activeTab} onValueChange={setActiveTab}>
-              {/* Responsive, scrollable tab list */}
-              <div className="overflow-x-auto">
-                <TabsList className="grid grid-cols-5 sm:flex-nowrap gap-2 mb-2 min-w-max">
-                  <TabsTrigger value="pending" className="px-4 py-2 text-sm whitespace-nowrap">
-                    Pending ({bookings.pending?.length || 0})
-                  </TabsTrigger>
-                  <TabsTrigger value="approved" className="px-4 py-2 text-sm whitespace-nowrap">
-                    Approved ({bookings.approved?.length || 0})
-                  </TabsTrigger>
-                  <TabsTrigger value="merged" className="px-4 py-2 text-sm whitespace-nowrap">
-                    Merged ({bookings.merged?.length || 0})
-                  </TabsTrigger>
-                  <TabsTrigger value="completed" className="px-4 py-2 text-sm whitespace-nowrap">
-                    Completed ({bookings.completed?.length || 0})
-                  </TabsTrigger>
-                  <TabsTrigger value="all" className="px-4 py-2 text-sm whitespace-nowrap">
-                    All Bookings ({bookings.all?.length || 0})
-                  </TabsTrigger>
-                </TabsList>
+          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {cards.map((card, index) => (
+              <div 
+                key={index} 
+                className={`${card.color} rounded-lg p-4 shadow-lg relative overflow-hidden`}
+              >
+                <div className="absolute top-0 right-0 p-4">
+                  <div className="text-white opacity-80">
+                    {card.icon}
+                  </div>
+                </div>
+                <div className="pt-2">
+                  <h3 className={`${card.textColor} font-medium`}>
+                    {card.title}
+                  </h3>
+                  <p className={`${card.textColor} text-3xl font-bold mt-2`}>
+                    {card.value}
+                  </p>
+                </div>
+                <div className="absolute -bottom-6 -right-6 w-24 h-24 rounded-full bg-white opacity-10"></div>
               </div>
+            ))}
+          </div>
+          
+          {/* Bookings Management */}
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle>Bookings Management</CardTitle> 
+            </CardHeader>
+            <CardContent>
+              <Tabs defaultValue="pending" value={activeTab} onValueChange={setActiveTab}>
+                {/* Responsive, scrollable tab list */}
+                <div className="overflow-x-auto">
+                  <TabsList className="grid grid-cols-5 sm:flex-nowrap gap-2 mb-2 min-w-max">
+                    <TabsTrigger value="pending" className="px-4 py-2 text-sm whitespace-nowrap">
+                      Pending ({bookings.pending?.length || 0})
+                    </TabsTrigger>
+                    <TabsTrigger value="approved" className="px-4 py-2 text-sm whitespace-nowrap">
+                      Approved ({bookings.approved?.length || 0})
+                    </TabsTrigger>
+                    <TabsTrigger value="merged" className="px-4 py-2 text-sm whitespace-nowrap">
+                      Merged ({bookings.merged?.length || 0})
+                    </TabsTrigger>
+                    <TabsTrigger value="completed" className="px-4 py-2 text-sm whitespace-nowrap">
+                      Completed ({bookings.completed?.length || 0})
+                    </TabsTrigger>
+                    <TabsTrigger value="all" className="px-4 py-2 text-sm whitespace-nowrap">
+                      All Bookings ({bookings.all?.length || 0})
+                    </TabsTrigger>
+                  </TabsList>
+                </div>
+                
+                <div>
+                  {/* Tab content styles are now consistent and scrollable */}
+                  <TabsContent value="pending" className="mt-0">
+                    {loading ? (
+                      <p className="text-center py-4">Loading bookings...</p>
+                    ) : filterBookings(bookings.pending).length === 0 ? (
+                      <p className="text-center text-gray-500 py-8">No pending bookings available.</p>
+                    ) : (
+                      <div className="max-h-[60vh] overflow-y-auto pr-1">
+                        {filterBookings(bookings.pending).map((booking) => (
+                          <PendingBookingItem
+                            key={booking._id}
+                            booking={booking}
+                            onApprove={handleApprove}
+                            fetchBookings={fetchBookings}
+                          />
+                        ))}
+                      </div>
+                    )}
+                  </TabsContent>
 
+                  <TabsContent value="approved" className="mt-0">
+                    {loading ? (
+                      <p className="text-center py-4">Loading bookings...</p>
+                    ) : filterBookings(bookings.approved).length === 0 ? (
+                      <p className="text-center text-gray-500 py-8">No approved bookings found.</p>
+                    ) : (
+                      <div className="max-h-[60vh] overflow-y-auto pr-1">
+                        {filterBookings(bookings.approved).map((booking) => (
+                          <BookingHistoryItem
+                            key={booking._id}
+                            booking={booking}
+                            onCompleteBooking={handleCompleteBooking}
+                          />
+                        ))}
+                      </div>
+                    )}
+                  </TabsContent>
 
-              <div>
-                {/* Tab content styles are now consistent and scrollable */}
-                <TabsContent value="pending" className="mt-0">
-                  {loading ? (
-                    <p className="text-center py-4">Loading bookings...</p>
-                  ) : filterBookings(bookings.pending).length === 0 ? (
-                    <p className="text-center text-gray-500 py-8">No pending bookings available.</p>
-                  ) : (
-                    <div className="max-h-[60vh] overflow-y-auto pr-1">
-                      {filterBookings(bookings.pending).map((booking) => (
-                        <PendingBookingItem
-                          key={booking._id}
-                          booking={booking}
-                          onApprove={handleApprove}
-                          fetchBookings={fetchBookings}
-                        />
-                      ))}
-                    </div>
-                  )}
-                </TabsContent>
-
-                <TabsContent value="approved" className="mt-0">
-                  {loading ? (
-                    <p className="text-center py-4">Loading bookings...</p>
-                  ) : filterBookings(bookings.approved).length === 0 ? (
-                    <p className="text-center text-gray-500 py-8">No approved bookings found.</p>
-                  ) : (
-                    <div className="max-h-[60vh] overflow-y-auto pr-1">
-                      {filterBookings(bookings.approved).map((booking) => (
-                        <BookingHistoryItem
+                  <TabsContent value="merged" className="mt-0">
+                    {loading ? (
+                      <p className="text-center py-4">Loading bookings...</p>
+                    ) : filterBookings(bookings.merged).length === 0 ? (
+                      <p className="text-center text-gray-500 py-8">No merged bookings found.</p>
+                    ) : (
+                      <div className="max-h-[60vh] overflow-y-auto pr-1">
+                        {filterBookings(bookings.merged).map((booking) => (
+                          <MergedBookingCard
                           key={booking._id}
                           booking={booking}
                           onCompleteBooking={handleCompleteBooking}
                         />
-                      ))}
-                    </div>
-                  )}
-                </TabsContent>
+                        ))}
+                      </div>
+                    )}
+                  </TabsContent>
 
-                <TabsContent value="merged" className="mt-0">
-                  {loading ? (
-                    <p className="text-center py-4">Loading bookings...</p>
-                  ) : filterBookings(bookings.merged).length === 0 ? (
-                    <p className="text-center text-gray-500 py-8">No merged bookings found.</p>
-                  ) : (
-                    <div className="max-h-[60vh] overflow-y-auto pr-1">
-                      {filterBookings(bookings.merged).map((booking) => (
-                        <MergedBookingCard
-                        key={booking._id}
-                        booking={booking}
-                        onCompleteBooking={handleCompleteBooking}
-                      />
-                      ))}
-                    </div>
-                  )}
-                </TabsContent>
+                  <TabsContent value="completed" className="mt-0">
+                    {loading ? (
+                      <p className="text-center py-4">Loading bookings...</p>
+                    ) : filterBookings(bookings.completed).length === 0 ? (
+                      <p className="text-center text-gray-500 py-8">No completed bookings found.</p>
+                    ) : (
+                      <div className="max-h-[60vh] overflow-y-auto pr-1">
+                        {filterBookings(bookings.completed).map((booking) => (
+                          booking.isSharedRide ? (
+                            <MergedBookingCard
+                              key={booking._id}
+                              booking={booking}
+                              // No need for onCompleteBooking since it's already completed
+                            />
+                          ) : (
+                            <BookingHistoryItem
+                              key={booking._id}
+                              booking={booking}
+                            />
+                          )
+                        ))}
+                      </div>
+                    )}
+                  </TabsContent>
 
-                <TabsContent value="completed" className="mt-0">
-                  {loading ? (
-                    <p className="text-center py-4">Loading bookings...</p>
-                  ) : filterBookings(bookings.completed).length === 0 ? (
-                    <p className="text-center text-gray-500 py-8">No completed bookings found.</p>
-                  ) : (
-                    <div className="max-h-[60vh] overflow-y-auto pr-1">
-                      {filterBookings(bookings.completed).map((booking) => (
-                        booking.isSharedRide ? (
-                          <MergedBookingCard
-                            key={booking._id}
-                            booking={booking}
-                            // No need for onCompleteBooking since it's already completed
-                          />
-                        ) : (
-                          <BookingHistoryItem
-                            key={booking._id}
-                            booking={booking}
-                          />
-                        )
-                      ))}
-                    </div>
-                  )}
-                </TabsContent>
+                  <TabsContent value="all" className="mt-0">
+                    {loading ? (
+                      <p className="text-center py-4">Loading bookings...</p>
+                    ) : filterBookings(filteredAllBookings).length === 0 ? (
+                      <p className="text-center text-gray-500 py-8">No bookings found.</p>
+                    ) : (
+                      <div className="max-h-[60vh] overflow-y-auto pr-1">
+                        {filterBookings(filteredAllBookings).map((booking) =>
+                          booking.isSharedRide ? (
+                            <MergedBookingCard
+                              key={booking._id}
+                              booking={booking}
+                              onCompleteBooking={handleCompleteBooking}
+                            />
+                          ) : (
+                            <BookingHistoryItem
+                              key={booking._id}
+                              booking={booking}
+                              onCompleteBooking={handleCompleteBooking}
+                            />
+                          )
+                        )}
+                        
+                      </div>
+                    )}
+                    {successMessage && (
+                      <Alert className="mt-2 mb-2 bg-green-100 border-green-500 text-green-800">
+                        <AlertDescription>{successMessage}</AlertDescription>
+                      </Alert>
+                    )}
+                  </TabsContent>
+                </div>
+              </Tabs>
+            </CardContent>
 
-                <TabsContent value="all" className="mt-0">
-                  {loading ? (
-                    <p className="text-center py-4">Loading bookings...</p>
-                  ) : filterBookings(filteredAllBookings).length === 0 ? (
-                    <p className="text-center text-gray-500 py-8">No bookings found.</p>
-                  ) : (
-                    <div className="max-h-[60vh] overflow-y-auto pr-1">
-                      {filterBookings(filteredAllBookings).map((booking) =>
-                        booking.isSharedRide ? (
-                          <MergedBookingCard
-                            key={booking._id}
-                            booking={booking}
-                            onCompleteBooking={handleCompleteBooking}
-                          />
-                        ) : (
-                          <BookingHistoryItem
-                            key={booking._id}
-                            booking={booking}
-                            onCompleteBooking={handleCompleteBooking}
-                          />
-                        )
-                      )}
-                       
-                    </div>
-                  )}
-                  {successMessage && (
-                    <Alert className="mt-2 mb-2 bg-green-100 border-green-500 text-green-800">
-                      <AlertDescription>{successMessage}</AlertDescription>
-                    </Alert>
-                  )}
-                </TabsContent>
-
-
-              </div>
-            </Tabs>
-          </CardContent>
-
-        </Card>
+          </Card>
+        </div>
       </div>
     </div>
-  </div>
+    </div>
   );
 };
 
