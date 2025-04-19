@@ -1,12 +1,13 @@
 import { useEffect, useState} from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import axios from 'axios';
-import { Button } from "@/components/ui/button";
 import { 
   Car, 
   Home, 
   Calendar,
   Merge,
+  LogOut,
+  CrossIcon,
  } from "lucide-react";
 import { Alert, AlertDescription } from '@/components/ui/alert';
 
@@ -82,6 +83,7 @@ const VehiclePage = () => {
   const [newImagePreview, setNewImagePreview] = useState(null);
   const [addVehicle, setAddVehicle] = useState([]);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   useEffect(() => {
     fetchVehicles();
@@ -352,7 +354,7 @@ const VehiclePage = () => {
     setImageFile(null);
     setViewModal(true);
 
-  }
+  };
 
   const handleCloseModal = () => {
     setShowModal(false);
@@ -403,6 +405,7 @@ const VehiclePage = () => {
 
   const toggleSidebar = () => {
     setSidebarOpen(prev => !prev);
+    setIsSidebarOpen(!isSidebarOpen);
   };
 
   const formatDate = (date) => {
@@ -412,27 +415,50 @@ const VehiclePage = () => {
    
   return (
     <div className="flex flex-col min-h-screen bg-gray-100">
-      {/* Header/Navbar */}
-      <div className="bg-blue-600 text-white p-4 flex justify-between items-center">
-        <button
-            onClick={toggleSidebar}
-            className="mr-4 text-2xl md:hidden"
-          >
-            ☰
-        </button>
-        <h2 className="text-2xl text-white font-bold">Dashboard</h2>
-        <Button variant="outline" className="text-red-500 text-lg border-white hover:bg-blue-900 hover:text-white" onClick={handleLogout}>Logout</Button>
+      <div className="relative w-full z-10">
+        <div className="bg-gradient-to-r from-pink-500 via-purple-500 to-blue-500 h-20">
+          <div className="mx-auto flex justify-between items-center h-full px-4">
+            <div className="bg-blue-500 flex rounded justify-between p-2 md:hidden">
+              {isSidebarOpen ? (
+                <button
+                  onClick={toggleSidebar}
+                  className="text-2xl text-white"
+                >
+                  <CrossIcon/>
+                </button>
+              ) : (
+                <button
+                  onClick={toggleSidebar}
+                  className="text-2xl text-white"
+                >
+                  ☰
+                </button>
+              )}
+            </div>
+            <div className='flex justify-end items-center'>
+              <button 
+                onClick={handleLogout}
+                className="bg-transparent hover:bg-white/10 text-white font-medium py-2 px-4 rounded-lg flex items-center transition-all"
+              >
+                <span>Logout</span>
+                <LogOut className="ml-2 h-5 w-5" />
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
+      {/* Header/Navbar */}
+      
       <div className="flex flex-1">
         {/* Sidebar */}
-        <div className="shadow-sm border-r hidden md:block bg-white w-64 flex-shrink-0 p-4 transition-all duration-300 overflow-y-auto">
-          <nav className="mt-6">
+        <div className="hidden md:flex flex-col w-64 bg-blue-950 text-white flex-shrink-0 overflow-y-auto">
+          <nav className="py-2">
             <ul className="space-y-1">
               {navItems.map((item) => (
                 <li key={item.name}>
                   <Link
                     to={item.path}
-                    className="flex items-center py-3 px-4 rounded-md hover:bg-blue-50 text-gray-700 hover:text-blue-600 transition-colors"
+                    className="flex items-center py-2 px-4 mx-2 rounded-md text-gray-300 hover:bg-blue-900 transition-colors"
                   >
                     <span className="mr-3">{item.icon}</span>
                     {item.name}
@@ -445,17 +471,17 @@ const VehiclePage = () => {
         {sidebarOpen && (
           <div className="fixed inset-0 z-50 bg-black bg-opacity-40 md:hidden" onClick={toggleSidebar}>
             <div 
-              className="absolute top-0 left-0 w-64 h-full bg-white shadow-lg p-4"
+              className="absolute top-0 left-0 w-64 h-full bg-blue-950 shadow-lg p-4"
               onClick={(e) => e.stopPropagation()} >
                 <nav className="mt-6">
-                  <h2 className="text-2xl text-blue-800 text-center mb-10 font-bold">Dashboard</h2>
+                  <h2 className="text-2xl text-white text-center mb-10 font-bold">Dashboard</h2>
                   <ul className="space-y-1">
                     {navItems.map((item) => (
                       <li key={item.name}>
                         <Link
                           to={item.path}
                           onClick={() => setSidebarOpen(false)} // Close sidebar on link click
-                          className="flex items-center py-3 px-4 rounded-md hover:bg-blue-50 text-gray-700 hover:text-blue-600 transition-colors"
+                          className="flex items-center py-3 px-4 rounded-md text-white transition-colors"
                         >
                           <span className="mr-3">{item.icon}</span>
                           {item.name}
@@ -555,8 +581,8 @@ const VehiclePage = () => {
           )}
         </div>
         
-        <Car className="fixed bottom-4 right-4 p-3 bg-blue-500 text-white rounded-full shadow-lg" size={60}
-          onClick={() => setShowAddModal(true)} />
+          <Car className="fixed bottom-4 right-4 p-3 bg-blue-500 text-white rounded-full shadow-lg" size={60}
+            onClick={() => setShowAddModal(true)} />
           
           {/* Add Vehicle Modal */}
           {showAddModal && (
@@ -1127,7 +1153,7 @@ const VehiclePage = () => {
                     </div>
                     <div className='bg-slate-100 p-3 rounded'>
                       <p className="text-sm text-gray-500">Pollution Valid Till</p>
-                      <p className="font-medium">{currentVehicle.pollutionClearance?.validFrom || "N/A"}</p>
+                      <p className="font-medium">{currentVehicle.pollutionClearance?.validTill || "N/A"}</p>
                     </div>
                   </div>
 
