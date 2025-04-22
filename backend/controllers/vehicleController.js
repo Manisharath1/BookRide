@@ -254,11 +254,33 @@ const getDrivers = async (req, res) =>{
   }
 };
 
+
+const releaseVehicle = async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    const vehicle = await Vehicle.findById(id);
+    if (!vehicle) {
+      return res.status(404).json({ error: "Vehicle not found" });
+    }
+
+    vehicle.status = "available";
+    await vehicle.save();
+
+    res.json({ message: "Vehicle released successfully", vehicle });
+  } catch (error) {
+    console.error("Failed to release vehicle:", error);
+    res.status(500).json({ error: "Failed to release vehicle" });
+  }
+};
+
+
 module.exports = {
   addVehicle,
   getVehicles,
   updateVehicle,
   deleteVehicle,
   uploadVehicleImage,
-  getDrivers
+  getDrivers,
+  releaseVehicle
 };

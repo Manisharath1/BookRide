@@ -387,6 +387,7 @@ const getUserBookings = async (req, res) => {
   }
 };
 
+
 const getNotifications = async (req, res) => {
   try {
     const notifications = await Notification.find({ userId: req.userId }).sort({ scheduledAt: -1 });
@@ -524,6 +525,48 @@ const mergeRide = async (req, res) => {
   }
 };
 
+const getBookingsByVehicles = async (req, res) => {
+  try {
+    // First get all vehicles
+    const vehicles = await Vehicle.find({}).lean();
+    
+    // Get all bookings that are approved or pending
+    const allBookings = await Booking.find({
+      status: { $in: ['approved', 'pending', 'merged'] }
+    })
+      .populate('userId', 'username email number')
+      .lean();
+    
+    // Format bookings for the view page
+    const formattedBookings = allBookings.map(booking => {
+      // Find the vehicle for this booking
+      const vehicle = vehicles.find(v => 
+        v._id.toString() === booking.vehicleId?.toString()
+      );
+      
+      return {
+        id: booking._id,
+        vehicleId: vehicle?._id || 'unknown',
+        vehicleName: vehicle?.name || 'Unknown Vehicle',
+        vehicleNumber: vehicle?.number || 'No Registration',
+        username: booking.userId?.username || 'Not specified',
+        email: booking.userId?.email,
+        drivername: vehicle?.driverName || 'Not assigned',
+        number: booking.userId?.number || 'Not provided',
+        date: new Date(booking.scheduledAt).toLocaleDateString(),
+        time: new Date(booking.scheduledAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        location: booking.location || 'Not specified',
+        reason: booking.reason || 'Not provided',
+        status: booking.status
+      };
+    });
+    
+    res.json(formattedBookings);
+  } catch (err) {
+    console.error('Get bookings for view page error:', err);
+    res.status(500).json({ error: err.message });
+  }
+};
 
 // ✅ Export the functions
 module.exports = {
@@ -537,5 +580,6 @@ module.exports = {
   getUserBookings,
   getNotifications,
   reschedule,
-  mergeRide
+  mergeRide,
+  getBookingsByVehicles
 };

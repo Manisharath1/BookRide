@@ -7,6 +7,7 @@ import VehiclePage from "./pages/VehiclePage";
 import { ToastContainer } from "react-toastify";
 import 'react-toastify/dist/ReactToastify.css';
 import ViewPage from "./pages/ViewPage";
+import DashboardPage from "./pages/DashboardPage";
 
 
 function App() {
@@ -16,6 +17,7 @@ function App() {
       <ToastContainer position="top-right" autoClose={3000} hideProgressBar={false} />
       <Routes>
         <Route path="/view" element={<ViewPage />} />
+        <Route path="/dashboard" element={<DashboardPage />} />
         <Route path="/" element={<Login />} />
         <Route path="/user" element={<UserDashboard />} />
         <Route path="/manager" element={<ManagerDashboard />} />

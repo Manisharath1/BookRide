@@ -412,6 +412,27 @@ const VehiclePage = () => {
     return date ? new Date(date).toISOString().split("T")[0] : "";
   };
 
+  const handleReleaseVehicle = async (vehicleId) => {
+    try {
+      const token = localStorage.getItem("token");
+      await axios.put(
+        `http://localhost:5000/api/vehicles/release/${vehicleId}`,
+        {},
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      setUpdateMessage("Vehicle released successfully!");
+      fetchVehicles(); // refresh list
+  
+      setTimeout(() => {
+        setUpdateMessage("");
+      }, 3000);
+    } catch (error) {
+      console.error("Failed to release vehicle:", error);
+      setError("Failed to release vehicle. Please try again.");
+    }
+  };
+  
+
    
   return (
     <div className="flex flex-col min-h-screen bg-gray-100">
@@ -561,12 +582,28 @@ const VehiclePage = () => {
                         >
                           Update
                         </button>
-                        <button
-                          onClick={() => handleViewModal(vehicle)}
-                          className="mt-4 bg-rose-900 hover:bg-rose-600 text-white py-1 px-3 rounded-lg"
-                        >
-                          View
-                        </button>
+                        
+                        <div className="flex justify-between items-center mt-4">
+                          <button
+                            onClick={() => handleViewModal(vehicle)}
+                            className="mt-4 bg-rose-900 hover:bg-rose-600 text-white py-1 mr-2 px-3 rounded-lg"
+                          >
+                            View
+                          </button>
+                          <button
+                            onClick={() => handleReleaseVehicle(vehicle._id)}
+                            className={`mt-4 py-1 px-3 rounded text-white
+                              ${vehicle.status === "available" 
+                                ? "bg-gray-400 cursor-not-allowed" 
+                                : "bg-emerald-700 hover:bg-green-900"}
+                            `}
+                            disabled={vehicle.status === "available"}
+                            title={vehicle.status === "available" ? "Vehicle already available" : "Release vehicle"}
+                            >
+                            Release
+                          </button>
+                        </div>
+                        
                       </div>
                     </div>
                   ))}

@@ -25,6 +25,11 @@ router.get("/notifications", authMiddleware, bookingController.getNotifications)
 router.put("/reschedule", authMiddleware, bookingController.reschedule);
 router.post("/merge", authMiddleware, bookingController.mergeRide);
 
+router.get('/view', bookingController.getBookingsByVehicles);
+
+// Route to get bookings for a specific vehicle
+// router.get('/vehicle/:vehicleNumber', bookingController.getVehicleBookings);
+
 
 
 module.exports = router;
