@@ -6,6 +6,7 @@ const authRoutes = require("./routes/authRoutes");
 const bookingRoutes = require("./routes/bookingRoutes");
 const securityRoutes = require("./routes/securityRoutes");
 const vehicleRoutes = require("./routes/vehicleRoutes");
+const dashboardRoutes = require("./routes/dashboardRoutes")
 const path = require('path');
 const fs = require('fs');
 
@@ -66,6 +67,7 @@ app.use("/api/security", securityRoutes);
 app.use("/api/vehicles", vehicleRoutes);
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 app.use('/api/notifications', require('./routes/notification'));
+app.use('/api/dashboard', dashboardRoutes);
 
 
 app.get("/", (req, res) => {

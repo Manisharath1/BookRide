@@ -963,7 +963,7 @@ const ManagerDashboard = () => {
   const handleLogout = () => {
     if (window.confirm("Are you sure you want to logout?")) {
       localStorage.removeItem("token");
-      navigate("/");
+      navigate("/dashboard");
     }
   };
 
@@ -1049,7 +1049,6 @@ const ManagerDashboard = () => {
             viewBox="0 0 1440 100"
             preserveAspectRatio="none"
           >
-            {/* Commented out SVG path */}
           </svg>
         </div>
         
@@ -1069,17 +1068,7 @@ const ManagerDashboard = () => {
       <div className="flex flex-1 overflow-hidden">
         {/* Sidebar - now below navbar */}
         <div className="hidden md:flex flex-col w-64 bg-blue-950 text-white flex-shrink-0 overflow-y-auto z-20">
-          {/* <div className="flex items-center justify-between p-4 border-b border-blue-900">
-            <div className="flex items-center">
-              <div className="bg-blue-500 rounded-full p-1 mr-2">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-white" viewBox="0 0 20 20" fill="currentColor">
-                  <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
-                </svg>
-              </div>
-              <h2 className="text-white font-medium">Dashboard</h2>
-            </div>
-          </div> */}
-          <nav className="py-2">
+            <nav className="py-2">
             <ul className="space-y-1">
               {navItems.map((item) => (
                 <li key={item.name}>
@@ -1332,6 +1321,9 @@ const ManagerDashboard = () => {
           </nav>
         </div>
       </div>
+      <footer className="bg-gray-800 text-white p-4 text-center text-sm">
+        <p>© {new Date().getFullYear()} Vehicle Booking System. All rights reserved.</p>
+      </footer>
     </div>
   );
 };

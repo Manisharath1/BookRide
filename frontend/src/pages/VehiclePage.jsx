@@ -392,7 +392,7 @@ const VehiclePage = () => {
   const handleLogout = () => {
     if (window.confirm("Are you sure you want to logout?")) {
       localStorage.removeItem("token");
-      navigate("/");
+      navigate("/dashboard");
     }
   };
 
@@ -1240,6 +1240,10 @@ const VehiclePage = () => {
           </div>
         </div>
       )}
+
+    <footer className="bg-gray-800 text-white p-4 text-center text-sm">
+        <p>© {new Date().getFullYear()} Vehicle Booking System. All rights reserved.</p>
+      </footer>
     </div>
   );
 };
