@@ -1,5 +1,5 @@
 const express = require("express");
-const { login, register, logout } = require("../controllers/authController");
+const { login, register, logout, verifyEmailOtp, sendEmailOtp, sendCustomOtp, verifyCustomOtp } = require("../controllers/authController");
 const authMiddleware = require("../middleware/authMiddleware");
 const User = require("../models/User");
 
@@ -9,6 +9,11 @@ const router = express.Router();
 router.post("/register", register);
 router.post("/login", login);
 router.post("/logout", logout);
+router.post("/verify-code", verifyEmailOtp);
+router.post("/send-email", sendEmailOtp);
+router.post('/send-otp', sendCustomOtp);
+router.post('/verify-otp', verifyCustomOtp);
+
 router.get("/user", authMiddleware, async (req, res) => { 
     try {
       // console.log("User ID:", req.userId); // Debugging log

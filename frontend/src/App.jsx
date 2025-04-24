@@ -8,6 +8,8 @@ import { ToastContainer } from "react-toastify";
 import 'react-toastify/dist/ReactToastify.css';
 import ViewPage from "./pages/ViewPage";
 import DashboardPage from "./pages/DashboardPage";
+import RegisterPage from "./pages/RegisterPage";
+import ResetPassword from "./pages/ResetPassword";
 
 
 function App() {
@@ -19,10 +21,12 @@ function App() {
         <Route path="/view" element={<ViewPage />} />
         <Route path="/dashboard" element={<DashboardPage />} />
         <Route path="/" element={<Login />} />
+        <Route path="/register" element={<RegisterPage />} />
         <Route path="/user" element={<UserDashboard />} />
         <Route path="/manager" element={<ManagerDashboard />} />
         <Route path="/guest-booking" element={<GuestBookingPage />} />
         <Route path="/get-vehicles" element={<VehiclePage />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
         {/* <Route path="/merge-ride" element={<MergeRide />} /> */}
         </Routes>
     </Router>
