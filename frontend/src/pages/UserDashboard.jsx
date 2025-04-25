@@ -37,7 +37,7 @@ const UserDashboard = () => {
     }
 
     axios
-      .get("http://localhost:5000/api/auth/user", {
+      .get(`${import.meta.env.VITE_API_BASE_URL}/api/auth/user`, {
         headers: { Authorization: `Bearer ${token}` },
       })
       .then((response) => {
@@ -59,7 +59,7 @@ const UserDashboard = () => {
       setLoading(true);
       const token = localStorage.getItem("token");
       const response = await axios.get(
-        "http://localhost:5000/api/vehicles/getVehicles",
+        `${import.meta.env.VITE_API_BASE_URL}/api/vehicles/getVehicles`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
       setVehicles(response.data);
@@ -75,7 +75,7 @@ const UserDashboard = () => {
       setLoading(true);
       const token = localStorage.getItem("token");
       const response = await axios.get(
-        "http://localhost:5000/api/bookings/user",
+        `${import.meta.env.VITE_API_BASE_URL}/api/bookings/user`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
       // console.log("Bookings data:", response.data);
@@ -113,7 +113,7 @@ const UserDashboard = () => {
     try {
       const token = localStorage.getItem("token");
       await axios.post(
-        "http://localhost:5000/api/bookings/create",
+        `${import.meta.env.VITE_API_BASE_URL}/api/bookings/create`,
         {
           location,
           vehicleId: selectedVehicle._id,
@@ -143,7 +143,7 @@ const UserDashboard = () => {
       if (!token) return;
   
       try {
-        const response = await axios.get("http://localhost:5000/api/bookings/notifications", {
+        const response = await axios.get(`${import.meta.env.VITE_API_BASE_URL}/api/bookings/notifications`, {
           headers: { Authorization: `Bearer ${token}` }
         });
         setNotifications(response.data || []);
@@ -158,7 +158,7 @@ const UserDashboard = () => {
   useEffect(() => {
     if (activeTab === "notifications") {
       const token = localStorage.getItem("token");
-      axios.post("http://localhost:5000/api/notifications/mark-read", {}, {
+      axios.post(`${import.meta.env.VITE_API_BASE_URL}/api/notifications/mark-read`, {}, {
         headers: { Authorization: `Bearer ${token}` }
       })
       .then(() => {
@@ -193,7 +193,7 @@ const UserDashboard = () => {
         applicationServerKey: "BOV7U-0pnV13WuYwbNI7TGcKbdAU3s3AbRbiKYa-gChbMYI8XkF6gs-e9XvTSxjlo28rFnp7E1CRC2ursbjAstQ" // ← From backend
       });
   
-      await fetch("http://localhost:5000/subscribe", {
+      await fetch(`${import.meta.env.VITE_API_BASE_URL}/subscribe`, {
         method: "POST",
         body: JSON.stringify(subscription),
         headers: {
@@ -213,7 +213,7 @@ const UserDashboard = () => {
     try {
       const token = localStorage.getItem("token");
       await axios.post(
-        `http://localhost:5000/api/bookings/complete`,
+        `${import.meta.env.VITE_API_BASE_URL}/api/bookings/complete`,
         { bookingId: bookingId },
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -230,7 +230,7 @@ const UserDashboard = () => {
     try {
       const token = localStorage.getItem("token");
       await axios.post(
-        `http://localhost:5000/api/bookings/cancel`,
+        `${import.meta.env.VITE_API_BASE_URL}/api/bookings/cancel`,
         { bookingId: bookingId },
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -380,7 +380,7 @@ const UserDashboard = () => {
                           <div className="w-16 h-16 rounded-md overflow-hidden ml-2 flex-shrink-0">
                             {vehicle.imagePath ? (
                               <img 
-                                src={`http://localhost:5000${vehicle.imagePath}`}
+                                src={`${import.meta.env.VITE_API_BASE_URL}${vehicle.imagePath}`}
                                 alt="Vehicle" 
                                 className="w-full h-full object-cover transform rotate-0 hover:scale-110 transition-transform duration-300"
                                 style={{
