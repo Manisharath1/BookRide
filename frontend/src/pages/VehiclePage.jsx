@@ -5,7 +5,6 @@ import {
   Car, 
   Home, 
   Calendar,
-  Merge,
   LogOut,
   CrossIcon,
  } from "lucide-react";
@@ -400,7 +399,7 @@ const VehiclePage = () => {
     { name: "Home", path: "/manager", icon: <Home size={20} /> },
     { name: "Bookings", path: "/guest-booking", icon: <Calendar size={20} /> },
     { name: "Vehicles", path: "/get-vehicles", icon: <Car size={20} /> },
-    { name: "Merge Rides", path: "/merge-ride", icon: <Merge size={20} /> },
+    // { name: "Merge Rides", path: "/merge-ride", icon: <Merge size={20} /> },
   ];
 
   const toggleSidebar = () => {

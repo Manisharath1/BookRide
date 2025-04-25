@@ -24,7 +24,6 @@ import {
   Calendar,
   FileDigit,
   User2,
-  Merge,
   LogOut, 
  } from "lucide-react";
 
@@ -180,7 +179,7 @@ const BookForGuestPage = () => {
     { name: "Home", path: "/manager", icon: <Home size={20} /> },
     { name: "Bookings", path: "/guest-booking", icon: <Calendar size={20} /> },
     { name: "Vehicles", path: "/get-vehicles", icon: <Car size={20} /> },
-    { name: "Merge Rides", path: "/merge-ride", icon: <Merge size={20} /> },
+    // { name: "Merge Rides", path: "/merge-ride", icon: <Merge size={20} /> },
     
 
    ];

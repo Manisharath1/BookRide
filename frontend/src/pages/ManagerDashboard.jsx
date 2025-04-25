@@ -1003,7 +1003,7 @@ const ManagerDashboard = () => {
     { name: "Home", path: "/manager", icon: <Home size={20} /> },
     { name: "Bookings", path: "/guest-booking", icon: <Calendar size={20} /> },
     { name: "Vehicles", path: "/get-vehicles", icon: <Car size={20} /> },
-    { name: "Merge Rides", path: "/manager", icon: <Merge size={20} /> },
+    // { name: "Merge Rides", path: "/manager", icon: <Merge size={20} /> },
    
   ];
 

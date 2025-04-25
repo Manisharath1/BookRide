@@ -154,9 +154,9 @@ export default function RegisterPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 to-indigo-100 py-12 px-4 sm:px-6 flex items-center justify-center">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 py-12 px-4 sm:px-6 flex items-center justify-center">
       <div className="signup-container w-full max-w-md mx-auto bg-white rounded-xl shadow-lg overflow-hidden transition-all duration-300 hover:shadow-xl">
-        <div className="bg-purple-600 py-4">
+        <div className="bg-indigo-600 py-4">
           <h2 className="text-2xl font-bold text-center text-white">Create Account</h2>
         </div>
         
@@ -261,7 +261,7 @@ export default function RegisterPage() {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full bg-purple-600 text-white py-3 rounded-lg hover:bg-purple-700 transition-colors focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 disabled:opacity-50 flex justify-center items-center"
+                className="w-full bg-indigo-600 text-white py-3 rounded-lg hover:bg-indigo-700 transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-50 flex justify-center items-center"
               >
                 {loading ? (
                   <svg className="animate-spin -ml-1 mr-2 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -345,7 +345,7 @@ export default function RegisterPage() {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full bg-purple-600 text-white py-3 rounded-lg hover:bg-purple-700 transition-colors focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 disabled:opacity-50 flex justify-center items-center"
+                className="w-full bg-indigo-600 text-white py-3 rounded-lg hover:bg-indigo-700 transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-50 flex justify-center items-center"
               >
                 {loading ? (
                   <svg className="animate-spin -ml-1 mr-2 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -419,7 +419,7 @@ export default function RegisterPage() {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full bg-purple-600 text-white py-3 rounded-lg hover:bg-purple-700 transition-colors focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 disabled:opacity-50 flex justify-center items-center"
+                className="w-full bg-indigo-600 text-white py-3 rounded-lg hover:bg-indigo-700 transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-50 flex justify-center items-center"
               >
                 {loading ? (
                   <svg className="animate-spin -ml-1 mr-2 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -427,14 +427,14 @@ export default function RegisterPage() {
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                   </svg>
                 ) : null}
-                {loading ? 'Verifying...' : 'Complete Registration'}
+                {loading ? 'Verifying...' : 'Verify'}
               </button>
               
               <div className="grid grid-cols-1 gap-3 mt-4">
                 <button
                   type="button"
                   onClick={handleSendVerification}
-                  className="w-full bg-white text-purple-600 border border-purple-500 py-2 rounded-lg hover:bg-purple-50 transition-colors focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2"
+                  className="w-full bg-white text-indigo-600 border border-indigo-500 py-2 rounded-lg hover:bg-indigo-50 transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
                 >
                   Resend Code
                 </button>
@@ -453,22 +453,23 @@ export default function RegisterPage() {
             </form>
           )}
 
-          <div className="mt-6 text-center text-sm">
+          <div className="mt-2 text-center text-sm">
             <span className="text-gray-600">Already have an account?</span>
-            <a href="/" className="text-purple-600 hover:text-purple-800 ml-1 font-medium">Login</a>
+            <a href="/" className="text-indigo-600 hover:text-indigo-800 ml-1 font-medium">Login</a>
           </div>
           
           <div className="mt-2 text-center">
-            <a href="/help" className="text-purple-600 hover:text-purple-800 text-sm inline-flex items-center">
+            <a href="/help" className="text-indigo-600 hover:text-indigo-800 text-sm inline-flex items-center">
               <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
               </svg>
               Need help?
             </a>
           </div>
-        </div>
+        </div>  
       </div>
     </div>
+    
   );
 }
 
@@ -485,7 +486,7 @@ const Input = ({ label, icon, type = "text", ...props }) => (
       )}
       <input 
         type={type} 
-        className={`w-full px-3 py-2 ${icon ? 'pl-10' : 'pl-3'} border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent`} 
+        className={`w-full px-3 py-2 ${icon ? 'pl-10' : 'pl-3'} border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent`} 
         {...props} 
       />
     </div>
@@ -505,7 +506,7 @@ const Select = ({ name, value, onChange, icon }) => (
         name={name}
         value={value}
         onChange={onChange}
-        className={`w-full px-3 py-2 ${icon ? 'pl-10' : 'pl-3'} border border-gray-300 rounded-lg appearance-none focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent`}
+        className={`w-full px-3 py-2 ${icon ? 'pl-10' : 'pl-3'} border border-gray-300 rounded-lg appearance-none focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent`}
         required
       >
         <option value="user">User</option>
