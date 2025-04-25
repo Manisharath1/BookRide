@@ -855,8 +855,8 @@ const ManagerDashboard = () => {
     setLoading(true);
     try {
       const [pendingBookings, allBookings] = await Promise.all([
-        apiCall("get", "/bookings/pending"),
-        apiCall("get", "/bookings/all")
+        apiCall("get","/api/bookings/pending"),
+        apiCall("get", "/api/bookings/all")
       ]);
       
     
