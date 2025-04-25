@@ -904,7 +904,7 @@ const ManagerDashboard = () => {
 
   const handleApprove = async (bookingId, driverDetails) => {
     try {
-      await apiCall("post", "/bookings/approve", {
+      await apiCall("post", "/api/bookings/approve", {
         bookingId,
         ...driverDetails
       });
@@ -923,7 +923,7 @@ const ManagerDashboard = () => {
   const handleCompleteBooking = async (bookingId) => {
     try {
       // Make API call to update the booking status on the server
-      await apiCall("post", "/bookings/complete", { bookingId });
+      await apiCall("post", "/api/bookings/complete", { bookingId });
       
       setSuccessMessage("Booking completed successfully!");
       

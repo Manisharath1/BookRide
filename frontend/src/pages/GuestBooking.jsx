@@ -41,7 +41,7 @@ import {
         }
         
         // Verify user role
-        const response = await axios.get("http://localhost:5000/api/auth/user", {
+        const response = await axios.get(`${import.meta.env.VITE_API_BASE_URL}/api/auth/user`, {
           headers: { Authorization: `Bearer ${token}` }
         });
         
@@ -88,7 +88,7 @@ const BookForGuestPage = () => {
       setLoading(true);
       const token = localStorage.getItem("token");
       const response = await axios.get(
-        "http://localhost:5000/api/vehicles/getVehicles",
+        `${import.meta.env.VITE_API_BASE_URL}/api/vehicles/getVehicles`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
       // console.log("Fetched Vehicles Raw Data:", response.data);
@@ -139,7 +139,7 @@ const BookForGuestPage = () => {
     try {
       const token = localStorage.getItem("token");
       const response = await axios.post(
-        "http://localhost:5000/api/bookings/bookGuest",
+        `${import.meta.env.VITE_API_BASE_URL}/api/bookings/bookGuest`,
         bookingData,
         { 
           headers: { 
