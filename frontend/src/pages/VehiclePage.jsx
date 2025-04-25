@@ -24,7 +24,7 @@ const useManagerAccess = () => {
         }
         
         // Verify user role
-        const response = await axios.get("http://localhost:5000/api/auth/user", {
+        const response = await axios.get(`${import.meta.env.VITE_API_URL}/api/auth/user`, {
           headers: { Authorization: `Bearer ${token}` }
         });
         
@@ -94,7 +94,7 @@ const VehiclePage = () => {
       setLoading(true);
       const token = localStorage.getItem("token");
       const response = await axios.get(
-        "http://localhost:5000/api/vehicles/getVehicles",
+        `${import.meta.env.VITE_API_URL}/api/vehicles/getVehicles`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
       
@@ -143,7 +143,7 @@ const VehiclePage = () => {
       }
   
       await axios.put(
-        `http://localhost:5000/api/vehicles/${currentVehicle._id}`,
+        `${import.meta.env.VITE_API_URL}/api/vehicles/${currentVehicle._id}`,
         formData,
         {
           headers: {
@@ -248,7 +248,7 @@ const VehiclePage = () => {
       }
       
       await axios.post(
-        "http://localhost:5000/api/vehicles/newVehicle",
+        `${import.meta.env.VITE_API_URL}/api/vehicles/newVehicle`,
         formData,
         { 
           headers: { 
@@ -327,7 +327,7 @@ const VehiclePage = () => {
       },
       rcValidity: formatDate(vehicle.rcValidity)
     });
-    setImagePreview(vehicle.imagePath ? `http://localhost:5000${vehicle.imagePath}` : null);
+    setImagePreview(vehicle.imagePath ? `${import.meta.env.VITE_API_URL}${vehicle.imagePath}` : null);
     setImageFile(null);
     setShowModal(true);
   };
@@ -350,7 +350,7 @@ const VehiclePage = () => {
       },
       rcValidity: formatDate(vehicle.rcValidity)
     });
-    setImagePreview(vehicle.imagePath ? `http://localhost:5000${vehicle.imagePath}` : null);
+    setImagePreview(vehicle.imagePath ? `${import.meta.env.VITE_API_URL}${vehicle.imagePath}` : null);
     setImageFile(null);
     setViewModal(true);
 
@@ -416,7 +416,7 @@ const VehiclePage = () => {
     try {
       const token = localStorage.getItem("token");
       await axios.put(
-        `http://localhost:5000/api/vehicles/release/${vehicleId}`,
+        `${import.meta.env.VITE_API_URL}/api/vehicles/release/${vehicleId}`,
         {},
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -541,7 +541,7 @@ const VehiclePage = () => {
                         <div className="w-16 h-16 rounded-md overflow-hidden ml-2 flex-shrink-0">
                           {vehicle.imagePath ? (
                             <img 
-                              src={`http://localhost:5000${vehicle.imagePath}`}
+                              src={``${import.meta.env.VITE_API_URL}${vehicle.imagePath}`}
                               alt="Vehicle" 
                               className="w-full h-full object-cover transform rotate-0 hover:scale-110 transition-transform duration-300"
                               style={{

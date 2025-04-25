@@ -6,15 +6,48 @@ const authRoutes = require("./routes/authRoutes");
 const bookingRoutes = require("./routes/bookingRoutes");
 const securityRoutes = require("./routes/securityRoutes");
 const vehicleRoutes = require("./routes/vehicleRoutes");
-const dashboardRoutes = require("./routes/dashboardRoutes")
+const dashboardRoutes = require("./routes/dashboardRoutes");
+const session = require("express-session");
+const passport = require("passport");
 const path = require('path');
 const fs = require('fs');
 
-
-const webPush = require('web-push');
-
 dotenv.config();
 const app = express();
+
+require('./config/passport');
+app.use(session({
+  secret: process.env.SESSION_SECRET,
+  resave: false,
+  saveUninitialized: false
+}));
+
+app.use(passport.initialize());
+app.use(passport.session());
+
+app.get('/api/auth/google',
+  passport.authenticate('google', { scope: ['profile', 'email'] })
+);
+
+app.get('/api/auth/google/callback', (req, res, next) => {
+  passport.authenticate('google', (err, user, info) => {
+    if (err) return res.redirect('/login');
+
+    if (!user) {
+      // Redirect to frontend /register with prefilled data
+      const data = encodeURIComponent(JSON.stringify(info.googleData));
+      return res.redirect(`http://localhost:8000/register?googleData=${data}`);
+    }
+
+    // Log them in
+    req.login(user, (err) => {
+      if (err) return res.redirect('/login');
+      return res.redirect('http://localhost:8000/dashboard');
+    });
+  })(req, res, next);
+});
+
+const webPush = require('web-push');
 
 const vehiclesUploadDir = path.join(__dirname, 'uploads', 'vehicles');
 if (!fs.existsSync(vehiclesUploadDir)) {

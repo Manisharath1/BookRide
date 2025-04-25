@@ -13,7 +13,7 @@ const ViewPage = () => {
 
   useEffect(() => {
     // Fetch bookings from public endpoint
-    axios.get('http://localhost:5000/api/bookings/view')
+    axios.get(`${import.meta.env.VITE_API_URL}/api/bookings/view')
       .then(response => {
         console.log("API Response:", response.data);
         

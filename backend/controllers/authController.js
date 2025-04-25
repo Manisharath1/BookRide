@@ -4,82 +4,75 @@ const jwt = require("jsonwebtoken");
 const twilio = require('twilio');
 const Otp = require('../models/Otp');
 const sgMail = require('@sendgrid/mail');
+const { sendOtpSMS, verifyOtp } = require('../utils/messageCentral');
 
-const API_KEY = process.env.SENDGRID_API_KEY;
-sgMail.setApiKey(API_KEY);
-const FROM_EMAIL = process.env.FROM_EMAIL;
+
+// const API_KEY = process.env.SENDGRID_API_KEY;
+// sgMail.setApiKey(API_KEY);
+// const FROM_EMAIL = process.env.FROM_EMAIL;
 
 // Register a new user
 const register = async (req, res) => {
-  if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
-  }
-
-  const { username, email, number, password, role } = req.body;
-
-  const verifiedOtp = await Otp.findOne({ email, verified: true });
-  if (!verifiedOtp) {
-    return res.status(400).json({ error: 'Email not verified. Please verify your email before registering.' });
-  }
-
+  const { username, email, number, password, role, googleId } = req.body;
 
   try {
     // Check if user already exists
-    const existingUser = await User.findOne({ 
-      $or: [
-        { email },
-        { username },
-        { number }
-      ]
-    });
-
+    const existingUser = await User.findOne({ email });
     if (existingUser) {
-      if (existingUser.email === email) {
-        return res.status(400).json({ error: 'Email already registered' });
-      }
-      if (existingUser.username === username) {
-        return res.status(400).json({ error: 'Username already taken' });
-      }
-      if (existingUser.number === number) {
-        return res.status(400).json({ error: 'Phone number already registered' });
-      }
+      return res.status(400).json({ error: 'User already exists. Please login.' });
     }
 
-    // Validate email domain
+    // Validate ILS email
     if (!email.endsWith('@ils.res.in')) {
       return res.status(400).json({ error: 'Only emails with ils.res.in domain are allowed' });
     }
 
-    // Validate role
-    if (role !== 'user' && role !== 'manager') {
-      return res.status(400).json({ error: 'Invalid role' }); 
+    let hashedPassword = '';
+
+    // If NOT Google user, enforce OTP verification
+    if (!googleId) {
+      const verifiedOtp = await Otp.findOne({ number, verified: true });
+
+      if (!verifiedOtp) {
+        return res.status(400).json({ error: 'Please verify your phone number before registering.' });
+      }
+      await verifiedOtp.deleteOne();
+
+      if (!password || password.length < 6) {
+        return res.status(400).json({ error: 'Password must be at least 6 characters' });
+      }
+
+      hashedPassword = await bcrypt.hash(password, 10);
+      await verifiedOtp.deleteOne(); // clear used OTP
+    } else {
+      // For Google users, still validate and hash password
+      if (!password || password.length < 6) {
+        return res.status(400).json({ error: 'Password must be at least 6 characters' });
+      }
+      hashedPassword = await bcrypt.hash(password, 10);
     }
 
-    // Hash password
-    const hashedPassword = await bcrypt.hash(password, 10);
-
-    await verifiedOtp.deleteOne(); // clean up OTP record
-    res.status(201).json({ success: true, message: 'User registered successfully' });
-
-    // Create new user
+    // Create user - store phone number for all users
     const user = new User({
       username,
       email,
-      number,
+      googleId: googleId || null,
+      number, // Store phone number for both Google and regular users
       password: hashedPassword,
-      role
+      role: role || 'user'
     });
 
     await user.save();
 
-    return res.status(201).json({ 
+    return res.status(201).json({
       success: true,
-      message: 'User registered successfully' 
+      message: 'User registered successfully'
     });
+
   } catch (err) {
     console.error('Registration error:', err);
-    return res.status(500).json({ 
-      error: 'An error occurred during registration. Please try again.' 
+    return res.status(500).json({
+      error: 'An error occurred during registration. Please try again.'
     });
   }
 };
@@ -129,75 +122,61 @@ const logout = async (req, res) => {
 
 //mobile otp
 const verifyCustomOtp = async (req, res) => {
-  const { number, code } = req.body;
+  try {
+    const { number, code } = req.body;
 
-  const record = await Otp.findOne({ number });
-  if (!record) return res.status(400).json({ error: 'OTP not found for this number' });
+    if (!code || !number) {
+      return res.status(400).json({ error: 'Missing phone number or code' });
+    }
 
-  if (record.expiresAt < Date.now()) {
-    await Otp.deleteOne({ _id: record._id });
-    return res.status(400).json({ error: 'OTP has expired' });
+    const otpRecord = await Otp.findOne({ number });
+
+    if (!otpRecord || !otpRecord.verificationId) {
+      return res.status(400).json({ error: 'OTP not found or expired' });
+    }
+
+    // Call MessageCentral validation API
+    const response = await verifyOtp(otpRecord.verificationId, code);
+
+    if (response?.data?.verificationStatus === 'VERIFICATION_COMPLETED') {
+      otpRecord.verified = true;
+      await otpRecord.save();
+      return res.status(200).json({ message: 'OTP verified successfully' });
+    } else {
+      return res.status(400).json({ error: 'Invalid or expired OTP' });
+    }
+
+  } catch (err) {
+    console.error('OTP verification failed:', err?.response?.data || err.message || err);
+    res.status(500).json({ error: 'Internal Server Error during OTP verification' });
   }
-
-  if (record.code !== code) {
-    return res.status(400).json({ error: 'Invalid OTP' });
-  }
-
-  record.verified = true;
-  await record.save();
-
-  return res.status(200).json({ success: true, message: 'Phone number verified' });
 };
 
-// const generateOTP = () => Math.floor(100000 + Math.random() * 900000).toString(); 
 //mobile otp
 const sendCustomOtp = async (req, res) => {
-  const { number } = req.body;
-  console.log("Incoming number:", number);
-
-  if (!number) {
-    return res.status(400).json({ error: 'Phone number is required' });
-  }
-
-  const otp = Math.floor(100000 + Math.random() * 900000).toString();
-
   try {
-    const client = twilio(
-      process.env.TWILIO_ACCOUNT_SID,
-      process.env.TWILIO_AUTH_TOKEN
+    const { number } = req.body;
+    if (!number) return res.status(400).json({ error: "Phone number is required" });
+
+    // Send OTP via MessageCentral
+    const verificationId = await sendOtpSMS(number);
+
+    // Store in DB
+    await Otp.findOneAndUpdate(
+      { number },
+      { verificationId, createdAt: new Date(), verified: false },
+      { upsert: true }
     );
 
-    console.log("Using FROM:", process.env.TWILIO_PHONE_NUMBER);
-    console.log("Sending TO:", number);
-    console.log("Generated OTP:", otp);
-
-    const message = await client.messages.create({
-      body: `Your ILS OTP is: ${otp}. It is valid for 5 minutes.`,
-      from: process.env.TWILIO_PHONE_NUMBER,
-      to: number
-    });
-
-    console.log("SMS sent. SID:", message.sid);
-
-    // Clean up old OTPs
-    await Otp.deleteMany({ number });
-
-    // Store new OTP
-    await Otp.create({
-      number,
-      code: otp,
-      expiresAt: new Date(Date.now() + 5 * 60 * 1000)
-    });
-
-    return res.status(200).json({ success: true, message: 'OTP sent successfully' });
+    res.json({ message: 'OTP sent successfully' });
   } catch (err) {
-    console.error("❌ OTP Send Error:", err.message);
-    return res.status(500).json({ error: 'Failed to send OTP. Check console for details.' });
+    console.error('OTP send error:', err);
+    res.status(500).json({ error: 'Failed to send OTP' });
   }
 };
+// const generateOTP = () => Math.floor(100000 + Math.random() * 900000).toString(); 
 
 //emailotp
-
 const sendEmailOtp = async (req, res) => {
   const { email } = req.body;
 
