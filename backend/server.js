@@ -60,7 +60,10 @@ if (!fs.existsSync(vehiclesUploadDir)) {
 }
 
 // Middleware
-app.use(cors());
+app.use(cors({
+  origin: "https://book-ride-pi.vercel.app/", // ✅ your actual Vercel domain
+  credentials: true // ✅ if you're using cookies/tokens
+}));
 app.use(express.json());
 
 // Database connection
