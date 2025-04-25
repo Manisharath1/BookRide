@@ -25,7 +25,7 @@ import { LogOut , Clock, CheckCircle, XCircle } from "lucide-react";
 // Enhanced API hook with better error handling and caching
 const useAPI = () => {
   const navigate = useNavigate();
-  const baseURL = "${import.meta.env.VITE_API_BASE_URL}";
+  const baseURL = import.meta.env.VITE_API_BASE_URL;
   const [isLoading, setIsLoading] = useState(false);
   
 
