@@ -66,12 +66,12 @@ const DashboardPage = () => {
             bookingStatusRes,
             recentBookingsRes
             ] = await Promise.all([
-            fetch(`${import.meta.env.VITE_API_URL}/api/dashboard/stats`),
-            fetch(`${import.meta.env.VITE_API_URL}/dashboard/bookings-by-day?timeRange=${timeRange}`),
-            fetch(`${import.meta.env.VITE_API_URL}/api/dashboard/driver-activity`),
-            fetch(`${import.meta.env.VITE_API_URL}/api/dashboard/vehicle-utilization`),
-            fetch(`${import.meta.env.VITE_API_URL}/api/dashboard/booking-status?timeRange=${timeRange}`),
-            fetch(`${import.meta.env.VITE_API_URL}/api/dashboard/recent-bookings`)
+            fetch('http://localhost:5000/api/dashboard/stats'),
+            fetch(`http://localhost:5000/api/dashboard/bookings-by-day?timeRange=${timeRange}`),
+            fetch('http://localhost:5000/api/dashboard/driver-activity'),
+            fetch('http://localhost:5000/api/dashboard/vehicle-utilization'),
+            fetch(`http://localhost:5000/api/dashboard/booking-status?timeRange=${timeRange}`),
+            fetch('http://localhost:5000/api/dashboard/recent-bookings')
             ]);
             
             // Check for response errors

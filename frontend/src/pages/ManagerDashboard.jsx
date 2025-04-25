@@ -25,7 +25,7 @@ import { LogOut , Clock, CheckCircle, XCircle } from "lucide-react";
 // Enhanced API hook with better error handling and caching
 const useAPI = () => {
   const navigate = useNavigate();
-  const baseURL = `${import.meta.env.VITE_API_URL}/api`;
+  const baseURL = "http://localhost:5000/api";
   const [isLoading, setIsLoading] = useState(false);
   
 
@@ -149,7 +149,7 @@ const PendingBookingItem = ({ booking, fetchBookings }) => {
       }
       
       const response = await axios.post(
-        `${import.meta.env.VITE_API_URL}/api/bookings/approve`,
+        "http://localhost:5000/api/bookings/approve",
         {
           bookingId: booking._id,
           driverName: driverName,
@@ -216,7 +216,7 @@ const PendingBookingItem = ({ booking, fetchBookings }) => {
       }
   
       const response = await axios.post(
-        `${import.meta.env.VITE_API_URL}/api/bookings/cancel`,
+        "http://localhost:5000/api/bookings/cancel",
         {
           bookingId: booking._id,
           reason: reason || "No reason provided"
@@ -274,7 +274,7 @@ const PendingBookingItem = ({ booking, fetchBookings }) => {
     try {
       const token = localStorage.getItem("token");
       const response = await axios.put(
-        `${import.meta.env.VITE_API_URL}/api/bookings/reschedule`,
+        "http://localhost:5000/api/bookings/reschedule",
         {
           bookingId,
           newDate
@@ -295,7 +295,7 @@ const PendingBookingItem = ({ booking, fetchBookings }) => {
   useEffect(() => {
     async function fetchDrivers() {
       try {
-        const res = await fetch(`${import.meta.env.VITE_API_URL}/api/vehicles/drivers`); // change this to your actual endpoint
+        const res = await fetch("http://localhost:5000/api/vehicles/drivers"); // change this to your actual endpoint
         const data = await res.json();
         setDrivers(data); // assuming data is an array of driver objects
       } catch (error) {
@@ -310,7 +310,7 @@ const PendingBookingItem = ({ booking, fetchBookings }) => {
       setLoading(true);
       const token = localStorage.getItem("token");
       const response = await axios.get(
-        `${import.meta.env.VITE_API_URL}/api/vehicles/getVehicles`,
+        "http://localhost:5000/api/vehicles/getVehicles",
         { headers: { Authorization: `Bearer ${token}` } }
       );
       setVehicles(response.data);
@@ -334,7 +334,7 @@ const PendingBookingItem = ({ booking, fetchBookings }) => {
       }
       
       const response = await axios.get(
-        `${import.meta.env.VITE_API_URL}/api/bookings/all`,
+        "http://localhost:5000/api/bookings/all",
         {
           headers: { Authorization: `Bearer ${token}` }
         }
@@ -376,7 +376,7 @@ const PendingBookingItem = ({ booking, fetchBookings }) => {
       const token = localStorage.getItem("token");
       
       const response = await axios.post(
-        `${import.meta.env.VITE_API_URL}/api/bookings/merge`,
+        "http://localhost:5000/api/bookings/merge",
         {
           bookingIds: selectedBookings,
           primaryBookingId,
@@ -698,7 +698,7 @@ const BookingHistoryItem = ({ booking, onCompleteBooking,  }) => {
       }
   
       const response = await axios.post(
-        `${import.meta.env.VITE_API_URL}/api/bookings/complete`,
+        "http://localhost:5000/api/bookings/complete",
         { bookingId: booking._id },
         {
           headers: {
@@ -837,7 +837,7 @@ const ManagerDashboard = () => {
     }
 
     axios
-      .get(`${import.meta.env.VITE_API_URL}/api/auth/user`, {
+      .get("http://localhost:5000/api/auth/user", {
         headers: { Authorization: `Bearer ${token}` },
       })
       .then((response) => {

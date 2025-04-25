@@ -19,7 +19,7 @@ const Login = () => {
     setIsLoading(true);
     
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/auth/login`, {
+      const response = await fetch("http://localhost:5000/api/auth/login", {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -54,7 +54,7 @@ const Login = () => {
   };
 
   const handleGoogleSignIn = () => {
-    window.location.href = `${import.meta.env.VITE_API_URL}/api/auth/google`;
+    window.location.href = 'http://localhost:5000/api/auth/google';
   };
   
 
@@ -63,7 +63,7 @@ const Login = () => {
       <div className="w-full max-w-md">
         
         <Card className="w-full border-none shadow-lg">
-          <div className="relative top-40 left-0 right-0 mx-auto w-16 h-16 bg-indigo-600 rounded-full flex items-center justify-center shadow-md">
+          <div className="fixed top-40 left-0 right-0 mx-auto w-16 h-16 bg-indigo-600 rounded-full flex items-center justify-center shadow-md">
             <Lock className="h-8 w-8 text-white" />
           </div>
           
