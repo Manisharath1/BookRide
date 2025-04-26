@@ -575,12 +575,14 @@ const VehiclePage = () => {
                         Status: {vehicle.status}
                       </p>
                       <div className="flex justify-between items-center mt-4">
-                        <button
-                          onClick={() => handleOpenModal(vehicle)}
-                          className="mt-4 bg-blue-500 hover:bg-blue-600 border border-blue-950 border-dotted text-white py-1 px-3 rounded-lg"
-                        >
-                          Update
-                        </button>
+                        <div className="flex justify-between items-center mt-4">
+                          <button
+                            onClick={() => handleOpenModal(vehicle)}
+                            className="mt-4 bg-blue-500 hover:bg-blue-600 border border-blue-950 border-dotted text-white py-1 px-3 rounded-lg"
+                          >
+                            Update
+                          </button>
+                        </div>
                         
                         <div className="flex justify-between items-center mt-4">
                           <button
@@ -616,7 +618,6 @@ const VehiclePage = () => {
           </div>
           )}
         </div>
-        
           <Car className="fixed bottom-4 right-4 p-3 bg-blue-500 text-white rounded-full shadow-lg" size={60}
             onClick={() => setShowAddModal(true)} />
           
@@ -868,7 +869,7 @@ const VehiclePage = () => {
                 </div>
               </div>
           )}
-      </div>
+        </div>
       
       {/* Update Vehicle Modal */}
       {showModal && (

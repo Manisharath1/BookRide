@@ -227,19 +227,25 @@ const UserDashboard = () => {
   };
 
   const handleCancelBooking = async (bookingId) => {
-    try {
-      const token = localStorage.getItem("token");
-      await axios.post(
-        `${import.meta.env.VITE_API_BASE_URL}/api/bookings/cancel`,
-        { bookingId: bookingId },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-      alert("Ride cancelled successfully!");
-      fetchBookings();
-      fetchVehicles();
-    } catch (err) {
-      console.error(err);
-      alert("Failed to cancel ride");
+    if (window.confirm("Are you sure you want to cancel this booking?")) {
+      try {
+        const token = localStorage.getItem("token");
+        await axios.post(
+          `${import.meta.env.VITE_API_BASE_URL}/api/bookings/cancel`,
+          { bookingId: bookingId },
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+        alert("Ride cancelled successfully!");
+        fetchBookings();
+        fetchVehicles();
+      } catch (err) {
+        console.error(err);
+        if (err.response && err.response.data && err.response.data.error) {
+          alert(`Failed to cancel ride: ${err.response.data.error}`);
+        } else {
+          alert("Failed to cancel ride");
+        }
+      }
     }
   };
 
@@ -486,64 +492,76 @@ const UserDashboard = () => {
                                 {new Date(booking.scheduledAt).toLocaleDateString()}
                               </td>
                               <td className="px-6 py-4 whitespace-nowrap">
-                              {booking.isSharedRide ? (
-                                <div>
-                                  <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
-                                    Shared Ride
-                                  </span>
-                                  <span className={`ml-2 px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                                    booking.status === "completed"
-                                      ? "bg-green-100 text-green-800"
-                                      : booking.status === "cancelled"
-                                      ? "bg-red-100 text-red-800"
-                                      : booking.status === "pending" 
-                                      ? "bg-yellow-100 text-yellow-800"
-                                      : booking.status === "approved"
-                                      ? "bg-blue-100 text-blue-800"
-                                      : booking.status === "merged"
-                                      ? "bg-fuchsia-100 text-fuchsia-800"
-                                      : "bg-yellow-100 text-yellow-800"
-                                  }`}>
-                                    {booking.status}
-                                  </span>
-                                  <div className="text-xs text-gray-500 mt-1">
-                                    Shared with {(booking.passengers?.length || 0) - 1} other passenger(s)
+                                {booking.isSharedRide ? (
+                                  <div>
+                                    <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                                      Shared Ride
+                                    </span>
+                                    <span className={`ml-2 px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                                      booking.status === "completed"
+                                        ? "bg-green-100 text-green-800"
+                                        : booking.status === "cancelled"
+                                        ? "bg-red-100 text-red-800"
+                                        : booking.status === "pending" 
+                                        ? "bg-yellow-100 text-yellow-800"
+                                        : booking.status === "approved"
+                                        ? "bg-blue-100 text-blue-800"
+                                        : booking.status === "merged"
+                                        ? "bg-fuchsia-100 text-fuchsia-800"
+                                        : "bg-yellow-100 text-yellow-800"
+                                    }`}>
+                                      {booking.status}
+                                    </span>
+                                    <div className="text-xs text-gray-500 mt-1">
+                                      Shared with {(booking.passengers?.length || 0) - 1} other passenger(s)
+                                    </div>
+                                    
+                                    {/* Add Cancel button for merged rides */}
+                                    {(booking.status === "pending" || booking.status === "merged") && (
+                                      <button 
+                                        onClick={() => handleCancelBooking(booking._id)}
+                                        className="mt-2 bg-red-200 text-red-800 border-red-900 px-2 font-semibold rounded-md hover:bg-red-300"
+                                      >
+                                        Cancel
+                                      </button>
+                                    )}
                                   </div>
-                                </div>
-                              ) : (
-                                <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                                  booking.status === "completed"
-                                    ? "bg-green-100 text-green-800"
-                                    : booking.status === "cancelled"
-                                    ? "bg-red-100 text-red-800"
-                                    : booking.status === "pending" 
-                                    ? "bg-yellow-100 text-yellow-800"
-                                    : booking.status === "approved"
-                                    ? "bg-blue-100 text-blue-800"
-                                    : "bg-yellow-100 text-yellow-800"
-                                }`}>
-                                  {booking.status}
-                                </span>
-                              )}
-                              
-                              {booking.status === "approved" && !booking.isSharedRide && (
-                                <button 
-                                  onClick={() => handleCompleteBooking(booking._id)}
-                                  className="ml-8 bg-green-200 text-green-800 border-green-900 px-2 font-semibold rounded-md hover:bg-green-300"
-                                >
-                                  Complete
-                                </button>
-                              )}
-                              
-                              {booking.status === "pending" && (
-                                <button 
-                                  onClick={() => handleCancelBooking(booking._id)}
-                                  className="ml-8 bg-red-200 text-red-800 border-red-900 px-2 font-semibold rounded-md hover:bg-red-300"
-                                >
-                                  Cancel
-                                </button>
-                              )}
-                            </td>
+                                ) : (
+                                  <div>
+                                    <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                                      booking.status === "completed"
+                                        ? "bg-green-100 text-green-800"
+                                        : booking.status === "cancelled"
+                                        ? "bg-red-100 text-red-800"
+                                        : booking.status === "pending" 
+                                        ? "bg-yellow-100 text-yellow-800"
+                                        : booking.status === "approved"
+                                        ? "bg-blue-100 text-blue-800"
+                                        : "bg-yellow-100 text-yellow-800"
+                                    }`}>
+                                      {booking.status}
+                                    </span>
+                                    
+                                    {booking.status === "approved" && !booking.isSharedRide && (
+                                      <button 
+                                        onClick={() => handleCompleteBooking(booking._id)}
+                                        className="ml-2 bg-green-200 text-green-800 border-green-900 px-2 font-semibold rounded-md hover:bg-green-300"
+                                      >
+                                        Complete
+                                      </button>
+                                    )}
+                                    
+                                    {booking.status === "pending" && (
+                                      <button 
+                                        onClick={() => handleCancelBooking(booking._id)}
+                                        className="ml-2 bg-red-200 text-red-800 border-red-900 px-2 font-semibold rounded-md hover:bg-red-300"
+                                      >
+                                        Cancel
+                                      </button>
+                                    )}
+                                  </div>
+                                )}
+                              </td>
                             </tr>
                           ))}
                         </tbody>
