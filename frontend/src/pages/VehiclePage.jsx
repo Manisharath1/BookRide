@@ -575,7 +575,7 @@ const VehiclePage = () => {
                         Status: {vehicle.status}
                       </p>
                       <div className="flex justify-between items-center mt-4">
-                        <div className="flex justify-between items-center mt-4">
+                        <div>
                           <button
                             onClick={() => handleOpenModal(vehicle)}
                             className="mt-4 bg-blue-500 hover:bg-blue-600 border border-blue-950 border-dotted text-white py-1 px-3 rounded-lg"

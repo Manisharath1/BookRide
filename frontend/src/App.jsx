@@ -1,4 +1,4 @@
-import { BrowserRouter as Router, Route, Routes } from "react-router-dom";
+import { BrowserRouter as Router, Route, Routes, Navigate } from "react-router-dom";
 import Login from "./pages/Login";
 import UserDashboard from "./pages/UserDashboard";
 import ManagerDashboard from "./pages/ManagerDashboard";
@@ -20,7 +20,7 @@ function App() {
       <Routes>
         <Route path="/view" element={<ViewPage />} />
         <Route path="/dashboard" element={<DashboardPage />} />
-        <Route path="/" element={<Login />} />
+        <Route path="/login" element={<Login />} />
         <Route path="/register" element={<RegisterPage />} />
         <Route path="/user" element={<UserDashboard />} />
         <Route path="/manager" element={<ManagerDashboard />} />
@@ -28,6 +28,7 @@ function App() {
         <Route path="/get-vehicles" element={<VehiclePage />} />
         <Route path="/reset-password" element={<ResetPassword />} />
         {/* <Route path="/merge-ride" element={<MergeRide />} /> */}
+        <Route path="/" element={<Navigate to="/dashboard" replace />} />
         </Routes>
     </Router>
   );

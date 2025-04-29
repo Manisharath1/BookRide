@@ -7,38 +7,52 @@ const Notification = require("../models/Notification");
 // ✅ Create a new booking
 const createBooking = async (req, res) => {
   try {
-    const { location, vehicleId, reason, scheduledAt  } = req.body;
-    
-    if (!location || !vehicleId) {
-      return res.status(400).json({ message: 'Location and reason are required' });
+    const { location, vehicleId, reason, scheduledAt } = req.body;
+
+    if (!location || !vehicleId || !scheduledAt || !reason) {
+      return res.status(400).json({ message: 'All fields are required' });
     }
-    
-    // Find the vehicle to get its details
+
     const vehicle = await Vehicle.findById(vehicleId);
     if (!vehicle) {
       return res.status(404).json({ message: 'Vehicle not found' });
     }
-    
-    // Create booking with all vehicle details
+
+    // Normalize scheduledAt to minute precision
+    const normalizedScheduledAt = new Date(scheduledAt);
+    normalizedScheduledAt.setSeconds(0);
+    normalizedScheduledAt.setMilliseconds(0);
+
+    // Define 1-minute window to check conflict
+    const windowStart = new Date(normalizedScheduledAt.getTime() - 30 * 1000); // 30 sec before
+    const windowEnd = new Date(normalizedScheduledAt.getTime() + 30 * 1000);   // 30 sec after
+
+    const existingBooking = await Booking.findOne({
+      vehicleId: vehicleId,
+      scheduledAt: { $gte: windowStart, $lte: windowEnd },
+      status: { $in: ['pending', 'approved'] }
+    });
+
+    if (existingBooking) {
+      return res.status(409).json({ message: 'Vehicle already booked for this time slot.' });
+    }
+
     const newBooking = new Booking({
       userId: req.userId,
-      vehicleId: vehicleId,
+      vehicleId,
       vehicleName: vehicle.name,
       vehicleNumber: vehicle.number,
       driverName: vehicle.driverName,
       driverNumber: vehicle.driverNumber,
-      location: location,
-      reason: reason,
+      location,
+      reason,
       status: 'pending',
-      scheduledAt
+      scheduledAt: normalizedScheduledAt
     });
-    
+
     const savedBooking = await newBooking.save();
-    
-    // Update vehicle status
-    await Vehicle.findByIdAndUpdate(vehicleId, { status: 'pending' });
-    
     res.status(201).json(savedBooking);
+
   } catch (err) {
     console.error('Create booking error:', err);
     res.status(500).json({ error: err.message });
@@ -316,77 +330,128 @@ const completeBooking = async (req, res) => {
 
 //cancel booking
 const cancelBooking = async (req, res) => {
-  const { bookingId, reason } = req.body;
-
-  if (!mongoose.Types.ObjectId.isValid(bookingId)) {
-    return res.status(400).json({ error: "Invalid booking ID format" });
-  }
+  const { bookingId } = req.body;
 
   try {
     const booking = await Booking.findById(bookingId);
-    if (!booking) return res.status(404).json({ error: "Booking not found" });
 
-    if (booking.status === "completed") {
-      return res.status(400).json({ error: "Completed bookings cannot be cancelled" });
+    if (!booking) {
+      return res.status(404).json({ error: "Booking not found" });
     }
 
-    booking.status = "cancelled";
-    booking.cancelledAt = new Date();
-    booking.cancellationReason = reason || "No reason provided";
-    await booking.save();
-
-    // Free up the vehicle if already assigned
-    const vehicle = await Vehicle.findById(booking.vehicleId);
-    if (vehicle) {
-      vehicle.status = "available";
-      await vehicle.save();
+    const user = await User.findById(req.userId);
+    if (!user) {
+      return res.status(401).json({ error: "User not authenticated" });
     }
-    res.json({ message: "Booking cancelled successfully", booking });
 
-    await Notification.create({
-      userId: booking.userId,
-      message: `Your ride to ${booking.location} was cancelled by the manager.`
-    });
+    const userNumber = user.number.toString();
+    const username = user.username || "Unknown";
+
+    let modified = false; // to track if we modified booking
+
+    // Check if user is the Owner
+    if (booking.userId.toString() === req.userId.toString()) {
+      // Owner is cancelling
+
+      if (booking.isSharedRide) {
+        // Owner leaves ride, but others continue
+
+        // Optionally you can assign a new owner if needed
+        // For now just remove owner, keep passengers
+        booking.userId = undefined; // Clear owner
+        booking.ownerCancelled = true; // New field to indicate original owner left
+
+        if (!booking.cancellationHistory) {
+          booking.cancellationHistory = [];
+        }
+
+        booking.cancellationHistory.push({
+          userId: req.userId,
+          username: username,
+          number: userNumber,
+          cancelledAt: new Date(),
+          role: "owner"
+        });
+
+        modified = true;
+      } else {
+        // Non-shared ride, allow normal cancellation
+        booking.status = "cancelled";
+        modified = true;
+      }
+    }
+    else {
+      // Check if user is a passenger
+      const passengerIndex = booking.passengers.findIndex(p => p.number === userNumber);
+
+      if (passengerIndex !== -1) {
+        booking.passengers.splice(passengerIndex, 1);
+
+        if (!booking.cancellationHistory) {
+          booking.cancellationHistory = [];
+        }
+
+        booking.cancellationHistory.push({
+          userId: req.userId,
+          username: username,
+          number: userNumber,
+          cancelledAt: new Date(),
+          role: "passenger"
+        });
+
+        modified = true;
+      } else {
+        return res.status(403).json({ error: "You are not part of this booking." });
+      }
+    }
+
+    if (modified) {
+      await booking.save();
+      return res.json({ message: "You have successfully cancelled your participation." });
+    } else {
+      return res.status(400).json({ error: "Nothing was cancelled." });
+    }
 
   } catch (err) {
-    console.error("Error canceling booking:", err);
-    res.status(500).json({ error: err.message });
+    console.error("Error cancelling booking:", err);
+    res.status(500).json({ error: "Internal server error" });
   }
 };
 
 const getUserBookings = async (req, res) => {
   try {
-     // Check if user is authenticated
-     if (!req.userId) {
+    if (!req.userId) {
       return res.status(401).json({ message: 'User not authenticated' });
     }
-    // Get the user to check their role
-    const user = await User.findById(req.userId);
 
-    // Check if user is a manager
+    const user = await User.findById(req.userId);
     if (!user || user.role !== 'user') {
-      return res.status(403).json({ message: 'Access denied. Only Users can view all bookings.' });
+      return res.status(403).json({ message: 'Access denied. Only users can view their bookings.' });
     }
 
-    // console.log("User ID for booking search:", req.userId);
-    const bookings = await Booking.find({ userId: req.userId })
-    
-    .populate('userId', 'username email')
+    const userNumber = user.number.toString();
+    const userNumberWithCountryCode = "+91" + user.number.toString();
+
+    const userBookings = await Booking.find({
+      $or: [
+        { userId: req.userId },
+        { 'passengers.number': { $in: [userNumber, userNumberWithCountryCode] } } // 👈 look here
+      ]
+    })
+    .populate('userId', 'username number _id')
     .populate({
       path: 'vehicleId',
       select: 'name number driverName status',
       model: 'Vehicle'
     })
     .sort({ createdAt: -1 });
-    // console.log("Raw bookings before population:", bookings);
 
-    res.json(bookings);
+    res.json(userBookings);
   } catch (err) {
     console.error('Get bookings error:', err);
-    res.status(500).json({error: err.message });
+    res.status(500).json({ error: err.message });
   }
 };
-
 
 const getNotifications = async (req, res) => {
   try {
@@ -461,7 +526,7 @@ const mergeRide = async (req, res) => {
       location: primaryBooking.location,
       vehicleId: primaryBooking.vehicleId,
       vehicleName: primaryBooking.vehicleName,
-      driverName:primaryBooking.driverName,
+      driverName: primaryBooking.driverName,
       driverNumber: primaryBooking.driverNumber,
       status: "merged",
       isSharedRide: true,
@@ -470,7 +535,7 @@ const mergeRide = async (req, res) => {
       ...newDetails,
       scheduledAt: newDetails.scheduledAt || earliestTime, // Override with any new details if provided
     });
-    // console.log("mergedBooking.scheduledAt:", mergedBooking.scheduledAt);
+    
     await mergedBooking.save();
     
     // Mark primary vehicle as assigned
@@ -507,15 +572,15 @@ const mergeRide = async (req, res) => {
     res.status(200).json({
       message: "Bookings successfully merged into a shared ride",
       mergedBooking: {
-        _id: completeMergedBooking._id,
+        _id: completeMergedBooking._id,  // Fixed typo here
         status: completeMergedBooking.status,
         vehicleId: completeMergedBooking.vehicleId,
         vehicleName: completeMergedBooking.vehicleName,
         scheduledAt: completeMergedBooking.scheduledAt,
         mergedFrom: completeMergedBooking.mergedFrom,
         passengers: completeMergedBooking.passengers,
-        driverName:completeMergedBooking.driverName,
-        driverNumber:completeMergedBooking.driverNumber
+        driverName: completeMergedBooking.driverName,
+        driverNumber: completeMergedBooking.driverNumber
       }
     });
     

@@ -192,7 +192,7 @@ const DashboardPage = () => {
                             >
                                 {mobileMenuOpen ? <XIcon size={24} /> : <MenuIcon size={24} />}
                             </button>
-                            <Link to="/" className="bg-white text-blue-700 px-3 py-1 md:px-4 md:py-2 rounded-md hover:bg-gray-100 font-medium text-sm md:text-base">Login</Link>
+                            <Link to="/login" className="bg-white text-blue-700 px-3 py-1 md:px-4 md:py-2 rounded-md hover:bg-gray-100 font-medium text-sm md:text-base">Login</Link>
                             <Link to="/register" className="bg-white text-red-700 px-3 py-1 md:px-4 md:py-2 rounded-md hover:bg-gray-100 font-medium text-sm md:text-base">Register</Link>
                         </div>
                     </div>

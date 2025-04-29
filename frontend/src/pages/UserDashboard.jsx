@@ -16,74 +16,118 @@ const UserDashboard = () => {
   const [reason, setReason] = useState("");
   const [selectedVehicle, setSelectedVehicle] = useState(null);
   const [bookings, setBookings] = useState([]);
-  const [loading, setLoading] = useState(true);
+
   const [showModal, setShowModal] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("vehicles");
   const [notifications, setNotifications] = useState("[]");
   const [selectedDate, setSelectedDate] = useState(null); // date + time
-
+  const [loadingVehicles, setLoadingVehicles] = useState(true);
+  const [loadingBookings, setLoadingBookings] = useState(true);
 
 
   const navigate = useNavigate();
 
+  const isVehicleAvailableAt = (vehicleId, targetDateTime) => {
+    const target = new Date(targetDateTime);
+  
+    const futureConflicts = bookings.filter(
+      booking =>
+        booking.vehicleId === vehicleId &&
+        new Date(booking.scheduledAt) >= target &&
+        ['pending', 'approved'].includes(booking.status)
+    );
+  
+    return futureConflicts.length === 0;
+  };
   useEffect(() => {
-    const token = localStorage.getItem("token");
-
-    if (!token) {
-      console.error("No token found");
-      navigate("/"); // Redirect to login if no token
-      return;
-    }
-
-    axios
-      .get(`${import.meta.env.VITE_API_BASE_URL}/api/auth/user`, {
-        headers: { Authorization: `Bearer ${token}` },
-      })
-      .then((response) => {
-        setUsername(response.data.username);
-        setNumber(response.data.number);
-      })
-      .catch((error) => {
-        console.error("Failed to fetch user data:", error);
+    const initializeDashboard = async () => {
+      const token = localStorage.getItem("token");
+  
+      if (!token) {
+        console.error("No token found");
+        navigate("/"); // Redirect to login if no token
+        return;
+      }
+  
+      try {
+        // Fetch user profile first
+        const userResponse = await axios.get(`${import.meta.env.VITE_API_BASE_URL}/api/auth/user`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const userData = userResponse.data;
+        setUsername(userData.username);
+        setNumber(userData.number);
+  
+        // Parallel fetch Vehicles, Bookings, Notifications
+        await Promise.all([
+          fetchVehicles(token),
+          fetchBookings(token, userData.number),
+          fetchNotifications(token),
+        ]);
+  
+      } catch (error) {
+        console.error("Initialization error:", error);
         localStorage.removeItem("token");
         navigate("/");
-      });
-
-    fetchVehicles();
-    fetchBookings();
+      }
+    };
+  
+    initializeDashboard();
   }, [navigate]);
 
-  const fetchVehicles = async () => {
+  const fetchVehicles = async (token) => {
     try {
-      setLoading(true);
-      const token = localStorage.getItem("token");
-      const response = await axios.get(
-        `${import.meta.env.VITE_API_BASE_URL}/api/vehicles/getVehicles`,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+      setLoadingVehicles(true);
+      const response = await axios.get(`${import.meta.env.VITE_API_BASE_URL}/api/vehicles/getVehicles`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
       setVehicles(response.data);
-      setLoading(false);
+      setLoadingVehicles(false);
     } catch (error) {
       console.error("Failed to fetch vehicles:", error);
-      setLoading(false);
+      setLoadingVehicles(false);
     }
   };
 
-  const fetchBookings = async () => {
+  const fetchBookings = async (token, userNumber) => {
     try {
-      setLoading(true);
-      const token = localStorage.getItem("token");
-      const response = await axios.get(
-        `${import.meta.env.VITE_API_BASE_URL}/api/bookings/user`,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-      // console.log("Bookings data:", response.data);
-      setBookings(response.data);
-      setLoading(false);
+      setLoadingBookings(true);
+      const response = await axios.get(`${import.meta.env.VITE_API_BASE_URL}/api/bookings/user`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+  
+      const processedBookings = response.data.map(booking => {
+        if (booking.isSharedRide && booking.passengers) {
+          const isCurrentUserPassenger = booking.passengers.some(
+            passenger => passenger.number === userNumber
+          );
+          
+          return {
+            ...booking,
+            isCurrentUserPassenger,
+            isVisibleToCurrentUser: isCurrentUserPassenger || true,
+          };
+        }
+        return { ...booking, isVisibleToCurrentUser: true };
+      });
+  
+      setBookings(processedBookings);
+      setLoadingBookings(false);
     } catch (error) {
       console.error("Failed to fetch bookings:", error);
-      setLoading(false);
+      setLoadingBookings(false);
+    }
+  };
+
+  const fetchNotifications = async (token) => {
+    try {
+      const response = await axios.get(`${import.meta.env.VITE_API_BASE_URL}/api/bookings/notifications`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setNotifications(response.data || []);
+    } catch (error) {
+      console.error("Failed to fetch notifications:", error);
     }
   };
 
@@ -109,9 +153,10 @@ const UserDashboard = () => {
   const handleBookingSubmit = async (e) => {
     e.preventDefault();
     if (!selectedVehicle) return;
-
+  
     try {
       const token = localStorage.getItem("token");
+  
       await axios.post(
         `${import.meta.env.VITE_API_BASE_URL}/api/bookings/create`,
         {
@@ -122,56 +167,28 @@ const UserDashboard = () => {
         },
         { headers: { Authorization: `Bearer ${token}` } }
       );
-      alert("Ride booked successfully!");
+  
+      alert("✅ Ride booked successfully!");
       setLocation("");
       setReason("");
       setSelectedVehicle(null);
       setShowModal(false);
       fetchBookings();
       fetchVehicles(); // Refresh vehicles to update status
+  
     } catch (err) {
-      console.error(err);
-      alert("Failed to book ride");
+      // console.error("Booking error:", err);
+  
+      if (err.response && err.response.status === 409) {
+        // Custom conflict error from backend
+        alert(`❌ ${err.response.data.message || "Vehicle already booked for this time."}`);
+      } else if (err.response && err.response.data && err.response.data.error) {
+        alert(`⚠️ ${err.response.data.error}`);
+      } else {
+        alert("❌ Failed to book ride. Please try again.");
+      }
     }
   };
-
-  // const today = new Date().toISOString().split("T")[0];
-
-  useEffect(() => {
-    const fetchNotifications = async () => {
-      const token = localStorage.getItem("token");
-      if (!token) return;
-  
-      try {
-        const response = await axios.get(`${import.meta.env.VITE_API_BASE_URL}/api/bookings/notifications`, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        setNotifications(response.data || []);
-        } catch (err) {
-        console.error("Failed to fetch notifications:", err);
-      }
-    };
-  
-    fetchNotifications();
-  }, []);
-
-  useEffect(() => {
-    if (activeTab === "notifications") {
-      const token = localStorage.getItem("token");
-      axios.post(`${import.meta.env.VITE_API_BASE_URL}/api/notifications/mark-read`, {}, {
-        headers: { Authorization: `Bearer ${token}` }
-      })
-      .then(() => {
-        // Optionally update local state
-        setNotifications(prev =>
-          prev.map(n => ({ ...n, read: true }))
-        );
-      })
-      .catch((err) => {
-        console.error("Failed to mark notifications as read:", err);
-      });
-    }
-  }, [activeTab]);
   
 
   const unreadCount = Array.isArray(notifications)
@@ -253,10 +270,10 @@ const UserDashboard = () => {
     setSidebarOpen(!sidebarOpen);
   };
 
-  const displayBookings = bookings.filter(booking => 
-    // Only show bookings that haven't been merged into another booking
-    !booking.mergedInto
-  );
+  // const displayBookings = bookings.filter(booking => 
+  //   // Only show bookings that haven't been merged into another booking
+  //   !booking.mergedInto
+  // );
 
 
   return (
@@ -370,7 +387,7 @@ const UserDashboard = () => {
             {activeTab === "vehicles" && (
               <div>
                 <h2 className="text-3xl font-semibold mb-4">Available Vehicles</h2>
-                {loading ? (
+                {loadingVehicles ? (
                   <p>Loading vehicles...</p>
                 ) : (
                   <div className="grid flex-1 grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -410,16 +427,15 @@ const UserDashboard = () => {
                         <p className="text-gray-600">Driver Number - {vehicle.driverNumber}</p>
                         <p
                           className={`text-sm font-semibold mt-2 ${
-                            vehicle.status === "available"
+                            isVehicleAvailableAt(vehicle._id, new Date())
                               ? "text-green-600"
-                              : vehicle.status === "assigned"
-                              ? "text-yellow-600"
                               : "text-red-600"
                           }`}
                         >
-                          Status: {vehicle.status}
+                          Status: {isVehicleAvailableAt(vehicle._id, new Date()) ? "available" : "pending"}
                         </p>
-                        {vehicle.status === "available" && (
+
+                        {isVehicleAvailableAt(vehicle._id, new Date()) && (
                           <button
                             onClick={() => handleOpenModal(vehicle)}
                             className="mt-4 bg-green-500 hover:bg-green-600 text-white py-1 px-3 rounded"
@@ -427,6 +443,7 @@ const UserDashboard = () => {
                             Book
                           </button>
                         )}
+
                       </div>
                     ))}
                   </div>
@@ -437,7 +454,7 @@ const UserDashboard = () => {
             {activeTab === "bookings" && (
               <div>
                 <h2 className="text-3xl font-semibold mb-4">My Bookings</h2>
-                {loading ? (
+                {loadingBookings ? (
                   <p>Loading bookings...</p>
                 ) : (
                   <div className="bg-white rounded-lg shadow overflow-hidden">
@@ -471,99 +488,118 @@ const UserDashboard = () => {
                           </tr>
                         </thead>
                         <tbody className="bg-white divide-y divide-gray-200">
-                          {displayBookings.map((booking) => (
-                            <tr key={booking._id}>
-                              <td className="px-6 py-4 whitespace-nowrap">
-                                {booking.vehicleName || "N/A"}
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap">
-                                {booking.driverName || "-"}
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap">
-                                {booking.driverNumber || "-"}
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap">
-                                {booking.location || "-"}
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap">
-                                {booking.reason || "-"}
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap">
-                                {new Date(booking.scheduledAt).toLocaleDateString()}
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap">
-                                {booking.isSharedRide ? (
-                                  <div>
-                                    <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
-                                      Shared Ride
-                                    </span>
-                                    <span className={`ml-2 px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                                      booking.status === "completed"
-                                        ? "bg-green-100 text-green-800"
-                                        : booking.status === "cancelled"
-                                        ? "bg-red-100 text-red-800"
-                                        : booking.status === "pending" 
-                                        ? "bg-yellow-100 text-yellow-800"
-                                        : booking.status === "approved"
-                                        ? "bg-blue-100 text-blue-800"
-                                        : booking.status === "merged"
-                                        ? "bg-fuchsia-100 text-fuchsia-800"
-                                        : "bg-yellow-100 text-yellow-800"
-                                    }`}>
-                                      {booking.status}
-                                    </span>
-                                    <div className="text-xs text-gray-500 mt-1">
-                                      Shared with {(booking.passengers?.length || 0) - 1} other passenger(s)
+                          {bookings.map((booking) => {
+                            // Don't render original bookings that have been merged into others
+                            if (booking.mergedInto) {
+                              return null;
+                            }
+                            
+                            // Determine if current user is the booking owner or a passenger
+                            const isBookingOwner = booking.userId?._id === username;
+                            const currentUserAsPassenger = booking.passengers?.find(p => p.number === number);
+                            const isPassenger = !isBookingOwner && currentUserAsPassenger;
+                            
+                            return (
+                              <tr key={booking._id}>
+                                <td className="px-6 py-4 whitespace-nowrap">
+                                  {booking.vehicleName || "N/A"}
+                                </td>
+                                <td className="px-6 py-4 whitespace-nowrap">
+                                  {booking.driverName || "-"}
+                                </td>
+                                <td className="px-6 py-4 whitespace-nowrap">
+                                  {booking.driverNumber || "-"}
+                                </td>
+                                <td className="px-6 py-4 whitespace-nowrap">
+                                  {/* Show passenger-specific location if they're not the booking owner */}
+                                  {isPassenger ? currentUserAsPassenger.location : booking.location || "-"}
+                                </td>
+                                <td className="px-6 py-4 whitespace-nowrap">
+                                  {/* Show passenger-specific reason if they're not the booking owner */}
+                                  {isPassenger ? currentUserAsPassenger.reason : booking.reason || "-"}
+                                </td>
+                                <td className="px-6 py-4 whitespace-nowrap">
+                                  {new Date(booking.scheduledAt).toLocaleDateString()}
+                                </td>
+                                <td className="px-6 py-4 whitespace-nowrap">
+                                  {booking.isSharedRide ? (
+                                    <div>
+                                      <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                                        Shared Ride
+                                      </span>
+                                      <span className={`ml-2 px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                                        booking.status === "completed"
+                                          ? "bg-green-100 text-green-800"
+                                          : booking.status === "cancelled"
+                                          ? "bg-red-100 text-red-800"
+                                          : booking.status === "pending" 
+                                          ? "bg-yellow-100 text-yellow-800"
+                                          : booking.status === "approved"
+                                          ? "bg-blue-100 text-blue-800"
+                                          : booking.status === "merged"
+                                          ? "bg-fuchsia-100 text-fuchsia-800"
+                                          : "bg-yellow-100 text-yellow-800"
+                                      }`}>
+                                        {booking.status}
+                                      </span>
+                                      <div className="text-xs text-gray-500 mt-1">
+                                        Shared with {(booking.passengers?.length || 0) - 1} other passenger(s)
+                                        {isPassenger && (
+                                          <div className="italic mt-1">
+                                            (You are a passenger in this shared ride)
+                                          </div>
+                                        )}
+                                      </div>
+                                      
+                                      {/* Only show cancel button for pending or active merged rides */}
+                                      {(booking.status === "pending" || booking.status === "merged" || booking.status === "approved") && (
+                                        <button 
+                                          onClick={() => handleCancelBooking(booking._id)}
+                                          className="mt-2 bg-red-200 text-red-800 border-red-900 px-2 font-semibold rounded-md hover:bg-red-300"
+                                        >
+                                          Cancel
+                                        </button>
+                                      )}
                                     </div>
-                                    
-                                    {/* Add Cancel button for merged rides */}
-                                    {(booking.status === "pending" || booking.status === "merged") && (
-                                      <button 
-                                        onClick={() => handleCancelBooking(booking._id)}
-                                        className="mt-2 bg-red-200 text-red-800 border-red-900 px-2 font-semibold rounded-md hover:bg-red-300"
-                                      >
-                                        Cancel
-                                      </button>
-                                    )}
-                                  </div>
-                                ) : (
-                                  <div>
-                                    <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                                      booking.status === "completed"
-                                        ? "bg-green-100 text-green-800"
-                                        : booking.status === "cancelled"
-                                        ? "bg-red-100 text-red-800"
-                                        : booking.status === "pending" 
-                                        ? "bg-yellow-100 text-yellow-800"
-                                        : booking.status === "approved"
-                                        ? "bg-blue-100 text-blue-800"
-                                        : "bg-yellow-100 text-yellow-800"
-                                    }`}>
-                                      {booking.status}
-                                    </span>
-                                    
-                                    {booking.status === "approved" && !booking.isSharedRide && (
-                                      <button 
-                                        onClick={() => handleCompleteBooking(booking._id)}
-                                        className="ml-2 bg-green-200 text-green-800 border-green-900 px-2 font-semibold rounded-md hover:bg-green-300"
-                                      >
-                                        Complete
-                                      </button>
-                                    )}
-                                    
-                                    {booking.status === "pending" && (
-                                      <button 
-                                        onClick={() => handleCancelBooking(booking._id)}
-                                        className="ml-2 bg-red-200 text-red-800 border-red-900 px-2 font-semibold rounded-md hover:bg-red-300"
-                                      >
-                                        Cancel
-                                      </button>
-                                    )}
-                                  </div>
-                                )}
-                              </td>
-                            </tr>
-                          ))}
+                                  ) : (
+                                    <div>
+                                      <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                                        booking.status === "completed"
+                                          ? "bg-green-100 text-green-800"
+                                          : booking.status === "cancelled"
+                                          ? "bg-red-100 text-red-800"
+                                          : booking.status === "pending" 
+                                          ? "bg-yellow-100 text-yellow-800"
+                                          : booking.status === "approved"
+                                          ? "bg-blue-100 text-blue-800"
+                                          : "bg-yellow-100 text-yellow-800"
+                                      }`}>
+                                        {booking.status}
+                                      </span>
+                                      
+                                      {booking.status === "approved" && !booking.isSharedRide && (
+                                        <button 
+                                          onClick={() => handleCompleteBooking(booking._id)}
+                                          className="ml-2 bg-green-200 text-green-800 border-green-900 px-2 font-semibold rounded-md hover:bg-green-300"
+                                        >
+                                          Complete
+                                        </button>
+                                      )}
+                                      
+                                      {booking.status === "pending" && (
+                                        <button 
+                                          onClick={() => handleCancelBooking(booking._id)}
+                                          className="ml-2 bg-red-200 text-red-800 border-red-900 px-2 font-semibold rounded-md hover:bg-red-300"
+                                        >
+                                          Cancel
+                                        </button>
+                                      )}
+                                    </div>
+                                  )}
+                                </td>
+                              </tr>
+                            );
+                          })}
                         </tbody>
                       </table>
                     )}
@@ -636,7 +672,11 @@ const UserDashboard = () => {
                 <label className="block mb-1 text-sm text-gray-700">Select Date & Time *</label>
                 <DatePicker
                   selected={selectedDate}
-                  onChange={(date) => setSelectedDate(date)}
+                  onChange={(date) => {
+                    date.setSeconds(0);
+                    date.setMilliseconds(0);
+                    setSelectedDate(date);
+                  }}
                   showTimeSelect
                   dateFormat="Pp" // fancy format like 4/9/2025, 3:30 PM
                   className="w-full p-2 border rounded"
@@ -655,7 +695,7 @@ const UserDashboard = () => {
               />
               <input
               type="text"
-              placeholder="Reason for booking (optional)"
+              placeholder="Reason for booking"
               value={reason} 
               onChange={(e) => setReason(e.target.value)}
               className="w-full p-2 border rounded mb-4"

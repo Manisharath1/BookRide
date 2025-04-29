@@ -51,7 +51,8 @@ const bookingSchema = new mongoose.Schema({
   },
   reason: { 
     type: String,
-    trim: true
+    trim: true,
+    required: true,
   },
   notes: { 
     type: String 
@@ -74,12 +75,27 @@ const bookingSchema = new mongoose.Schema({
     default: null,
   },
 
-  // mergedBy: {
-  //   type: mongoose.Schema.Types.ObjectId,
-  //   ref: "User", // Assuming you have a User model
-  //   default: null,
-  // },
-
+  cancellationHistory: [
+    {
+      userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+      username: String,
+      number: String,
+      cancelledAt: Date
+    }
+  ],
+  ownerCancelled: {
+    type: Boolean,
+    default: false
+  },
+  cancelledUsers: [
+    {
+      userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+      username: String,
+      number: String,
+      cancelledAt: Date,
+      role: { type: String, enum: ['owner', 'passenger'] }
+    }
+  ],
   createdBy: { 
     type: mongoose.Schema.Types.ObjectId, ref: 'User', required: false 
   },
@@ -112,7 +128,11 @@ const bookingSchema = new mongoose.Schema({
       number: String,
       location: String,
       reason: String,
-      bookingTime: Date
+      bookingTime: Date,
+      cancelled: {
+        type: Boolean,
+        default: false
+      }
     }
   ],
 
@@ -138,5 +158,6 @@ bookingSchema.methods.canBeApproved = function() {
 bookingSchema.methods.canBeCompleted = function() {
   return this.status === "approved" || this.status === "in";
 };
+
 
 module.exports = mongoose.model("Booking", bookingSchema);
