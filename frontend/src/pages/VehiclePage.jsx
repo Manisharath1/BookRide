@@ -175,7 +175,6 @@ const VehiclePage = () => {
       }
     }
   };
-  
 
   const handleAddInputChange = (e) => {
     const { name, value } = e.target;
@@ -197,7 +196,6 @@ const VehiclePage = () => {
       }));
     }
   };
-  
   
   const handleAddImageChange = (e) => {
     const file = e.target.files[0];

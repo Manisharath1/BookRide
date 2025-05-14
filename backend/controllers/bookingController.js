@@ -7,47 +7,20 @@ const Notification = require("../models/Notification");
 // ✅ Create a new booking
 const createBooking = async (req, res) => {
   try {
-    const { location, vehicleId, reason, scheduledAt } = req.body;
+    const { location, reason, scheduledAt, duration, members } = req.body;
 
-    if (!location || !vehicleId || !scheduledAt || !reason) {
-      return res.status(400).json({ message: 'All fields are required' });
-    }
-
-    const vehicle = await Vehicle.findById(vehicleId);
-    if (!vehicle) {
-      return res.status(404).json({ message: 'Vehicle not found' });
-    }
-
-    // Normalize scheduledAt to minute precision
-    const normalizedScheduledAt = new Date(scheduledAt);
-    normalizedScheduledAt.setSeconds(0);
-    normalizedScheduledAt.setMilliseconds(0);
-
-    // Define 1-minute window to check conflict
-    const windowStart = new Date(normalizedScheduledAt.getTime() - 30 * 1000); // 30 sec before
-    const windowEnd = new Date(normalizedScheduledAt.getTime() + 30 * 1000);   // 30 sec after
-
-    const existingBooking = await Booking.findOne({
-      vehicleId: vehicleId,
-      scheduledAt: { $gte: windowStart, $lte: windowEnd },
-      status: { $in: ['pending', 'approved'] }
-    });
-
-    if (existingBooking) {
-      return res.status(409).json({ message: 'Vehicle already booked for this time slot.' });
+    if (!location || !scheduledAt || !reason || !duration || !members) {
+      return res.status(400).json({ message: 'All fields are required (location, reason, scheduledAt, duration, members).' });
     }
 
     const newBooking = new Booking({
       userId: req.userId,
-      vehicleId,
-      vehicleName: vehicle.name,
-      vehicleNumber: vehicle.number,
-      driverName: vehicle.driverName,
-      driverNumber: vehicle.driverNumber,
       location,
       reason,
       status: 'pending',
-      scheduledAt: normalizedScheduledAt
+      scheduledAt,
+      duration,
+      members
     });
 
     const savedBooking = await newBooking.save();
@@ -185,13 +158,14 @@ const approveBooking = async (req, res) => {
     bookingId, 
     driverName, 
     driverNumber, 
-    vehicleId
+    vehicleId,
+    scheduledAt 
   } = req.body;
 
   // Validate required fields
-  if (!bookingId || !driverName || !driverNumber || !vehicleId) {
+  if (!bookingId || !driverName || !driverNumber || !vehicleId || !scheduledAt) {
     return res.status(400).json({ 
-      error: "All fields are required for approval" 
+      error: "All fields are required for approval, including scheduledAt." 
     });
   }
 
@@ -204,59 +178,73 @@ const approveBooking = async (req, res) => {
   }
 
   try {
-    // Use session for transaction
     const session = await mongoose.startSession();
     session.startTransaction();
 
     try {
       const booking = await Booking.findById(bookingId).session(session);
-      if (!booking) {
-        throw new Error("Booking not found");
-      }
+      if (!booking) throw new Error("Booking not found");
 
       const vehicle = await Vehicle.findById(vehicleId).session(session);
-      if (!vehicle) {
-        throw new Error("Vehicle not found");
+      if (!vehicle) throw new Error("Vehicle not found");
+
+      const newStart = new Date(scheduledAt);
+      const durationMs = booking.duration * 60 * 60 * 1000; // duration in ms
+      const newEnd = new Date(newStart.getTime() + durationMs);
+
+      // Check for overlapping approved bookings
+      const overlapping = await Booking.findOne({
+        vehicleId,
+        status: 'approved',
+        _id: { $ne: bookingId },
+        scheduledAt: { $lt: newEnd }
+      }).where('scheduledAt').gte(new Date(newStart.getTime() - durationMs)).session(session);
+
+      if (overlapping) {
+        await session.abortTransaction();
+        return res.status(400).json({ 
+          error: "Vehicle is already booked during this time range." 
+        });
       }
 
-      if (vehicle.status === "assigned") {
-        throw new Error("Vehicle is already assigned to another booking");
-      }
-
-      // Update booking
+      // Assign vehicle and driver details
       booking.driverName = driverName;
       booking.driverNumber = driverNumber;
       booking.vehicleName = vehicle.name;
       booking.vehicleNumber = vehicle.number;
       booking.vehicleId = vehicle._id;
+      booking.scheduledAt = newStart;
       booking.status = "approved";
       booking.approvedAt = new Date();
 
       await booking.save({ session });
 
-      // Update vehicle
+      // Update vehicle status
       vehicle.status = "assigned";
       await vehicle.save({ session });
 
-      // Commit transaction
       await session.commitTransaction();
-      const populatedBooking = await Booking.findById(bookingId).populate("userId", "username")
+
+      const populatedBooking = await Booking.findById(bookingId).populate("userId", "username");
 
       res.json({ 
         message: "Booking approved successfully", 
         booking: populatedBooking 
       });
+
+      // Send notification (not in transaction)
       await Notification.create({
-        userId: booking.userId,  // the user who made the booking
+        userId: booking.userId,
         message: `Your booking for ${booking.location} has been approved.`
       });
+
     } catch (error) {
-      // Rollback transaction on error
       await session.abortTransaction();
       throw error;
     } finally {
       session.endSession();
     }
+
   } catch (err) {
     console.error("Error approving booking:", err);
     res.status(500).json({ 
@@ -334,7 +322,6 @@ const cancelBooking = async (req, res) => {
 
   try {
     const booking = await Booking.findById(bookingId);
-
     if (!booking) {
       return res.status(404).json({ error: "Booking not found" });
     }
@@ -344,56 +331,59 @@ const cancelBooking = async (req, res) => {
       return res.status(401).json({ error: "User not authenticated" });
     }
 
-    const userNumber = user.number.toString();
+    const userNumber = user.number?.toString() || "";
     const username = user.username || "Unknown";
+    const userIdStr = req.userId?.toString?.();
 
-    let modified = false; // to track if we modified booking
+    let modified = false;
 
-    // Check if user is the Owner
-    if (booking.userId.toString() === req.userId.toString()) {
-      // Owner is cancelling
+    // Allow managers to cancel anything
+    if (user.role === "manager") {
+      booking.status = "cancelled";
+      modified = true;
 
-      if (booking.isSharedRide) {
-        // Owner leaves ride, but others continue
-
-        // Optionally you can assign a new owner if needed
-        // For now just remove owner, keep passengers
-        booking.userId = undefined; // Clear owner
-        booking.ownerCancelled = true; // New field to indicate original owner left
-
-        if (!booking.cancellationHistory) {
-          booking.cancellationHistory = [];
-        }
-
-        booking.cancellationHistory.push({
-          userId: req.userId,
-          username: username,
-          number: userNumber,
-          cancelledAt: new Date(),
-          role: "owner"
-        });
-
-        modified = true;
-      } else {
-        // Non-shared ride, allow normal cancellation
-        booking.status = "cancelled";
-        modified = true;
-      }
+      booking.cancellationHistory = booking.cancellationHistory || [];
+      booking.cancellationHistory.push({
+        userId: user._id,
+        username,
+        number: userNumber,
+        cancelledAt: new Date(),
+        role: "manager"
+      });
     }
+    // If user is the owner
+    else if (booking.userId?.toString?.() === userIdStr) {
+      if (booking.isSharedRide) {
+        booking.userId = undefined;
+        booking.ownerCancelled = true;
+      } else {
+        booking.status = "cancelled";
+      }
+
+      booking.cancellationHistory = booking.cancellationHistory || [];
+      booking.cancellationHistory.push({
+        userId: user._id,
+        username,
+        number: userNumber,
+        cancelledAt: new Date(),
+        role: "owner"
+      });
+
+      modified = true;
+    }
+    // If user is a passenger
     else {
-      // Check if user is a passenger
-      const passengerIndex = booking.passengers.findIndex(p => p.number === userNumber);
+      const passengerIndex = (booking.passengers || []).findIndex(
+        (p) => p.number?.toString?.() === userNumber
+      );
 
       if (passengerIndex !== -1) {
         booking.passengers.splice(passengerIndex, 1);
-
-        if (!booking.cancellationHistory) {
-          booking.cancellationHistory = [];
-        }
+        booking.cancellationHistory = booking.cancellationHistory || [];
 
         booking.cancellationHistory.push({
-          userId: req.userId,
-          username: username,
+          userId: user._id,
+          username,
           number: userNumber,
           cancelledAt: new Date(),
           role: "passenger"
@@ -407,14 +397,14 @@ const cancelBooking = async (req, res) => {
 
     if (modified) {
       await booking.save();
-      return res.json({ message: "You have successfully cancelled your participation." });
+      return res.json({ message: "Booking cancelled successfully." });
     } else {
-      return res.status(400).json({ error: "Nothing was cancelled." });
+      return res.status(400).json({ error: "No changes were made to the booking." });
     }
 
   } catch (err) {
     console.error("Error cancelling booking:", err);
-    res.status(500).json({ error: "Internal server error" });
+    return res.status(500).json({ error: "Internal server error" });
   }
 };
 
@@ -451,6 +441,7 @@ const getUserBookings = async (req, res) => {
     console.error('Get bookings error:', err);
     res.status(500).json({ error: err.message });
   }
+
 };
 
 const getNotifications = async (req, res) => {
@@ -484,7 +475,7 @@ const reschedule = async (req, res) => {
 };
 
 const mergeRide = async (req, res) => {
-  const { bookingIds, primaryBookingId, newDetails = {} } = req.body;
+  const { bookingIds, primaryBookingId, newDetails = {}, managerReason } = req.body;
   
   try {
     // Fetch the bookings being merged with user data
@@ -511,6 +502,37 @@ const mergeRide = async (req, res) => {
         : earliest;
     }, primaryBooking.scheduledAt);
     
+    // Calculate end time for each booking (scheduledAt + duration) and find the latest end time
+    let latestEndTime = new Date(0);
+    bookingsToMerge.forEach(booking => {
+      if (booking.scheduledAt && booking.duration) {
+        // Convert booking.duration (hours) to milliseconds
+        const durationMs = booking.duration * 60 * 60 * 1000;
+        const endTime = new Date(new Date(booking.scheduledAt).getTime() + durationMs);
+        
+        if (endTime > latestEndTime) {
+          latestEndTime = endTime;
+        }
+      }
+    });
+    
+    // Calculate the final duration (from earliest start to latest end) in hours
+    const startTimeMs = new Date(earliestTime).getTime();
+    const finalDurationHours = (latestEndTime.getTime() - startTimeMs) / (60 * 60 * 1000);
+    
+    // Get total number of members from the bookings being merged
+    const totalMembers = bookingsToMerge.reduce((total, booking) => {
+      // If members is a number, add it to the total
+      if (booking.members && typeof booking.members === 'number') {
+        return total + booking.members;
+      }
+      // If members is an array, add its length
+      else if (booking.members && Array.isArray(booking.members)) {
+        return total + booking.members.length;
+      }
+      return total;
+    }, 0);
+    
     // Create passengers array with info from all merged bookings
     const passengers = bookingsToMerge.map(booking => ({
       username: booking.userId ? booking.userId.username : "Unknown",
@@ -528,12 +550,18 @@ const mergeRide = async (req, res) => {
       vehicleName: primaryBooking.vehicleName,
       driverName: primaryBooking.driverName,
       driverNumber: primaryBooking.driverNumber,
-      status: "merged",
+      status: "shared", 
       isSharedRide: true,
+      isActive: true, // Explicitly mark as active
       mergedFrom: bookingIds,
       passengers,
+      // Add the missing required fields
+      members: totalMembers,
+      duration: newDetails.duration || finalDurationHours,
+      reason: managerReason || "Bookings merged by manager",
       ...newDetails,
-      scheduledAt: newDetails.scheduledAt || earliestTime, // Override with any new details if provided
+      scheduledAt: newDetails.scheduledAt || earliestTime,
+      ...(({ status, ...rest }) => rest)(newDetails)
     });
     
     await mergedBooking.save();
@@ -554,12 +582,13 @@ const mergeRide = async (req, res) => {
       }
     }
     
-    // Update all original bookings as merged into this one
+    // Update all original bookings as merged and inactive
     await Booking.updateMany(
       { _id: { $in: bookingIds } },
       {
         $set: {
           status: "merged",
+          isActive: false, // Mark original bookings as inactive
           mergedInto: mergedBooking._id
         }
       }
@@ -572,11 +601,14 @@ const mergeRide = async (req, res) => {
     res.status(200).json({
       message: "Bookings successfully merged into a shared ride",
       mergedBooking: {
-        _id: completeMergedBooking._id,  // Fixed typo here
+        _id: completeMergedBooking._id,
         status: completeMergedBooking.status,
         vehicleId: completeMergedBooking.vehicleId,
         vehicleName: completeMergedBooking.vehicleName,
         scheduledAt: completeMergedBooking.scheduledAt,
+        duration: completeMergedBooking.duration,
+        members: completeMergedBooking.members,
+        reason: completeMergedBooking.reason,
         mergedFrom: completeMergedBooking.mergedFrom,
         passengers: completeMergedBooking.passengers,
         driverName: completeMergedBooking.driverName,
@@ -587,6 +619,19 @@ const mergeRide = async (req, res) => {
   } catch (err) {
     console.error("Merge failed:", err);
     res.status(500).json({ error: "Failed to merge bookings.", details: err.message });
+  }
+};
+
+const getById = async(req, res)=> {
+  try {
+    const booking = await Booking.findById(req.params.id).populate('userId').populate('vehicleId');
+    if (!booking) {
+      return res.status(404).json({ message: 'Booking not found' });
+    }
+    res.json(booking);
+  } catch (err) {
+    console.error('Error fetching booking:', err);
+    res.status(500).json({ message: 'Server error' });
   }
 };
 
@@ -646,5 +691,6 @@ module.exports = {
   getNotifications,
   reschedule,
   mergeRide,
-  getBookingsByVehicles
+  getBookingsByVehicles,
+  getById
 };

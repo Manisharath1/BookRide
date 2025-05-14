@@ -1,26 +1,31 @@
-/* eslint-disable no-unused-vars */
-/* eslint-disable react/prop-types */
-import { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-// import { Search } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+
+
 import axios from "axios";
 import {  
   Car, 
   Home, 
   Calendar,
-  Merge,
+  LogOut,
+  Clock,
+  CheckCircle,
+  Search,
+  LayoutDashboard,
+  User,
+  ChevronDown,
+  ChevronRight,
+  XCircle,
+ 
 } from "lucide-react";
 import { toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
-import DatePicker from "react-datepicker";
-import Modal from "./Modal";
-import { LogOut , Clock, CheckCircle, XCircle } from "lucide-react";
 
 // Enhanced API hook with better error handling and caching
 const useAPI = () => {
@@ -28,7 +33,6 @@ const useAPI = () => {
   const baseURL = import.meta.env.VITE_API_BASE_URL;
   const [isLoading, setIsLoading] = useState(false);
   
-
   const getAuthHeaders = useCallback(() => {
     const token = localStorage.getItem("token");
     if (!token) {
@@ -60,795 +64,48 @@ const useAPI = () => {
     } finally {
       if (showLoader) setIsLoading(false);
     }
-  }, [getAuthHeaders, navigate]);
+  }, [baseURL, getAuthHeaders, navigate]);
 
   return { apiCall, isLoading };
 };
 
-// Enhanced Pending Booking Item Component
-const PendingBookingItem = ({ booking, fetchBookings }) => {
-  const navigate = useNavigate();
-  const [driverDetails, setDriverDetails] = useState({
-    driverName: "",
-    driverNumber: "",
-    vehicleId: "",
-    vehicleName: ""
-  });
-  const [drivers, setDrivers] = useState([]);
-  const [error, setError] = useState("");
-  const [message, setMessage] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [vehicles, setVehicles] = useState([]);
-
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [availableBookings, setAvailableBookings] = useState([]);
-  const [selectedBookings, setSelectedBookings] = useState([]);
-  const [primaryBookingId, setPrimaryBookingId] = useState(null);
- 
-  
-  useEffect(() => {
-    if (booking) {
-      // Auto-populate fields with data from the booking if available
-      setDriverDetails({
-        driverName: booking.driverName || "",
-        driverNumber: booking.driverNumber || "",
-        vehicleId: booking.vehicleId || "",
-        vehicleName: booking.vehicleName || ""
-      });
-    }
-  }, [booking]);
-
-   const handleChange = (e) => {
-    setDriverDetails(prev => ({
-      ...prev,
-      [e.target.name]: e.target.value
-    }));
-    
-    // Clear error when user starts typing
-    if (error) setError("");
-    if (message) setMessage("");
-  };
-
-  const handleApproveClick = async () => {
-    const { driverName, driverNumber, vehicleName } = driverDetails;
-    
-    if (!driverName || !driverNumber || !vehicleName) {
-      setError("Please enter driver and vehicle details before approving.");
-      return;
-    }
-    
-    setIsSubmitting(true);
-      
-    try {
-      const token = localStorage.getItem("token");
-      
-      if (!token) {
-        console.error("No token found");
-        navigate("/");
-        return;
-      }
-
-      // Get reason for assignment, prefilled with location if available
-      const defaultReason = ` ${booking.reason}`;
-      let reason = null;
-      
-      // Use a custom prompt that forces user to enter reason or click cancel
-      const promptReason = () => {
-        const userInput = window.prompt("Reason for assignment (optional):", defaultReason);
-        // If user clicks OK (even with empty input) or provides text, process the approval
-        return userInput !== null ? userInput : null;
-      };
-      
-      reason = promptReason();
-      
-      // If user clicked Cancel on the prompt, abort the approval process
-      if (reason === null) {
-        setIsSubmitting(false);
-        return;
-      }
-      
-      const response = await axios.post(
-        `${import.meta.env.VITE_API_BASE_URL}/api/bookings/approve`,
-        {
-          bookingId: booking._id,
-          driverName: driverName,
-          driverNumber: driverNumber,
-          vehicleId: driverDetails.vehicleId,
-          reason: reason || defaultReason
-        },
-        {
-          headers: { 
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          }
-        }
-      );
-      // console.log("API Response:", response.data)
-      toast.success(response.data.message || "Booking approved successfully!");
-
-      // ✅ Refresh bookings after a delay
-      setTimeout(() => {
-        fetchBookings();
-      }, 500);
-  
-    } catch (err) {
-      console.error("Approval error:", err.response || err);
-
-      if (err.response?.status === 401) {
-        alert("Your session has expired. Please login again.");
-        localStorage.removeItem("token");
-        navigate("/");
-        return;
-      }
-
-      setError(err.response?.data?.error || "Failed to approve booking");
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  const handleCancel = async () => {
-    if (!window.confirm("Are you sure you want to cancel this booking?")) {
-      return;
-    }
-    
-    setIsSubmitting(true);
-    setError("");
-    setMessage("");
-    
-    try {
-      const token = localStorage.getItem("token");
-      
-      if (!token) {
-        console.error("No token found");
-        navigate("/");
-        return;
-      }
-  
-      // Ask user for cancellation reason
-      const reason = window.prompt("Please provide a reason for cancellation (optional):");
-      
-      // If user clicked Cancel on the prompt, abort the cancellation process
-      if (reason === null) {
-        setIsSubmitting(false);
-        return;
-      }
-  
-      const response = await axios.post(
-        `${import.meta.env.VITE_API_BASE_URL}/api/bookings/cancel`,
-        {
-          bookingId: booking._id,
-          reason: reason || "No reason provided"
-        },
-        {
-          headers: { 
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          }
-        }
-      );
-  
-      if (response.data) {
-        setMessage("Booking cancelled successfully!");
-        // Refresh the bookings list
-        setTimeout(() => {
-          fetchBookings();
-        }, 1000);
-      }
-    } catch (err) {
-      console.error("Cancel error:", err.response || err);
-      
-      if (err.response?.status === 401) {
-        alert("Your session has expired. Please login again.");
-        localStorage.removeItem("token");
-        navigate("/");
-        return;
-      }
-      
-      setError(err.response?.data?.error || "Failed to cancel booking");
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  // Reset fields to original booking data
-  // const handleResetFields = () => {
-  //   setDriverDetails({
-  //     driverName: booking.guestName || "",
-  //     driverNumber: booking.guestPhone || "",
-  //     vehicleId: booking.vehicleInfo || "",
-  //     vehicleName: booking.vehicleName || ""
-  //   });
-  //   setError("");
-  //   setMessage("");
-  // };
-
-  // // Format the booking date for display
-  // const formatDate = (dateString) => {
-  //   const date = new Date(dateString);
-  //   return date.toLocaleString();
-  // };
-
-  const handleReschedule = async (bookingId, newDate) => {
-    try {
-      const token = localStorage.getItem("token");
-      const response = await axios.put(
-        `${import.meta.env.VITE_API_BASE_URL}/api/bookings/reschedule`,
-        {
-          bookingId,
-          newDate
-        },
-        {
-          headers: { Authorization: `Bearer ${token}` }
-        }
-      );
-  
-      window.alert(response.data.message || "Rescheduled successfully");
-      fetchBookings(); // reload updated data
-    } catch (err) {
-      console.error("Failed to reschedule:", err);
-      toast.error("Error rescheduling booking");
-    }
-  };
-
-  useEffect(() => {
-    async function fetchDrivers() {
-      try {
-        const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/vehicles/drivers`); // change this to your actual endpoint
-        const data = await res.json();
-        setDrivers(data); // assuming data is an array of driver objects
-      } catch (error) {
-        console.error("Failed to fetch drivers:", error);
-      }
-    }
-    fetchDrivers();
-  },[]);
-
-  const fetchVehicles = async () => {
-    try {
-      setLoading(true);
-      const token = localStorage.getItem("token");
-      const response = await axios.get(
-        `${import.meta.env.VITE_API_BASE_URL}/api/vehicles/getVehicles`,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-      setVehicles(response.data);
-      setLoading(false);
-    } catch (error) {
-      console.error("Failed to fetch vehicles:", error);
-      setError("Failed to load vehicles. Please try again.");
-      setLoading(false);
-    }
-  };
-
-  const handleMerge = async () => {
-    setIsSubmitting(true);
-    try {
-      const token = localStorage.getItem("token");
-      
-      if (!token) {
-        console.error("No token found");
-        navigate("/");
-        return;
-      }
-      
-      const response = await axios.get(
-        `${import.meta.env.VITE_API_BASE_URL}/api/bookings/all`,
-        {
-          headers: { Authorization: `Bearer ${token}` }
-        }
-      );
-      
-      if (response.data) {
-
-        const eligibleBookings = response.data.filter(b => 
-          b.status === 'pending' || b.status === 'approved'
-        );
-        
-        // Pre-select the current booking
-        setSelectedBookings([booking._id]);
-        setPrimaryBookingId(booking._id);
-        setAvailableBookings(eligibleBookings);
-        setIsModalOpen(true);
-      }
-    } catch (err) {
-      console.error("Error fetching bookings for merge:", err);
-      toast.error("Failed to load bookings for merging");
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  const submitMerge = async () => {
-    if (selectedBookings.length < 2) {
-      toast.error('Please select at least two bookings to merge');
-      return;
-    }
-  
-    if (!primaryBookingId) {
-      toast.error('Please select a primary booking');
-      return;
-    }
-  
-    setIsSubmitting(true);
-    try {
-      const token = localStorage.getItem("token");
-      
-      const response = await axios.post(
-        `${import.meta.env.VITE_API_BASE_URL}/api/bookings/merge`,
-        {
-          bookingIds: selectedBookings,
-          primaryBookingId,
-          newDetails: { isSharedRide: true }
-        },
-        {
-          headers: { 
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          }
-        }
-      );
-      
-      toast.success(response.data.message || "Bookings successfully merged into a shared ride");
-      setIsModalOpen(false);
-      setSelectedBookings([]);
-      setPrimaryBookingId(null);
-      
-      // Refresh the bookings list
-      setTimeout(() => {
-        fetchBookings();
-      }, 500);
-    } catch (err) {
-      console.error("Merge error:", err.response || err);
-      toast.error(err.response?.data?.error || "Failed to merge bookings");
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  const toggleBookingSelection = (bookingId) => {
-    if (selectedBookings.includes(bookingId)) {
-      setSelectedBookings(selectedBookings.filter(id => id !== bookingId));
-      if (primaryBookingId === bookingId) {
-        setPrimaryBookingId(null);
-      }
-    } else {
-      setSelectedBookings([...selectedBookings, bookingId]);
-    }
-  };
-  
-  const setPrimary = (bookingId) => {
-    setPrimaryBookingId(bookingId);
-  };
-  
-  const closeModal = () => {
-    setIsModalOpen(false);
-    setSelectedBookings([]);
-    setPrimaryBookingId(null);
-  };
-
-
-  useEffect(() => {
-    fetchVehicles();
-  }, []);
-
-  return (
-    <div className="bg-gray-50 p-4 rounded shadow-md mb-4 border border-gray-200">
-      <div className="flex justify-between items-start mb-2">
-        <div>
-          <p className="font-semibold text-lg">Name: {booking.userId?.username || "Unknown"}</p>
-          <p className="font-semibold text-lg">Location: {booking.location}</p>
-          <p className="font-semibold text-lg">Reason: {booking.reason}</p>
-          <div className="flex items-center gap-2">
-            <p className="text-sm text-gray-600 whitespace-nowrap">
-              Scheduled:
-            </p>
-            <DatePicker
-              selected={booking.scheduledAt ? new Date(booking.scheduledAt) : null}
-              onChange={(date) => handleReschedule(booking._id, date)}
-              showTimeSelect
-              dateFormat="Pp"
-              placeholderText="Pick date & time"
-              className="border px-2 py-1 rounded w-full"
-            />
-          </div>
-
-
-        </div>
-        <Badge variant="outline" className="bg-yellow-100 text-yellow-800">
-          Pending
-        </Badge>
-      </div>
-      
-      <div className="space-y-2 mt-4 bg-white p-3 rounded border border-gray-200">
-        <h4 className="text-sm font-medium mb-2">Driver Assignment</h4>
-        <select
-          name="vehicleName"
-          value={driverDetails.vehicleName}
-          onChange={(e) => {
-            const selected = vehicles.find(v => v.name === e.target.value);
-            setDriverDetails((prev) => ({
-              ...prev,
-              vehicleName: selected?.name || "",
-              driverName: selected?.driverName || "",
-              driverNumber: selected?.driverNumber || ""
-            }));
-          }}
-          disabled={isSubmitting || loading}
-          required
-          className="w-full border border-gray-300 rounded px-3 py-2"
-        >
-          <option value="">Select a vehicle</option>
-          {vehicles.map((vehicle) => (
-            <option key={vehicle.vehicleID} value={vehicle.name}>
-              {vehicle.name}
-            </option>
-          ))}
-        </select>
-        <select
-          name="driverName"
-          value={driverDetails.driverName}
-          onChange={(e) => {
-            const selectedDriver = drivers.find(d => d.name === e.target.value);
-            setDriverDetails(prev => ({
-              ...prev,
-              driverName: selectedDriver?.name || "",
-              driverNumber: selectedDriver?.number || ""
-            }));
-          }}
-          disabled={isSubmitting}
-          required
-          className="w-full border border-gray-300 rounded px-3 py-2"
-        >
-          <option value="">Select a driver</option>
-          {Array.isArray(drivers) &&
-            drivers.map((driver, index) => (
-              <option key={index} value={driver.name}>
-                {driver.name}
-              </option>
-          ))}
-        </select>
-        <Input
-          name="driverNumber"
-          placeholder="Driver Number *"
-          value={driverDetails.driverNumber}
-          onChange={handleChange}
-          disabled={isSubmitting}
-          required
-        />
-        
-      </div>
-      
-      <div className="flex flex-wrap gap-2 mt-4">
-        <Button 
-          onClick={handleApproveClick} 
-          className="flex-1 sm:flex-none"
-          disabled={isSubmitting}
-        >
-          {isSubmitting ? "Processing..." : "Approve Booking"}
-        </Button>
-        <Button 
-          onClick={handleCancel} 
-          variant="outline" 
-          className="flex-1 sm:flex-none border-red-300 text-red-600 hover:bg-red-50"
-          disabled={isSubmitting}
-        >
-          Cancel Booking
-        </Button>
-        <Button
-          onClick={handleMerge}
-          variant="outline" 
-          className="flex-1 sm:flex-none border-green-300 text-green-600 hover:bg-green-50"
-          disabled={isSubmitting}
-        >
-          Merge Booking
-        </Button>
-      </div>
-
-      {error && (
-        <Alert variant="destructive" className="mt-2">
-          <AlertDescription>{error}</AlertDescription>
-        </Alert>
-      )}
-      
-      {message && (
-        <Alert variant="success" className="mt-2 bg-green-50 text-green-800 border border-green-200">
-          <AlertDescription>{message}</AlertDescription>
-        </Alert>
-      )}
-
-      {/* At the end of your JSX, just before the final closing div */}
-      <Modal 
-        isOpen={isModalOpen} 
-        onClose={closeModal}
-        title="Merge Bookings"
-      >
-        <div className="p-4">
-          <h2 className="text-lg font-semibold mb-4">Select bookings to merge into a shared ride</h2>
-          
-          {availableBookings.length === 0 ? (
-            <p className="text-gray-500">No eligible bookings found for merging.</p>
-          ) : (
-            <div className="space-y-4 max-h-96 overflow-y-auto">
-              {availableBookings.map(booking => (
-                <div 
-                  key={booking._id} 
-                  className={`p-3 border rounded-md ${
-                    selectedBookings.includes(booking._id) 
-                      ? 'border-blue-500 bg-blue-50' 
-                      : 'border-gray-200'
-                  }`}
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center">
-                      <input
-                        type="checkbox"
-                        id={`booking-${booking._id}`}
-                        checked={selectedBookings.includes(booking._id)}
-                        onChange={() => toggleBookingSelection(booking._id)}
-                        className="mr-3"
-                      />
-                      <label htmlFor={`booking-${booking._id}`} className="flex-1">
-                        <span className="font-medium">{booking.userId?.username || "Unknown"}</span>
-                        <div className="text-sm text-gray-600">
-                          Location: {booking.location}
-                        </div>
-                        <div className="text-xs text-gray-500">
-                          {new Date(booking.scheduledAt).toLocaleString()} • 
-                          Status: <span className="capitalize">{booking.status}</span>
-                        </div>
-                      </label>
-                    </div>
-                    
-                    {selectedBookings.includes(booking._id) && (
-                      <div>
-                        <input
-                          type="radio"
-                          id={`primary-${booking._id}`}
-                          name="primaryBooking"
-                          checked={primaryBookingId === booking._id}
-                          onChange={() => setPrimary(booking._id)}
-                          className="mr-1"
-                        />
-                        <label htmlFor={`primary-${booking._id}`} className="text-sm">
-                          Primary
-                        </label>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-          
-          <div className="flex justify-between mt-6">
-            <Button
-              onClick={closeModal}
-              variant="outline"
-              className="border border-gray-300"
-              disabled={isSubmitting}
-            >
-              Cancel
-            </Button>
-            
-            <Button
-              onClick={submitMerge}
-              className="bg-green-600 text-white hover:bg-green-700 disabled:bg-gray-300"
-              disabled={selectedBookings.length < 2 || !primaryBookingId || isSubmitting}
-            >
-              {isSubmitting ? 'Processing...' : 'Create Shared Ride'}
-            </Button>
-          </div>
-        </div>
-      </Modal>
-      
-    </div>
-  );
-};
-
-// Booking List Item for History View
-const BookingHistoryItem = ({ booking, onCompleteBooking,  }) => {
-
-  const navigate = useNavigate();
-  const [isCompleting, setIsCompleting] = useState(false);
-  const [error, setError] = useState("");
-  const [successMessage, setSuccessMessage] = useState("");
-
-    // Get appropriate status badge styling
-  const getStatusBadge = (status) => {
-    switch(status.toLowerCase()) {
-      case 'approved':
-        return <Badge className="bg-green-100 text-green-800 hover:bg-white hover:text-green-800">Approved</Badge>;
-      case 'cancelled':
-        return <Badge className="bg-red-100 text-red-800 hover:bg-white hover:text-red-800" >Cancelled</Badge>;
-      case 'completed':
-        return <Badge className="bg-blue-100 text-blue-800 hover:bg-white hover:text-blue-800">Completed</Badge>;
-      case 'pending':
-        return <Badge className="bg-yellow-100 text-yellow-800 hover:bg-white hover:text-yellow-800">Pending</Badge>;
-      case 'merged':
-        return <Badge className="bg-fuchsia-100 text-fuchsia-800 hover:bg-white hover:text-fuchsia-800">Shared</Badge>;
-      default:
-        return <Badge className="bg-gray-100 text-gray-800">{typeof status === 'string' ? status : 'Unknown'}</Badge>;
-    }
-  };
-
-  // Format the booking date
-  const formatDate = (dateString) => {
-    if (!dateString) return "N/A";
-    const date = new Date(dateString);
-    return date.toLocaleString();
-  };
-
-  const handleComplete = async () => {
-    // console.log("handleComplete triggered");
-    if (!window.confirm("Are you sure you want to mark this ride as completed?")) return;
-  
-    setIsCompleting(true);
-    setError(null);
-    setSuccessMessage(null); // ← in case you re-click and want to reset
-  
-    try {
-      const token = localStorage.getItem("token");
-  
-      if (!token) {
-        console.error("No token found");
-        navigate("/");
-        return;
-      }
-  
-      const response = await axios.post(
-        `${import.meta.env.VITE_API_BASE_URL}/api/bookings/complete`,
-        { bookingId: booking._id },
-        {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          }
-        }
-      );
-  
-      // console.log("Response received:", response.data);
-  
-     
-      if (response.data.message) {
-        toast.success(response.data.message || "Ride completed!");
-        setSuccessMessage(response.data.message); // ← NOW this will render the green alert
-  
-        if (onCompleteBooking) {
-          onCompleteBooking(booking._id);
-        } else {
-          console.warn("onCompleteBooking is not defined");
-        }
-      } else {
-        console.warn("Response did not include a success message.");
-      }
-    } catch (err) {
-      console.error("Completion error:", err.response || err);
-      if (err.response?.status === 401) {
-        toast.error("Session expired. Please login again.");
-        localStorage.removeItem("token");
-        navigate("/");
-        return;
-      }
-      toast.error(err.response?.data?.error || "Failed to complete booking");
-      setError(err.response?.data?.error || "Something went wrong");
-    } finally {
-      setIsCompleting(false);
-    }
-  };
-
-  return (
-    <div className="bg-gray-50 p-4 rounded shadow-sm mb-4 border border-gray-200">
-      <div className="flex justify-between items-start">
-        <div>
-          <p className="font-semibold text-lg">Name: {booking.userId?.username || "Unknown"}</p>
-          <p className="font-medium">Location: {booking.location}</p>
-          <p className="font-semibold text-lg">Reason: {booking.reason}</p>
-          <p className="text-sm text-gray-600">
-            {booking.scheduledAt && `Booked: ${formatDate(booking.scheduledAt)}`}
-          </p>
-          
-        </div>
-
-        <div className="flex flex-col gap-2 items-end">
-          {getStatusBadge(typeof booking.status === 'object' ? 'unknown' : booking.status)}
-
-          {(booking.status === 'approved' || booking.status === 'merged') && (
-            <Button 
-              onClick={handleComplete}
-              disabled={isCompleting}
-              className="bg-blue-600 hover:bg-blue-700 text-white text-xs px-3 py-1 h-8"
-            >
-              {isCompleting ? "Processing..." : "Complete"}
-            </Button>
-          )}
-        </div>
-      </div>
-
-      
-      <div className="mt-2 text-sm">
-      
-      {booking.guestName && <p><span className="font-medium">Guest:</span> {booking.guestName}</p>}
-      {booking.guestPhone && <p><span className="font-medium">Phone:</span> {booking.guestPhone}</p>}
-  
-  
-          
-        {/* Check if driver information is an object or string and handle accordingly */}
-        {booking.driverName && (
-          <div className="mt-2 pt-2 border-t border-gray-200">
-            <p><span className="font-medium">Driver:</span> {
-              typeof booking.driverName === 'object' 
-                ? booking.driverName.name || 'Unknown'  
-                : booking.driverName
-            }</p>
-            {booking.driverNumber && <p><span className="font-medium">Contact:</span> {
-              typeof booking.driverNumber === 'object'
-                ? booking.driverNumber.number || 'Unknown'
-                : booking.driverNumber
-            }</p>}
-            {booking.vehicleName && <p><span className="font-medium">Vehicle:</span> {
-              typeof booking.vehicleName === 'object'
-                ? booking.vehicleName || 'Unknown'
-                : booking.vehicleName
-            }</p>}
-          </div>
-        )}
-      </div>
-      {/* Error and success messages go here, nicely rendered and not forgotten */}
-      {error && (
-        <Alert variant="destructive" className="mt-2">
-          <AlertDescription>{error}</AlertDescription>
-        </Alert>
-      )}
-      {successMessage && (
-        <Alert className="mt-2 bg-green-50 border-green-200">
-          <AlertDescription>{successMessage}</AlertDescription>
-        </Alert>
-      )}
-    </div>
-  );
-};
-
-
 // Main Dashboard Component
 const ManagerDashboard = () => {
-  const [bookings, setBookings] = useState({ pending: [], approved: [], cancelled: [],merged: [], all: [] });
+  const [bookings, setBookings] = useState({ pending: [], approved: [], cancelled: [], merged: [], completed: [], shared:[], all: [] });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
-  const [activeTab, setActiveTab] = useState("pending");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [username, setUsername] = useState("");
-  const [successMessage, setSuccessMessage] = useState("");
+  const [successMessage] = useState("");
+  const [expandedSharedRows, setExpandedSharedRows] = useState({});
+
   
-  
-  // const [bookGuestModalOpen, setBookGuestModalOpen] = useState(false);
   const navigate = useNavigate();
-  const { apiCall, isLoading } = useAPI();
+  const { apiCall } = useAPI();
 
-  useEffect(() => {
-    const token = localStorage.getItem("token");
+    useEffect(() => {
+      const token = localStorage.getItem("token");
 
-    if (!token) {
-      console.error("No token found");
-      navigate("/"); 
-      return;
-    }
+      if (!token) {
+        console.error("No token found");
+        navigate("/"); 
+        return;
+      }
 
-    axios
-      .get(`${import.meta.env.VITE_API_BASE_URL}/api/auth/user`, {
-        headers: { Authorization: `Bearer ${token}` },
-      })
-      .then((response) => {
-        setUsername(response.data.username);
-      })
-      .catch((error) => {
-        console.error("Failed to fetch user data:", error);
-        localStorage.removeItem("token");
-        navigate("/");
-      });
-  }, [navigate]);
+      axios
+        .get(`${import.meta.env.VITE_API_BASE_URL}/api/auth/user`, {
+          headers: { Authorization: `Bearer ${token}` },
+        })
+        .then((response) => {
+          setUsername(response.data.username);
+        })
+        .catch((error) => {
+          console.error("Failed to fetch user data:", error);
+          localStorage.removeItem("token");
+          navigate("/");
+        });
+    }, [navigate]);
 
   
   const fetchBookings = useCallback(async () => {
@@ -859,34 +116,40 @@ const ManagerDashboard = () => {
         apiCall("get", "/api/bookings/all")
       ]);
       
-    
-      const approved = allBookings.filter(b => b.status === 'approved');
-      const cancelled = allBookings.filter(b => b.status === 'cancelled');
-      const completed = allBookings.filter(b => b.status === 'completed');
-      const merged = allBookings.filter(
-        b => b.status === 'merged' && b.isSharedRide
-      );
+      // Filter out the original bookings that were merged into other bookings
+      const filteredBookings = allBookings.filter(b => b.status !== 'merged');
       
+      const approved = filteredBookings.filter(b => b.status === 'approved');
+      const shared = filteredBookings.filter(b => b.status === 'shared');
+      const cancelled = filteredBookings.filter(b => b.status === 'cancelled');
+      const completed = filteredBookings.filter(b => b.status === 'completed');
       
-      setBookings({ 
+      // For the merged category, show the new merged bookings (they have status 'approved' and isSharedRide=true)
+      // const merged = filteredBookings.filter(
+      //   b => b.status === 'shared' && b.isSharedRide && b.mergedFrom?.length
+      // );
+      
+       setBookings({ 
         pending: pendingBookings, 
-        approved:approved.filter(b => !b.mergedFrom?.length), 
+        approved,
+        shared,
         cancelled,
         completed,
-        merged,
-        all: allBookings 
+        all: filteredBookings 
       });
       setError("");
-    }  catch (error) {
-     
-      navigate("/");
+    } catch (error) {
+      console.error("Failed to fetch bookings:", error);
+      setError("Failed to load bookings. Please try again.");
+      if (error.response?.status === 401) {
+        navigate("/");
+      }
     } finally {
       setLoading(false);
     }
-  }, [apiCall, navigate]);
+  }, [apiCall, navigate])
 
   useEffect(() => {
-   
     if (!localStorage.getItem("token")) {
       navigate("/");
       return;
@@ -894,69 +157,23 @@ const ManagerDashboard = () => {
     
     fetchBookings();
     
-    
     const interval = setInterval(() => {
       fetchBookings();
     }, 60000); // Refresh every minute
     
     return () => clearInterval(interval);
   }, [fetchBookings, navigate]);
-
-  const handleApprove = async (bookingId, driverDetails) => {
-    try {
-      await apiCall("post", "/api/bookings/approve", {
-        bookingId,
-        ...driverDetails
-      });
-      
-     
-      setSuccessMessage("Booking has been successfully approved!");
-   
-      window.alert("Booking has been successfully approved!");
-      
-      await fetchBookings();
-    } catch (err) {
-      setError(err.response?.data?.message || "Failed to approve booking");
-    }
-  };
-
+  
   const handleCompleteBooking = async (bookingId) => {
     try {
       // Make API call to update the booking status on the server
       await apiCall("post", "/api/bookings/complete", { bookingId });
       
-      setSuccessMessage("Booking completed successfully!");
-      
-      const findBookingById = (id) => {
-        return bookings.approved.find(b => b._id === id) ||
-               bookings.merged.find(b => b._id === id);
-      };
-      
-      const bookingToComplete = findBookingById(bookingId);
-      
-      if (bookingToComplete) {
-        const updatedApproved = bookings.approved.filter(b => b._id !== bookingId);
-        const updatedMerged = bookings.merged.filter(b => b._id !== bookingId);
-        const updatedBooking = {...bookingToComplete, status: 'completed'};
-        
-        setBookings(prev => ({
-          ...prev,
-          approved: updatedApproved,
-          merged: updatedMerged,
-          completed: [...prev.completed, updatedBooking]
-        }));
-      
-        // Instead, only remove the success message after some time
-        setTimeout(() => {
-          setSuccessMessage("");
-        }, 5000);
-      } else {
-        console.log("Could not find booking with ID:", bookingId);
-        fetchBookings();
-      }
+      toast.success("Booking completed successfully!");
+      await fetchBookings();
     } catch (err) {
       console.error("Error in handleCompleteBooking:", err);
-      setError("Failed to update booking status");
+      toast.error("Failed to update booking status");
     }
   };
 
@@ -967,30 +184,89 @@ const ManagerDashboard = () => {
     }
   };
 
-  const filteredAllBookings = bookings.all.filter(
-    (b) => !b.mergedInto // this skips the ones that have already been merged into a shared ride
-  );
+  const toggleSharedDetails = (bookingId) => {
+    setExpandedSharedRows(prev => ({
+      ...prev,
+      [bookingId]: !prev[bookingId],
+    }));
+  };
 
-  // const handleCreateBooking = async (bookingData) => {
-  //   try {
-  //     await apiCall("post", "/bookings/bookGuest", bookingData);
-  //     await fetchBookings();
-  //     return { success: true };
-  //   } catch (err) {
-  //     throw new Error(err.response?.data?.error || "Failed to create booking");
-  //   }
-  // };
+  const handleCancelBooking = async (bookingId) => {
+    if (window.confirm("Are you sure you want to cancel this booking?")) {
+      try {
+        const token = localStorage.getItem("token");
+        await axios.post(
+          `${import.meta.env.VITE_API_BASE_URL}/api/bookings/cancel`,
+          { bookingId },
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+        toast.success("Booking cancelled successfully.");
+        fetchBookings(); // Or whatever your refresh method is
+      } catch (err) {
+        console.error(err);
+        const errorMsg = err.response?.data?.error || "Failed to cancel booking.";
+        toast.error(errorMsg);
+      }
+    }
+  };
 
-  // Filter bookings based on search term
+  const formatDate = (booking) => {
+    // Check for scheduledAt field first (as shown in your data sample)
+    const dateString = booking.scheduledAt || booking.dateTime || booking.date;
+    
+    if (!dateString) return "No date available";
+    
+    try {
+      // Parse the ISO string date
+      const date = new Date(dateString);
+      
+      // Check if date is valid
+      if (isNaN(date.getTime())) {
+        console.error("Invalid date:", dateString);
+        return "Invalid date format";
+      }
+      
+      // Format the date in a user-friendly way
+      const options = { 
+        year: 'numeric', 
+        month: 'short', 
+        day: 'numeric', 
+        hour: '2-digit', 
+        minute: '2-digit'
+      };
+      
+      return date.toLocaleDateString(undefined, options);
+    } catch (error) {
+      console.error("Date formatting error:", error, dateString);
+      return "Error formatting date";
+    }
+  };
+  const getStatusBadge = (status) => {
+    switch (status) {
+      case 'pending':
+        return <Badge variant="outline" className="bg-yellow-100 text-yellow-800">Pending</Badge>;
+      case 'approved':
+        return <Badge variant="outline" className="bg-green-100 text-green-800">Approved</Badge>;
+      case 'cancelled':
+        return <Badge variant="outline" className="bg-red-100 text-red-800">Cancelled</Badge>;
+      case 'completed':
+        return <Badge variant="outline" className="bg-blue-100 text-blue-800">Completed</Badge>;
+      case 'shared':
+        return <Badge variant="outline" className="bg-purple-100 text-purple-800">Shared</Badge>;
+      default:
+        return <Badge variant="outline">{status}</Badge>;
+    }
+  };
+  
   const filterBookings = (bookingsList) => {
     if (!searchTerm) return bookingsList;
     
     return bookingsList.filter(booking => 
-      booking.location.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (booking.guestName && booking.guestName.toLowerCase().includes(searchTerm.toLowerCase())) ||
-      (booking.guestPhone && booking.guestPhone.includes(searchTerm)) ||
+      booking.location?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      booking.reason?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (booking.userId?.username && booking.userId.username.toLowerCase().includes(searchTerm.toLowerCase())) ||
       (booking.driverName && booking.driverName.toLowerCase().includes(searchTerm.toLowerCase())) ||
-      (booking.vehicleId && booking.vehicleId.toLowerCase().includes(searchTerm.toLowerCase()))
+      (booking.vehicleId?.name && booking.vehicleId.name.toLowerCase().includes(searchTerm.toLowerCase()))
     );
   };
 
@@ -1000,47 +276,21 @@ const ManagerDashboard = () => {
   }
 
   const navItems = [
-    { name: "Home", path: "/manager", icon: <Home size={20} /> },
+    { name: "Home", path: "/home", icon: <Home size={20} /> },
+    { name: "Dashboard", path: "/manager", icon: <LayoutDashboard size={20} /> },
     { name: "Bookings", path: "/guest-booking", icon: <Calendar size={20} /> },
     { name: "Vehicles", path: "/get-vehicles", icon: <Car size={20} /> },
-    // { name: "Merge Rides", path: "/manager", icon: <Merge size={20} /> },
-   
   ];
 
-  const cards = [
-    {
-      title: "Pending Bookings",
-      value: bookings.pending?.length || 0,
-      icon: <Clock size={24} />,
-      color: "bg-violet-500",
-      textColor: "text-white"
-    },
-    {
-      title: "Approved Rides",
-      value: bookings.approved?.length || 0,
-      icon: <CheckCircle size={24} />,
-      color: "bg-cyan-500",
-      textColor: "text-white"
-    },
-    {
-      title: "Completed Rides",
-      value: bookings.completed?.length || 0,
-      icon: <Calendar size={24} />,
-      color: "bg-emerald-500",
-      textColor: "text-white"
-    },
-    {
-      title: "Cancelled Bookings",
-      value: bookings.cancelled?.length || 0,
-      icon: <XCircle size={24} />,
-      color: "bg-pink-500",
-      textColor: "text-white"
-    }
+  const nonPendingBookings = [
+    ...bookings.approved,
+    ...bookings.completed,
+    ...bookings.cancelled,
+    ...bookings.shared
   ];
   
   return (
     <div className="flex flex-col min-h-screen">
-      {/* Main layout with sidebar and content */}
       <div className="sticky top-0 w-full h-20 overflow-hidden z-30">
         <div className="absolute inset-0 bg-gradient-to-r from-pink-500 via-purple-500 to-blue-500">
           <svg 
@@ -1063,12 +313,11 @@ const ManagerDashboard = () => {
           </button>
         </div>
       </div>
-      {/* Main content flex container - below navbar */}
       
       <div className="flex flex-1 overflow-hidden">
         {/* Sidebar - now below navbar */}
         <div className="hidden md:flex flex-col w-64 bg-blue-950 text-white flex-shrink-0 overflow-y-auto z-20">
-            <nav className="py-2">
+          <nav className="py-2">
             <ul className="space-y-1">
               {navItems.map((item) => (
                 <li key={item.name}>
@@ -1084,187 +333,332 @@ const ManagerDashboard = () => {
             </ul>
           </nav>
         </div>
-        {/* Main Content Area */}
         
+        {/* Main Content Area */}
         <div className="flex-1 flex flex-col overflow-y-auto">
-          {/* Content area */}
-          <div className="container mx-auto p-4 lg:p-6 space-y-6">
+          <div className="p-4 lg:p-6 space-y-6">
             {error && (
               <Alert variant="destructive" className="mb-4">
                 <AlertDescription>{error}</AlertDescription>
               </Alert>
             )}
             
-            {/* Dashboard cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-              {cards.map((card, index) => (
-                <div 
-                  key={index} 
-                  className={`${card.color} rounded-lg p-4 shadow-lg relative overflow-hidden`}
-                >
-                  <div className="absolute top-0 right-0 p-4">
-                    <div className="text-white opacity-80">
-                      {card.icon}
-                    </div>
-                  </div>
-                  <div className="pt-2">
-                    <h3 className={`${card.textColor} font-medium`}>
-                      {card.title}
-                    </h3>
-                    <p className={`${card.textColor} text-3xl font-bold mt-2`}>
-                      {card.value}
-                    </p>
-                  </div>
-                  <div className="absolute -bottom-6 -right-6 w-24 h-24 rounded-full bg-white opacity-10"></div>
-                </div>
-              ))}
+            {successMessage && (
+              <Alert className="mb-4 bg-green-100 border-green-500">
+                <AlertDescription className="text-green-800">{successMessage}</AlertDescription>
+              </Alert>
+            )}
+            
+            <div className="flex justify-between items-center mb-6">
+              <h1 className="text-2xl font-bold">Booking Management</h1>
+              <div className="relative">
+                <Input
+                  type="text"
+                  placeholder="Search bookings..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10 w-64"
+                />
+                <Search className="absolute left-3 top-2.5 h-5 w-5 text-gray-400" />
+              </div>
             </div>
             
-            {/* Bookings Management */}
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle>Bookings Management</CardTitle> 
-              </CardHeader>
-              <CardContent>
-                <Tabs defaultValue="pending" value={activeTab} onValueChange={setActiveTab}>
-                  {/* Responsive, scrollable tab list */}
-                  <div className="overflow-x-auto scrollbar-hide">
-                    <TabsList className="grid grid-cols-5 sm:flex-nowrap gap-2 mb-2 min-w-max">
-                      <TabsTrigger value="pending" className="px-3 py-2 text-xs sm:text-sm  whitespace-nowrap flex-shrink-0">
-                        Pending ({bookings.pending?.length || 0})
-                      </TabsTrigger>
-                      <TabsTrigger value="approved" className="px-3 py-2 text-xs sm:text-sm  whitespace-nowrap flex-shrink-0">
-                        Approved ({bookings.approved?.length || 0})
-                      </TabsTrigger>
-                      <TabsTrigger value="merged" className="px-3 py-2 text-xs sm:text-sm  whitespace-nowrap flex-shrink-0">
-                        Merged ({bookings.merged?.length || 0})
-                      </TabsTrigger>
-                      <TabsTrigger value="completed" className="px-3 py-2 text-xs sm:text-sm  whitespace-nowrap flex-shrink-0">
-                        Completed ({bookings.completed?.length || 0})
-                      </TabsTrigger>
-                      <TabsTrigger value="all" className="px-3 py-2 text-xs sm:text-sm  whitespace-nowrap flex-shrink-0">
-                        All Bookings ({bookings.all?.length || 0})
-                      </TabsTrigger>
-                    </TabsList>
-                  </div>
-                  
-                  <div>
-                    {/* Tab content styles are now consistent and scrollable */}
-                    <TabsContent value="pending" className="mt-0">
-                      {loading ? (
-                        <p className="text-center py-4">Loading bookings...</p>
-                      ) : filterBookings(bookings.pending).length === 0 ? (
-                        <p className="text-center text-gray-500 py-8">No pending bookings available.</p>
-                      ) : (
-                        <div className="max-h-[60vh] overflow-y-auto pr-1">
+            <div className="space-y-6">
+              {/* Pending Bookings Table */}
+              <Card>
+                <CardHeader className="bg-blue-50">
+                  <CardTitle className="text-xl flex items-center">
+                    <Clock className="mr-2 h-5 w-5 text-blue-600" />
+                    Pending Bookings ({bookings.pending.length})
+                  </CardTitle>
+                </CardHeader>
+                
+                <CardContent className="p-0">
+                  <div className="overflow-x-auto">
+                    {loading ? (
+                      <div className="p-6 text-center">Loading bookings...</div>
+                    ) : bookings.pending.length === 0 ? (
+                      <div className="p-6 text-center text-gray-500">No pending bookings found</div>
+                    ) : (
+                      <table className="w-full">
+                        <thead className="bg-gray-50">
+                          <tr>
+                            <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">User</th>
+                            <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">Date & Time</th>
+                            <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">Location</th>
+                            <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">Reason</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Duration</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Members</th>
+                            <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-200">
                           {filterBookings(bookings.pending).map((booking) => (
-                            <PendingBookingItem
-                              key={booking._id}
-                              booking={booking}
-                              onApprove={handleApprove}
-                              fetchBookings={fetchBookings}
-                            />
+                            <tr key={booking._id} className="hover:bg-gray-50">
+                              <td className="px-4 py-3 text-sm">{booking.userId?.username || 'Unknown User'}</td>
+                              <td className="px-4 py-3 text-sm">
+                                {formatDate(booking)}
+                              </td>
+                              <td className="px-4 py-3 text-sm">{booking.location}</td>
+                              <td className="px-4 py-3 text-sm">{booking.reason}</td>
+                              <td className="px-6 py-4 whitespace-nowrap">{booking.duration || "-"}</td>
+                              <td className="px-6 py-4 whitespace-nowrap">{ booking.members || "-"}</td>
+                              <td className="px-4 py-3 text-sm">
+                                <Button 
+                                  variant="outline" 
+                                  size="sm"
+                                  className="bg-blue-50 text-blue-600 hover:bg-blue-100"
+                                  onClick={() => navigate(`/manager/approve/${booking._id}`)}
+                                >
+                                  Approve
+                                </Button>
+                                <Button 
+                                  variant="outline" 
+                                  size="sm"
+                                  className="ml-2 bg-red-50 text-red-600 hover:bg-red-100"
+                                  onClick={() => handleCancelBooking(booking._id)}
+                                >
+                                  Cancel
+                                </Button>
+                                <Button 
+                                  variant="outline" 
+                                  size="sm"
+                                  className="ml-2 bg-purple-50 text-purple-600 hover:bg-purple-100"
+                                  onClick={() => navigate(`/manager/merge/${booking._id}`)}
+                                >
+                                  Merge
+                                </Button>
+                              </td>
+                            </tr>
                           ))}
-                        </div>
-                      )}
-                    </TabsContent>
-
-                    <TabsContent value="approved" className="mt-0">
-                      {loading ? (
-                        <p className="text-center py-4">Loading bookings...</p>
-                      ) : filterBookings(bookings.approved).length === 0 ? (
-                        <p className="text-center text-gray-500 py-8">No approved bookings found.</p>
-                      ) : (
-                        <div className="max-h-[60vh] overflow-y-auto pr-1">
-                          {filterBookings(bookings.approved).map((booking) => (
-                            <BookingHistoryItem
-                              key={booking._id}
-                              booking={booking}
-                              onCompleteBooking={handleCompleteBooking}
-                            />
-                          ))}
-                        </div>
-                      )}
-                    </TabsContent>
-
-                    <TabsContent value="merged" className="mt-0">
-                      {loading ? (
-                        <p className="text-center py-4">Loading bookings...</p>
-                      ) : filterBookings(bookings.merged).length === 0 ? (
-                        <p className="text-center text-gray-500 py-8">No merged bookings found.</p>
-                      ) : (
-                        <div className="max-h-[60vh] overflow-y-auto pr-1">
-                          {filterBookings(bookings.merged).map((booking) => (
-                            <MergedBookingCard
-                            key={booking._id}
-                            booking={booking}
-                            onCompleteBooking={handleCompleteBooking}
-                          />
-                          ))}
-                        </div>
-                      )}
-                    </TabsContent>
-
-                    <TabsContent value="completed" className="mt-0">
-                      {loading ? (
-                        <p className="text-center py-4">Loading bookings...</p>
-                      ) : filterBookings(bookings.completed).length === 0 ? (
-                        <p className="text-center text-gray-500 py-8">No completed bookings found.</p>
-                      ) : (
-                        <div className="max-h-[60vh] overflow-y-auto pr-1">
-                          {filterBookings(bookings.completed).map((booking) => (
-                            booking.isSharedRide ? (
-                              <MergedBookingCard
-                                key={booking._id}
-                                booking={booking}
-                                // No need for onCompleteBooking since it's already completed
-                              />
-                            ) : (
-                              <BookingHistoryItem
-                                key={booking._id}
-                                booking={booking}
-                              />
-                            )
-                          ))}
-                        </div>
-                      )}
-                    </TabsContent>
-
-                    <TabsContent value="all" className="mt-0">
-                      {loading ? (
-                        <p className="text-center py-4">Loading bookings...</p>
-                      ) : filterBookings(filteredAllBookings).length === 0 ? (
-                        <p className="text-center text-gray-500 py-8">No bookings found.</p>
-                      ) : (
-                        <div className="max-h-[60vh] overflow-y-auto pr-1">
-                          {filterBookings(filteredAllBookings).map((booking) =>
-                            booking.isSharedRide ? (
-                              <MergedBookingCard
-                                key={booking._id}
-                                booking={booking}
-                                onCompleteBooking={handleCompleteBooking}
-                              />
-                            ) : (
-                              <BookingHistoryItem
-                                key={booking._id}
-                                booking={booking}
-                                onCompleteBooking={handleCompleteBooking}
-                              />
-                            )
-                          )}
-                          
-                        </div>
-                      )}
-                      {successMessage && (
-                        <Alert className="mt-2 mb-2 bg-green-100 border-green-500 text-green-800">
-                          <AlertDescription>{successMessage}</AlertDescription>
-                        </Alert>
-                      )}
-                    </TabsContent>
+                        </tbody>
+                      </table>
+                    )}
                   </div>
-                </Tabs>
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
+              
+              {/* All Other Bookings Table */}
+              <Card>
+                <CardHeader className="bg-blue-50">
+                  <CardTitle className="text-xl flex items-center">
+                    <CheckCircle className="mr-2 h-5 w-5 text-green-600" />
+                    All Bookings ({nonPendingBookings.length})
+                  </CardTitle>
+                </CardHeader>
+                
+                <CardContent className="p-0">
+                  <div className="overflow-x-auto">
+                    {loading ? (
+                      <div className="p-6 text-center">Loading bookings...</div>
+                    ) : nonPendingBookings.length === 0 ? (
+                      <div className="p-6 text-center text-gray-500">No bookings found</div>
+                    ) : (
+                      <table className="min-w-full divide-y divide-gray-200 border border-gray-200 rounded-lg overflow-hidden">
+                        <thead className="bg-gray-50">
+                          <tr>
+                            <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              User
+                            </th>
+                            <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              Date
+                            </th>
+                            <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              Location
+                            </th>
+                            <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              Reason
+                            </th>
+                            <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              Duration
+                            </th>
+                            <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              Members
+                            </th>
+                            <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              Driver
+                            </th>
+                            <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              Vehicle
+                            </th>
+                            <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              Status
+                            </th>
+                            <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              Actions
+                            </th>
+                            <th
+                              scope="col"
+                              className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                            ></th>
+                          </tr>
+                        </thead>
+                        <tbody className="bg-white divide-y divide-gray-200">
+                          {filterBookings(nonPendingBookings).map((booking) => (
+                            <React.Fragment key={booking._id}>
+                              <tr className="group hover:bg-gray-50 transition-colors">
+                                <td className="px-4 py-3.5 text-sm font-medium">
+                                  <div className="flex items-center gap-2">
+                                    <span>{booking.userId?.username || "Unknown User"}</span>
+                                  </div>
+                                </td>
+                                <td className="px-4 py-3.5 text-sm">
+                                  <TooltipProvider>
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <div className="flex items-center gap-1.5">
+                                          <span>{formatDate(booking).split(",")[0]}</span>
+                                        </div>
+                                      </TooltipTrigger>
+                                      <TooltipContent>
+                                        <p>{formatDate(booking)}</p>
+                                      </TooltipContent>
+                                    </Tooltip>
+                                  </TooltipProvider>
+                                </td>
+                                <td className="px-4 py-3.5 text-sm">
+                                  <div className="flex items-center gap-1.5">
+                                    <span>{booking.location}</span>
+                                  </div>
+                                </td>
+                                <td className="px-4 py-3.5 text-sm">
+                                  <div className="flex items-center gap-1.5">
+                                    <span className="max-w-[150px] truncate" title={booking.reason}>
+                                      {booking.reason}
+                                    </span>
+                                  </div>
+                                </td>
+                                <td className="px-4 py-3.5 text-sm font-medium ">
+                                  <div className="flex items-center gap-1.5">
+                                    {booking.duration || "-"}
+                                  </div>
+                                </td>
+                                <td className="px-4 py-3.5 text-sm font-medium">
+                                  {booking.members ? (
+                                    <div className="flex items-center gap-1.5">
+                                      <span>{booking.members}</span>
+                                    </div>
+                                  ) : (
+                                    "-"
+                                  )}
+                                </td>
+                                <td className="px-4 py-3.5 text-sm">
+                                  {booking.driverName ? (
+                                    <div className="flex items-center gap-1.5">
+                                      <span>{booking.driverName}</span>
+                                    </div>
+                                  ) : (
+                                    <span className="text-gray-500 italic">Not assigned</span>
+                                  )}
+                                </td>
+                                <td className="px-4 py-3.5 text-sm">
+                                  {booking.vehicleId.name}
+                                </td>
+                                <td className="px-4 py-3.5 text-sm">{getStatusBadge(booking.status)}</td>
+                                <td className="px-4 py-3.5 text-sm">
+                                  {(booking.status === "approved" || booking.status === "shared") && (
+                                    <div className="flex flex-wrap gap-2 ">
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className="h-8 text-green-600 hover:text-green-700 hover:bg-green-50"
+                                        onClick={() => handleCompleteBooking(booking._id)}
+                                      >
+                                        <CheckCircle className="w-4 h-4 mr-1.5" />
+                                        Complete
+                                      </Button>
+
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className="h-8 text-red-600 hover:text-red-700 hover:bg-red-50"
+                                        onClick={() => handleCancelBooking(booking._id)}
+                                      >
+                                        <XCircle className="w-4 h-4 mr-1.5" />
+                                        Cancel
+                                      </Button>
+                                    </div>
+                                  )}
+                                </td>
+                                <td className="px-4 py-3.5">
+                                  {booking.status === "shared" && booking.passengers?.length > 0 && (
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      onClick={() => toggleSharedDetails(booking._id)}
+                                      className="rounded-full h-8 w-8 p-0"
+                                    >
+                                      {expandedSharedRows[booking._id] ? (
+                                        <ChevronDown className="w-5 h-5 text-primary" />
+                                      ) : (
+                                        <ChevronRight className="w-5 h-5 text-primary" />
+                                      )}
+                                    </Button>
+                                  )}
+                                </td>
+                              </tr>
+                              {expandedSharedRows[booking._id] && booking.passengers?.length > 0 && (
+                                <tr className="bg-gray-50/50 border-b border-gray-200">
+                                  <td colSpan={11} className="px-6 py-4">
+                                    <div className="mb-2">
+                                      <h4 className="font-medium text-sm text-gray-700 mb-3 flex items-center">
+                                        <User className="w-4 h-4 mr-2" />
+                                        Passengers ({booking.passengers.length})
+                                      </h4>
+                                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 max-h-[400px] overflow-y-auto pr-2">
+                                        {booking.passengers.map((passenger, index) => (
+                                          <Card
+                                            key={index}
+                                            className="overflow-hidden border-blue-200 shadow-sm hover:shadow transition-shadow"
+                                          >
+                                            <CardContent className="p-0">
+                                              <div className="bg-primary/5 px-4 py-2.5 border-b border-blue-200">
+                                                <div className="flex items-center justify-between">
+                                                  <div className="flex items-center gap-2">
+                                                    <span className="font-medium text-sm">{passenger.username}</span>
+                                                  </div>
+                                                  <Badge variant="outline" className="bg-white text-xs">
+                                                    Passenger {index + 1}
+                                                  </Badge>
+                                                </div>
+                                              </div>
+                                              <div className="p-4 space-y-2 text-sm">
+                                                <div className="flex items-start gap-2">
+                                                  <span className="text-gray-500 w-20 flex-shrink-0">Contact:</span>
+                                                  <span className="font-medium">{passenger.number}</span>
+                                                </div>
+                                                <div className="flex items-start gap-2">
+                                                  <span className="text-gray-500 w-20 flex-shrink-0">Location:</span>
+                                                  <span className="font-medium">{passenger.location}</span>
+                                                </div>
+                                                <div className="flex items-start gap-2">
+                                                  <span className="text-gray-500 w-20 flex-shrink-0">Reason:</span>
+                                                  <span className="font-medium">{passenger.reason}</span>
+                                                </div>
+                                                <div className="flex items-start gap-2">
+                                                  <span className="text-gray-500 w-20 flex-shrink-0">Time:</span>
+                                                  <span className="font-medium text-xs">
+                                                    {new Date(passenger.bookingTime).toLocaleString()}
+                                                  </span>
+                                                </div>
+                                              </div>
+                                            </CardContent>
+                                          </Card>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  </td>
+                                </tr>
+                              )}
+                            </React.Fragment>
+                          ))}
+                        </tbody>
+                      </table>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
           </div>
         </div>
       </div>
@@ -1284,7 +678,6 @@ const ManagerDashboard = () => {
         )}
       </button>
       
-      {/* Mobile sidebar */}
       <div 
         className={`fixed inset-y-0 left-0 transform ${
           sidebarOpen ? "translate-x-0" : "-translate-x-full"
@@ -1297,9 +690,9 @@ const ManagerDashboard = () => {
               onClick={() => setSidebarOpen(false)}
               className="ml-auto p-1 rounded-full hover:bg-gray-100"
             >
-              {/* <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg> */}
+              </svg>
             </button>
           </div>
           
@@ -1309,8 +702,8 @@ const ManagerDashboard = () => {
                 <li key={item.name}>
                   <Link
                     to={item.path}
-                    className="flex items-center py-3 px-4 rounded-md hover:bg-blue-50 text-white hover:text-blue-600 transition-colors"
-                    onClick={() => setSidebarOpen(false)} // close on nav click
+                    className="flex items-center py-3 px-4 rounded-md hover:bg-blue-900 text-white transition-colors"
+                    onClick={() => setSidebarOpen(false)}
                   >
                     <span className="mr-3">{item.icon}</span>
                     {item.name}
@@ -1321,105 +714,12 @@ const ManagerDashboard = () => {
           </nav>
         </div>
       </div>
+      
       <footer className="bg-gray-800 text-white p-4 text-center text-sm">
         <p>© {new Date().getFullYear()} Vehicle Booking System. All rights reserved.</p>
       </footer>
     </div>
   );
 };
-
-const MergedBookingCard = ({ booking, onCompleteBooking }) => {
-  const formatDate = (dateStr) => {
-    if (!dateStr) return "N/A";
-    return new Date(dateStr).toLocaleString();
-  };
-
-  const handleCompleteClick = async () => {
-    if (typeof onCompleteBooking === 'function') {
-      await onCompleteBooking(booking._id);
-    } else {
-      console.warn("onCompleteBooking is not a function");
-    }
-  };
-
-  // Determine the appropriate badge based on status
-  const getBadgeContent = () => {
-    if (booking.status === "completed") {
-      return (
-        <Badge className="bg-blue-100 text-blue-800 hover:bg-white hover:text-blue-800">
-          Completed
-        </Badge>
-      );
-    } else {
-      return (
-        <Badge className="bg-fuchsia-100 text-fuchsia-800 hover:bg-white hover:text-fuchsia-800">
-          Shared
-        </Badge>
-      );
-    }
-  };
-
-  return (
-    <div className="bg-white p-4 rounded shadow-sm mb-4 border border-gray-200">
-      <div className="flex justify-between items-start mb-2">
-        <div>
-          <h3 className="text-lg font-bold text-purple-700">🚗 Shared Ride</h3>
-          <p><strong>Location:</strong> {booking.location || "Unknown"}</p>
-          <p><strong>Vehicle:</strong> {booking.vehicleName || "Unknown"}</p>
-          <p><strong>Driver Name:</strong> {booking.driverName || "Unknown"}</p>
-          <p><strong>Driver Number:</strong> {booking.driverNumber || "Unknown"}</p>
-          <p><strong>Booking Time:</strong> {formatDate(booking.scheduledAt)}</p>
-        </div>
-
-        <div className="flex flex-col items-end">
-          {getBadgeContent()}
-
-          {booking.status === "merged" && (
-            <div className="mt-4 flex justify-end">
-              <Button
-                onClick={handleCompleteClick}
-                className="bg-blue-600 text-white hover:bg-blue-700 px-4 py-2"
-              >
-                Complete
-              </Button>
-            </div>
-          )}
-        </div>
-      </div>
-
-      <div className="mt-4">
-        <p className="font-semibold mb-2 text-gray-700">Passengers:</p>
-        {booking.passengers?.length > 0 ? (
-          <div className="space-y-4">
-            {booking.passengers.map((passenger, idx) => (
-              <div key={idx} className="bg-gray-50 p-3 border-l-4 border-blue-300 rounded">
-                <p><strong>Name:</strong> 
-                  {passenger.username 
-                    ? passenger.username 
-                    : passenger.guestName 
-                      ? passenger.guestName 
-                      : "Unknown"}
-                </p>
-                <p><strong>Phone:</strong> 
-                  {passenger.number 
-                    ? passenger.number 
-                    : passenger.guestPhone 
-                      ? passenger.guestPhone 
-                      : "N/A"}
-                </p>
-                <p><strong>Location:</strong> {passenger.location || "N/A"}</p>
-                <p><strong>Reason:</strong> {passenger.reason || "N/A"}</p>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <p className="text-gray-500">No passenger information available.</p>
-        )}
-      </div>
-    </div>
-  );
-};
-
-
 
 export default ManagerDashboard;

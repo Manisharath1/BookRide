@@ -10,6 +10,9 @@ import ViewPage from "./pages/ViewPage";
 import DashboardPage from "./pages/DashboardPage";
 import RegisterPage from "./pages/RegisterPage";
 import ResetPassword from "./pages/ResetPassword";
+import ApprovalPage from "./pages/ApprovalPage";
+import HomePage from "./pages/HomePage";
+import MergePage from "./pages/MergePage";
 
 
 function App() {
@@ -23,11 +26,13 @@ function App() {
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<RegisterPage />} />
         <Route path="/user" element={<UserDashboard />} />
+        <Route path="/home" element={<HomePage />} />
         <Route path="/manager" element={<ManagerDashboard />} />
         <Route path="/guest-booking" element={<GuestBookingPage />} />
         <Route path="/get-vehicles" element={<VehiclePage />} />
         <Route path="/reset-password" element={<ResetPassword />} />
-        {/* <Route path="/merge-ride" element={<MergeRide />} /> */}
+        <Route path="/manager/approve/:bookingId" element={<ApprovalPage />} />
+        <Route path="/manager/merge/:bookingId" element={<MergePage />} />
         <Route path="/" element={<Navigate to="/dashboard" replace />} />
         </Routes>
     </Router>

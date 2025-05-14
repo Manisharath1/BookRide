@@ -45,7 +45,7 @@ const bookingSchema = new mongoose.Schema({
   },
   status: { 
     type: String, 
-    enum: ["pending", "approved", "completed", "cancelled", "merged"], 
+    enum: ["pending", "approved", "completed", "cancelled", "merged", "shared"], 
     default: "pending",
     index: true // Add index for faster queries on status
   },
@@ -68,6 +68,15 @@ const bookingSchema = new mongoose.Schema({
     type: Boolean,
     default: false,
   },
+  duration: { 
+    type: Number, 
+    required: true
+  },
+
+  members: { 
+    type: Number, 
+    required: true
+  }, 
 
   mergedInto: {
     type: mongoose.Schema.Types.ObjectId,

@@ -27,6 +27,10 @@ router.post("/merge", authMiddleware, bookingController.mergeRide);
 
 router.get('/view', bookingController.getBookingsByVehicles);
 
+router.get('/:id',  bookingController.getById);
+
+
+
 // Route to get bookings for a specific vehicle
 // router.get('/vehicle/:vehicleNumber', bookingController.getVehicleBookings);
 
