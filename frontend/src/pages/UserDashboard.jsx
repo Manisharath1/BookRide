@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import axios from "axios";
-import { Bell, CheckCircle, ChevronDown, ChevronRight, Clock, Home, LogOut, User, X } from "lucide-react";
+import { Badge, Bell, CheckCircle, ChevronDown, ChevronRight, Clock, Home, LogOut, User, X, XCircle } from "lucide-react";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import { toast } from "react-toastify";
@@ -66,24 +66,40 @@ const UserDashboard = () => {
   }, [navigate]);
 
   const fetchBookings = async (token, userNumber) => {
+
+    if (!token) {
+      console.error("No authentication token available");
+      setLoadingBookings(false);
+      return;
+    }
     try {
       setLoadingBookings(true);
       const response = await axios.get(`${import.meta.env.VITE_API_BASE_URL}/api/bookings/user`, {
-        headers: { Authorization: `Bearer ${token}` }
+        headers: { Authorization: `Bearer ${token}` },
+        params: { userNumber }
       });
-  
+
       const processedBookings = response.data.map(booking => {
-        const isCurrentUserPassenger = booking.passengers?.some(p => p.number === userNumber);
+        // Find if current user is a passenger in this booking
+        const userAsPassenger = booking.passengers?.find(p => p.number === userNumber);
+        const isCurrentUserPassenger = !!userAsPassenger;
+        
         return {
           ...booking,
           isCurrentUserPassenger,
-          iisVisibleToCurrentUser: booking.status === "shared" ? 
-          (isCurrentUserPassenger || booking.userId?.number === userNumber) : true
-      };
-    });
-  
+          // Properly handle the case when the current user is a passenger
+          // by making these fields available from their passenger record
+          displayMembers: isCurrentUserPassenger ? userAsPassenger.members : booking.members,
+          displayDuration: isCurrentUserPassenger ? userAsPassenger.duration : booking.duration,
+          displayLocation: isCurrentUserPassenger ? userAsPassenger.location : booking.location,
+          displayReason: isCurrentUserPassenger ? userAsPassenger.reason : booking.reason,
+          isVisibleToCurrentUser: booking.status === "shared" ? 
+            (isCurrentUserPassenger || booking.userId?.number === userNumber) : true
+        };
+      });
+
       // Categorize properly
-       const bookingsByStatus = {
+      const bookingsByStatus = {
         pending: [],
         approved: [],
         cancelled: [],
@@ -91,15 +107,17 @@ const UserDashboard = () => {
         completed: [],
         all: processedBookings
       };
-  
+
       processedBookings.forEach(b => {
-        if (b.status === "shared") {
-          bookingsByStatus.shared.push(b);
-        } else if (bookingsByStatus[b.status]) {
-          bookingsByStatus[b.status].push(b);
+        if (b.isVisibleToCurrentUser) {
+          if (b.status === "shared") {
+            bookingsByStatus.shared.push(b);
+          } else if (bookingsByStatus[b.status]) {
+            bookingsByStatus[b.status].push(b);
+          }
         }
       });
-  
+
       setBookings(bookingsByStatus);
       setLoadingBookings(false);
     } catch (error) {
@@ -198,9 +216,11 @@ const UserDashboard = () => {
           signal: controller.signal
         }
       );
+      console.log(response);
 
       clearTimeout(timeoutId);
       toast.success(' Ride requested successfully!');
+      window.location.reload();
 
       // Reset form fields
       setLocation("");
@@ -303,6 +323,7 @@ const UserDashboard = () => {
         );
         alert("Ride cancelled successfully!");
         fetchBookings();
+        window.location.reload();
         // fetchVehicles();
       } catch (err) {
         console.error(err);
@@ -494,14 +515,14 @@ const UserDashboard = () => {
                     ) : (
                       <div className="min-w-full">
                         <table className="w-full text-sm">
-                          <thead className="bg-gray-50">
+                          <thead className="bg-gray-50 uppercase text-xs">
                             <tr>
-                              <th className="p-3 text-left font-medium text-gray-500">Location</th>
-                              <th className="p-3 text-left font-medium text-gray-500">Reason</th>
-                              <th className="p-3 text-left font-medium text-gray-500">Date</th>
-                              <th className="p-3 text-left font-medium text-gray-500 hidden sm:table-cell">Duration</th>
-                              <th className="p-3 text-left font-medium text-gray-500 hidden sm:table-cell">Members</th>
-                              <th className="p-3 text-left font-medium text-gray-500">Action</th>
+                              <th className="p-3 text-center font-medium text-gray-500">Location</th>
+                              <th className="p-3 text-center font-medium text-gray-500">Reason</th>
+                              <th className="p-3 text-center font-medium text-gray-500">Date</th>
+                              <th className="p-3 text-center font-medium text-gray-500 hidden sm:table-cell">Duration</th>
+                              <th className="p-3 text-center font-medium text-gray-500 hidden sm:table-cell">Members</th>
+                              <th className="p-3 text-center font-medium text-gray-500">Action</th>
                             </tr>
                           </thead>
                           <tbody className="bg-white divide-y divide-gray-200">
@@ -511,12 +532,12 @@ const UserDashboard = () => {
                               const isPassenger = !isBookingOwner && currentUserAsPassenger;
                               return (
                                 <tr key={booking._id} className="hover:bg-gray-50">
-                                  <td className="p-3 whitespace-nowrap">{isPassenger ? currentUserAsPassenger.location : booking.location || "-"}</td>
-                                  <td className="p-3 whitespace-nowrap">{isPassenger ? currentUserAsPassenger.reason : booking.reason || "-"}</td>
-                                  <td className="p-3 whitespace-nowrap">{formatDate(booking)}</td>
-                                  <td className="p-3 whitespace-nowrap hidden sm:table-cell">{isPassenger ? currentUserAsPassenger.reason : booking.duration || "-"}</td>
-                                  <td className="p-3 whitespace-nowrap hidden sm:table-cell">{isPassenger ? currentUserAsPassenger.reason : booking.members || "-"}</td>
-                                  <td className="p-3 whitespace-nowrap">
+                                  <td className="p-3 text-center whitespace-nowrap">{isPassenger ? currentUserAsPassenger.location : booking.location || "-"}</td>
+                                  <td className="p-3 text-center whitespace-nowrap">{isPassenger ? currentUserAsPassenger.reason : booking.reason || "-"}</td>
+                                  <td className="p-3 text-center whitespace-nowrap">{formatDate(booking)}</td>
+                                  <td className="p-3 text-center whitespace-nowrap hidden sm:table-cell">{isPassenger ? currentUserAsPassenger.reason : booking.duration || "-"}</td>
+                                  <td className="p-3 text-center whitespace-nowrap hidden sm:table-cell">{isPassenger ? currentUserAsPassenger.reason : booking.members || "-"}</td>
+                                  <td className="p-3 text-center whitespace-nowrap">
                                     <button 
                                       onClick={() => handleCancelBooking(booking._id)}
                                       className="bg-red-100 text-red-800 px-2 py-1 text-xs sm:text-sm font-medium rounded hover:bg-red-200 transition-colors"
@@ -553,89 +574,110 @@ const UserDashboard = () => {
                     ) : (
                       <>
                         {/* Desktop view - Full table */}
-                        <div className="hidden md:block">
-                          <table className="w-full text-sm">
-                            <thead className="bg-gray-50">
+                        <div className="overflow-x-auto">
+                          <table className="w-full text-sm border-collapse">
+                            <thead className="bg-gray-50 text-gray-600 uppercase text-xs">
                               <tr>
-                                <th className="p-3 text-left font-medium text-gray-500">Vehicle</th>
-                                <th className="p-3 text-left font-medium text-gray-500">Driver Name</th>
-                                <th className="p-3 text-left font-medium text-gray-500">Driver Number</th>
-                                <th className="p-3 text-left font-medium text-gray-500">Location</th>
-                                <th className="p-3 text-left font-medium text-gray-500">Reason</th>
-                                <th className="p-3 text-left font-medium text-gray-500">Duration</th>
-                                <th className="p-3 text-left font-medium text-gray-500">Member</th>
-                                <th className="p-3 text-left font-medium text-gray-500">Date</th>
-                                <th className="p-3 text-left font-medium text-gray-500">Status</th>
-                                <th className="p-3 text-left font-medium text-gray-500">Actions</th>
+                                {["Vehicle", "Driver Name", "Driver Number", "Location", "Reason", "Duration", "Members", "Date", "Status", "Actions"].map((head, i) => (
+                                  <th key={i} className="p-3 text-center font-medium">{head}</th>
+                                ))}
                               </tr>
                             </thead>
+
                             <tbody className="bg-white divide-y divide-gray-200">
                               {nonPendingBookings.map((booking) => {
                                 const isBookingOwner = booking.userId?._id === username;
                                 const currentUserAsPassenger = booking.passengers?.find(p => p.number === number);
                                 const isPassenger = !isBookingOwner && currentUserAsPassenger;
+                                const expanded = expandedSharedRows[booking._id];
+
                                 return (
                                   <React.Fragment key={booking._id}>
+                                    {/* MAIN ROW */}
                                     <tr className="hover:bg-gray-50">
-                                      <td className="p-3">{booking.vehicleName || "N/A"}</td>
-                                      <td className="p-3">{booking.driverName || "-"}</td>
-                                      <td className="p-3">{booking.driverNumber  || "-"}</td>
-                                      <td className="p-3">{isPassenger ? currentUserAsPassenger.location : booking.location || "-"}</td>
-                                      <td className="p-3">{isPassenger ? currentUserAsPassenger.reason : booking.reason || "-"}</td>
-                                      <td className="p-3">{isPassenger ? currentUserAsPassenger.duration : booking.duration || "-"}</td>
-                                      <td className="p-3">{isPassenger ? currentUserAsPassenger.members : booking.members || "-"}</td>
-                                      <td className="p-3">{formatDate(booking)}</td>
-                                      <td className="p-3">
-                                        <span className={`px-2 py-1 text-xs font-medium rounded ${
-                                          booking.status === "completed" ? "bg-green-100 text-green-800" :
-                                          booking.status === "cancelled" ? "bg-red-100 text-red-800" :
-                                          booking.status === "shared" ? "bg-purple-100 text-purple-800" :
-                                          "bg-blue-100 text-blue-800"
-                                        }`}>
+                                      <td className="p-3 text-center">{booking.vehicleName || "N/A"}</td>
+                                      <td className="p-3 text-center">{booking.driverName || "-"}</td>
+                                      <td className="p-3 text-center">{booking.driverNumber || "-"}</td>
+                                      <td className="p-3 text-center">
+                                        {isPassenger ? (currentUserAsPassenger?.location || "-") : (booking.location || "-")}
+                                      </td>
+                                      <td className="p-3 text-center">
+                                        {isPassenger ? (currentUserAsPassenger?.reason || "-") : (booking.reason || "-")}
+                                      </td>
+                                      <td className="p-3 text-center">
+                                        {isPassenger ? (currentUserAsPassenger?.duration || "-") : (booking.duration || "-")}
+                                      </td>
+                                      <td className="p-3 text-center">
+                                        {isPassenger ? (currentUserAsPassenger?.members || "-") : (booking.members || "-")}
+                                      </td>
+                                      <td className="p-3 text-center">{formatDate(booking)}</td>
+
+                                      {/* STATUS BADGE */}
+                                      <td className="p-3 text-center">
+                                        <span
+                                          className={`px-2 py-1 text-xs font-medium rounded ${
+                                            booking.status === "completed"
+                                              ? "bg-green-100 text-green-800"
+                                              : booking.status === "cancelled"
+                                              ? "bg-red-100 text-red-800"
+                                              : booking.status === "shared"
+                                              ? "bg-purple-100 text-purple-800"
+                                              : "bg-blue-100 text-blue-800"
+                                          }`}
+                                        >
                                           {booking.status}
                                         </span>
-                                        
                                       </td>
-                                      <td className="p-3">
-                                        {(booking.status === 'approved' || booking.status === 'shared') && (
-                                          <div className="flex gap-2">
+
+                                      {/* ACTIONS */}
+                                      <td className="p-3 text-sm text-center">
+                                        <div className="flex flex-col items-center gap-2">
+                                          
+                                          {/* Complete + Cancel Buttons */}
+                                          {(booking.status === "approved" || booking.status === "shared") && (
+                                            <div className="flex flex-wrap justify-center gap-2">
+                                              <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                className="h-8 text-green-600 hover:text-green-700 hover:bg-green-50"
+                                                onClick={() => handleCompleteBooking(booking._id)}
+                                              >
+                                                <CheckCircle className="w-4 h-4 mr-1.5" />
+                                                Complete
+                                              </Button>
+                                              <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                className="h-8 text-red-600 hover:text-red-700 hover:bg-red-50"
+                                                onClick={() => handleCancelBooking(booking._id)}
+                                              >
+                                                <XCircle className="w-4 h-4 mr-1.5" />
+                                                Cancel
+                                              </Button>
+                                            </div>
+                                          )}
+
+                                          {/* Expand Toggle */}
+                                          {(["shared", "completed", "cancelled"].includes(booking.status) && booking.passengers?.length > 0) && (
                                             <Button
-                                              variant="outline"
-                                              size="sm"
-                                              className="bg-green-50 text-green-600 hover:bg-green-100 text-xs py-1 h-auto"
-                                              onClick={() => handleCompleteBooking(booking._id)}
+                                              variant="ghost"
+                                              size="icon"
+                                              onClick={() => toggleSharedDetails(booking._id)}
+                                              className="rounded-full h-8 w-8 p-0"
                                             >
-                                              Complete
+                                              {expanded ? (
+                                                <ChevronDown className="w-5 h-5 text-primary" />
+                                              ) : (
+                                                <ChevronRight className="w-5 h-5 text-primary" />
+                                              )}
                                             </Button>
-                                            <Button 
-                                              variant="outline" 
-                                              size="sm"
-                                              className="bg-red-50 text-red-600 hover:bg-red-100 text-xs py-1 h-auto"
-                                              onClick={() => handleCancelBooking(booking._id)}
-                                            >
-                                              Cancel
-                                            </Button>
-                                          </div>
-                                        )}
-                                      </td>
-                                      <td className="px-4 py-3.5">
-                                        {booking.status === "shared" && booking.passengers?.length > 0 && (
-                                          <Button
-                                            variant="ghost"
-                                            size="icon"
-                                            onClick={() => toggleSharedDetails(booking._id)}
-                                            className="rounded-full h-8 w-8 p-0"
-                                          >
-                                            {expandedSharedRows[booking._id] ? (
-                                              <ChevronDown className="w-5 h-5 text-primary" />
-                                            ) : (
-                                              <ChevronRight className="w-5 h-5 text-primary" />
-                                            )}
-                                          </Button>
-                                        )}
+                                          )}
+                                        </div>
                                       </td>
                                     </tr>
-                                    {expandedSharedRows[booking._id] && booking.passengers?.length > 0 && (
+
+                                    {/* PASSENGERS EXPANDED ROW */}
+                                    {expanded && booking.passengers?.length > 0 && (
                                       <tr className="bg-gray-50/50 border-b border-gray-200">
                                         <td colSpan={11} className="px-6 py-4">
                                           <div className="mb-2">
@@ -643,39 +685,29 @@ const UserDashboard = () => {
                                               <User className="w-4 h-4 mr-2" />
                                               Passengers ({booking.passengers.length})
                                             </h4>
+
                                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 max-h-[400px] overflow-y-auto pr-2">
-                                              {booking.passengers.map((passenger, index) => (
-                                                <Card
-                                                  key={index}
-                                                  className="overflow-hidden border-blue-200 shadow-sm hover:shadow transition-shadow"
-                                                >
+                                              {booking.passengers.map((p, idx) => (
+                                                <Card key={idx} className="overflow-hidden border-blue-200 shadow-sm hover:shadow transition-shadow">
                                                   <CardContent className="p-0">
-                                                    <div className="bg-primary/5 px-4 py-2.5 border-b border-blue-200">
-                                                      <div className="flex items-center justify-between">
-                                                        <div className="flex items-center gap-2">
-                                                          <span className="font-medium text-sm">{passenger.username || "Unknown User"}</span>
-                                                        </div>
-                                                      </div>
+                                                    <div className="bg-primary/5 px-4 py-2.5 border-b border-blue-200 flex items-center justify-between">
+                                                      <span className="font-medium text-sm">{p.username || "Unknown User"}</span>
+                                                      {/* <Badge variant="outline" className="text-xs">#{idx + 1}</Badge> */}
                                                     </div>
                                                     <div className="p-4 space-y-2 text-sm">
-                                                      <div className="flex items-start gap-2">
-                                                        <span className="text-gray-500 w-20 flex-shrink-0">Contact:</span>
-                                                        <span className="font-medium">{passenger.number || "N/A"}</span>
-                                                      </div>
-                                                      <div className="flex items-start gap-2">
-                                                        <span className="text-gray-500 w-20 flex-shrink-0">Location:</span>
-                                                        <span className="font-medium">{passenger.location || "N/A"}</span>
-                                                      </div>
-                                                      <div className="flex items-start gap-2">
-                                                        <span className="text-gray-500 w-20 flex-shrink-0">Reason:</span>
-                                                        <span className="font-medium">{passenger.reason || "N/A"}</span>
-                                                      </div>
-                                                      <div className="flex items-start gap-2">
-                                                        <span className="text-gray-500 w-20 flex-shrink-0">Time:</span>
-                                                        <span className="font-medium text-xs">
-                                                          {passenger.bookingTime ? new Date(passenger.bookingTime).toLocaleString() : "N/A"}
-                                                        </span>
-                                                      </div>
+                                                      {[
+                                                        ["Contact", p.number],
+                                                        ["Location", p.location],
+                                                        ["Reason", p.reason],
+                                                        ["Members", p.members],
+                                                        ["Duration", p.duration],
+                                                        ["Time", p.bookingTime ? new Date(p.bookingTime).toLocaleString() : "N/A"]
+                                                      ].map(([label, value], i) => (
+                                                        <div key={i} className="flex gap-2">
+                                                          <span className="text-gray-500 w-20 flex-shrink-0">{label}:</span>
+                                                          <span className="font-medium">{value || "N/A"}</span>
+                                                        </div>
+                                                      ))}
                                                     </div>
                                                   </CardContent>
                                                 </Card>
@@ -691,9 +723,7 @@ const UserDashboard = () => {
                             </tbody>
                           </table>
                         </div>
-                        
-                        
-                        
+
                         {/* Mobile view - Card-based layout */}
                         <div className="md:hidden">
                           {nonPendingBookings.map((booking) => {
@@ -760,21 +790,24 @@ const UserDashboard = () => {
                                 {(booking.status === 'approved' || booking.status === 'shared') && (
                                   <div className="flex gap-2 mt-4">
                                     <Button
-                                      variant="outline"
-                                      size="sm"
-                                      className="bg-green-50 text-green-600 hover:bg-green-100 text-xs py-1.5 h-auto flex-1"
-                                      onClick={() => handleCompleteBooking(booking._id)}
-                                    >
-                                      Complete
-                                    </Button>
-                                    <Button 
-                                      variant="outline" 
-                                      size="sm"
-                                      className="bg-red-50 text-red-600 hover:bg-red-100 text-xs py-1.5 h-auto flex-1"
-                                      onClick={() => handleCancelBooking(booking._id)}
-                                    >
-                                      Cancel
-                                    </Button>
+                                        variant="ghost"
+                                        size="sm"
+                                        className="h-8 text-green-600 hover:text-green-700 hover:bg-green-50"
+                                        onClick={() => handleCompleteBooking(booking._id)}
+                                      >
+                                        <CheckCircle className="w-4 h-4 mr-1.5" />
+                                        Complete
+                                      </Button>
+
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className="h-8 text-red-600 hover:text-red-700 hover:bg-red-50"
+                                        onClick={() => handleCancelBooking(booking._id)}
+                                      >
+                                        <XCircle className="w-4 h-4 mr-1.5" />
+                                        Cancel
+                                      </Button>
                                   </div>
                                 )}
                                 
@@ -810,6 +843,14 @@ const UserDashboard = () => {
                                               <div className="flex items-center">
                                                 <span className="text-gray-500 w-16">Reason:</span>
                                                 <span className="font-medium">{passenger.reason || "N/A"}</span>
+                                              </div>
+                                              <div className="flex items-center">
+                                                <span className="text-gray-500 w-16">Members:</span>
+                                                <span className="font-medium">{passenger.members || 1}</span>
+                                              </div>
+                                              <div className="flex items-center">
+                                                <span className="text-gray-500 w-16">Duration:</span>
+                                                <span className="font-medium">{passenger.duration || "-"}</span>
                                               </div>
                                               <div className="flex items-center">
                                                 <span className="text-gray-500 w-16">Time:</span>
@@ -893,8 +934,6 @@ const UserDashboard = () => {
           )} 
           </section>
         </main>
-
-
      
       
       {/* Booking Modal */}
@@ -937,7 +976,7 @@ const UserDashboard = () => {
                   <label className="block mb-1 text-sm font-medium text-gray-700">Location *</label>
                   <input
                     type="text"
-                    placeholder="Enter pickup location"
+                    placeholder="Enter location"
                     value={location}
                     onChange={(e) => setLocation(e.target.value)}
                     className="w-full p-2 border rounded"

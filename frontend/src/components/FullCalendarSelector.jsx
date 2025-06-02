@@ -1,8 +1,10 @@
 import { useState, useRef, useEffect } from 'react';
 import { Calendar, Clock, ChevronLeft, ChevronRight, Trash, X, Check, Edit, Plus } from 'lucide-react';
 
-const CalendarSelector = ({ setSelectedTime, existingEvents = [] }) => {
+// eslint-disable-next-line react/prop-types
+const CalendarSelector = ({ setSelectedTime, existingEvents, selectedTime  = [] }) => {
   // State for tracking dates and selections
+  const calendarRef = useRef(null);
   const [currentDate, setCurrentDate] = useState(new Date());
   const [currentView, setCurrentView] = useState('week'); // 'month', 'week', 'day'
   const [selectedDate, setSelectedDate] = useState(new Date());
@@ -30,6 +32,7 @@ const CalendarSelector = ({ setSelectedTime, existingEvents = [] }) => {
     let parsedLocalEvents = [];
     if (savedEvents) {
       try {
+        // eslint-disable-next-line no-unused-vars
         parsedLocalEvents = JSON.parse(savedEvents).map(event => ({
           ...event,
           date: new Date(event.date)
@@ -42,6 +45,7 @@ const CalendarSelector = ({ setSelectedTime, existingEvents = [] }) => {
     let formattedExternalEvents = [];
     if (existingEvents && Array.isArray(existingEvents)) {
       formattedExternalEvents = existingEvents
+        // eslint-disable-next-line react/prop-types
         .filter(ev => ev?.date && ev?.startTime)
         .map(ev => ({
           ...ev,
@@ -57,7 +61,6 @@ const CalendarSelector = ({ setSelectedTime, existingEvents = [] }) => {
     });
   }, [existingEvents]);
   
-
   // Save events to localStorage whenever they change
   useEffect(() => {
     localStorage.setItem('calendarEvents', JSON.stringify(events));
@@ -144,52 +147,84 @@ const CalendarSelector = ({ setSelectedTime, existingEvents = [] }) => {
     else if (currentView === 'week') nextWeek();
     else nextDay();
   };
+  
 
-  const isOverlapping = (eventA, eventB) => {
-    if (eventA.date.toDateString() !== eventB.date.toDateString()) return false;
-    return (
-      eventA.startTime < eventB.endTime &&
-      eventB.startTime < eventA.endTime
-    );
-  };
+  useEffect(() => {
+    if (selectedTime instanceof Date) {
+      setCurrentView('day');
+      setCurrentDate(new Date(selectedTime));
+      setSelectedDate(new Date(selectedTime));
+
+      setTimeout(() => {
+        const targetEvent = existingEvents.find(e =>
+          e.date instanceof Date &&
+          e.date.toDateString() === selectedTime.toDateString() &&
+          selectedTime.getHours() === parseInt(e.startTime.split(":")[0])
+        );
+
+        if (targetEvent) {
+          const el = document.getElementById(`event-${targetEvent.id}`);
+          if (el) {
+            el.scrollIntoView({ behavior: "smooth", block: "center" });
+
+            el.classList.add("highlighted-event");
+            setTimeout(() => {
+              el.classList.remove("highlighted-event");
+            }, 1000); // Remove after animation completes
+          }
+        }
+      }, 200); // Delay to wait for render
+    }
+  }, [selectedTime]);
+
+
+
+  // const isOverlapping = (eventA, eventB) => {
+  //   if (eventA.date.toDateString() !== eventB.date.toDateString()) return false;
+  //   return (
+  //     eventA.startTime < eventB.endTime &&
+  //     eventB.startTime < eventA.endTime
+  //   );
+  // };
   
   // Improved groupOverlappingEvents function
-  const groupOverlappingEvents = (events) => {
-    if (!events.length) return [];
+  
+  // const groupOverlappingEvents = (events) => {
+  //   if (!events.length) return [];
     
-    // Sort events by start time
-    const sortedEvents = [...events].sort((a, b) => {
-      return a.startTime - b.startTime || b.endTime - a.endTime;
-    });
+  //   // Sort events by start time
+  //   const sortedEvents = [...events].sort((a, b) => {
+  //     return a.startTime - b.startTime || b.endTime - a.endTime;
+  //   });
     
-    const groups = [];
-    let currentGroup = [];
+  //   const groups = [];
+  //   let currentGroup = [];
     
-    sortedEvents.forEach(event => {
-      // Find if this event can fit in any existing group
-      const existingGroupIndex = currentGroup.findIndex(groupEvent => 
-        event.startTime >= groupEvent.endTime || event.endTime <= groupEvent.startTime
-      );
+  //   sortedEvents.forEach(event => {
+  //     // Find if this event can fit in any existing group
+  //     const existingGroupIndex = currentGroup.findIndex(groupEvent => 
+  //       event.startTime >= groupEvent.endTime || event.endTime <= groupEvent.startTime
+  //     );
       
-      if (existingGroupIndex !== -1) {
-        // Event doesn't overlap with this group event
-        currentGroup.push(event);
-      } else {
-        // Start a new group
-        if (currentGroup.length) {
-          groups.push([...currentGroup]);
-        }
-        currentGroup = [event];
-      }
-    });
+  //     if (existingGroupIndex !== -1) {
+  //       // Event doesn't overlap with this group event
+  //       currentGroup.push(event);
+  //     } else {
+  //       // Start a new group
+  //       if (currentGroup.length) {
+  //         groups.push([...currentGroup]);
+  //       }
+  //       currentGroup = [event];
+  //     }
+  //   });
     
-    // Add the last group if not empty
-    if (currentGroup.length) {
-      groups.push([...currentGroup]);
-    }
+  //   // Add the last group if not empty
+  //   if (currentGroup.length) {
+  //     groups.push([...currentGroup]);
+  //   }
     
-    return groups;
-  };
+  //   return groups;
+  // };
 
   // Format time functions
   const formatTime = (hour, minutes = 0) => {
@@ -210,8 +245,8 @@ const CalendarSelector = ({ setSelectedTime, existingEvents = [] }) => {
   };
   
   // Time slots from 5:00 AM to 9:00 PM in 30-minute intervals
-  const timeSlots = Array.from({ length: (29 - 5) * 2 }, (_, i) => {
-    const hour = 5 + Math.floor(i / 2);
+  const timeSlots = Array.from({ length: (24 - 0) * 2 }, (_, i) => {
+    const hour = Math.floor(i / 2);
     const minutes = i % 2 === 0 ? 0 : 30;
     return formatTime(hour, minutes);
   });
@@ -495,7 +530,12 @@ const CalendarSelector = ({ setSelectedTime, existingEvents = [] }) => {
     // Function to calculate correct time slot positions
     const getTimePosition = (time) => {
       const timeIndex = timeSlots.findIndex(t => t === time);
-      if (timeIndex === -1) return 0;
+      if (timeIndex === -1) {
+        // Try to parse manually in case time like '06:30' doesn't exist in timeSlots
+        const [hour, minute] = time.split(':').map(Number);
+        const totalMinutes = hour * 60 + minute;
+        return Math.floor((totalMinutes - (5 * 60)) / 30) * timeHeight; // since your slots start from 5:00 AM
+      }
       return timeIndex * timeHeight;
     };
   
@@ -546,8 +586,9 @@ const CalendarSelector = ({ setSelectedTime, existingEvents = [] }) => {
               
               return (
                 <div 
-                  key={event.id} 
-                  className={`absolute mx-1 px-1 py-0.5 rounded-md text-white ${event.color } cursor-pointer z-10 group pointer-events-auto overflow-hidden`}
+                  key={event.id}
+                  id={`event-${event.id}`}
+                  className={`absolute mx-1 px-1 py-0.5 rounded-md text-black ${event.color } cursor-pointer z-10 group pointer-events-auto overflow-hidden`}
                   style={{
                     top: `${startPos}px`,
                     height: `${eventHeight}px`,
@@ -684,6 +725,7 @@ const CalendarSelector = ({ setSelectedTime, existingEvents = [] }) => {
                         overlappingGroups.push(currentGroup);
                       }
                       
+                      // eslint-disable-next-line no-unused-vars
                       return overlappingGroups.map((group, groupIndex) => {
                         return group.map((event, eventIndex) => {
                           const startIndex = timeSlots.findIndex(t => t === event.startTime);
@@ -761,10 +803,10 @@ const CalendarSelector = ({ setSelectedTime, existingEvents = [] }) => {
   };
 
   return (
-    <div className="bg-gray-50 min-h-screen">
+    <div className=" min-h-screen ">
       <div className="max-w-full mx-auto p-4 sm:p-6">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-2xl font-bold text-gray-800">Booking Calendar</h2>
+          {/* <h2 className="text-2xl font-bold text-gray-800">Booking Calendar</h2> */}
           <div className="text-sm text-gray-500">
             {isDragging && dragStart && dragEnd && (
               <span>
@@ -774,7 +816,7 @@ const CalendarSelector = ({ setSelectedTime, existingEvents = [] }) => {
           </div>
         </div>
 
-        <div className="bg-white rounded-xl shadow-lg overflow-hidden mb-6">
+        <div className="bg-white rounded-lg shadow-lg overflow-hidden mb-6 border-1 border-gray-800 ">
           {/* Calendar Header */}
           <div className="flex flex-col sm:flex-row items-center justify-between p-4 border-b border-gray-200">
             <div className="flex items-center space-x-4 mb-4 sm:mb-0">

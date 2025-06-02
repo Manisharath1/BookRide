@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link} from 'react-router-dom';
 import axios from 'axios';
 import { 
   Select, 
@@ -11,23 +11,84 @@ import {
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Textarea } from "@/components/ui/textarea";
+// import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { 
-  Loader2, 
+ Loader2, 
   Car, 
   MapPin, 
   Phone, 
   User, 
-  FileText, 
+  // FileText, 
   Home, 
   Calendar,
   FileDigit,
   User2,
-  LogOut, 
+  LogOut,
+  Clock,
+  Users,
+  Target,
+  LayoutDashboard
  } from "lucide-react";
+import { toast } from 'react-toastify';
 
- const useManagerAccess = () => {
+// eslint-disable-next-line react/prop-types
+const TimePicker = ({ value, onChange, placeholder = "Select time" }) => {
+  const generateTimeOptions = () => {
+    const times = [];
+    for (let hour = 0; hour < 24; hour++) {
+      for (let minute = 0; minute < 60; minute += 30) {
+        const timeString = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
+        const displayTime = new Date(`2000-01-01T${timeString}`).toLocaleTimeString('en-US', {
+          hour: 'numeric',
+          minute: '2-digit',
+          hour12: true
+        });
+        times.push({ value: timeString, display: displayTime });
+      }
+    }
+    return times;
+  };
+
+  const timeOptions = generateTimeOptions();
+
+  return (
+    <Select value={value} onValueChange={onChange}>
+      <SelectTrigger className="w-full">
+        <div className="flex items-center">
+          <Clock className="mr-2 h-4 w-4 text-gray-500" />
+          <SelectValue placeholder={placeholder} />
+        </div>
+      </SelectTrigger>
+      <SelectContent className="max-h-60 overflow-y-auto">
+        {timeOptions.map((time) => (
+          <SelectItem key={time.value} value={time.value}>
+            {time.display}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
+};
+
+// Custom Date Picker Component
+// eslint-disable-next-line react/prop-types
+const DateInput = ({ value, onChange, placeholder = "Select date" }) => {
+  const today = new Date().toISOString().split('T')[0];
+  
+  return (
+    <Input
+      type="date"
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      min={today}
+      className="w-full"
+      placeholder={placeholder}
+    />
+  );
+};
+
+const useManagerAccess = () => {
   const navigate = useNavigate();
   
   useEffect(() => {
@@ -35,23 +96,21 @@ import {
       try {
         const token = localStorage.getItem("token");
         if (!token) {
-          navigate("/"); // Redirect to login if no token
+          navigate("/");
           return;
         }
         
-        // Verify user role
         const response = await axios.get(`${import.meta.env.VITE_API_BASE_URL}/api/auth/user`, {
           headers: { Authorization: `Bearer ${token}` }
         });
         
-        // If user is not a manager, redirect
         if (response.data.role !== 'manager') {
-          navigate("/guest-booking"); // Or appropriate non-manager page
+          navigate("/guest-booking");
         }
       } catch (error) {
         console.error("Access verification failed:", error);
         localStorage.removeItem("token");
-        navigate("/"); // Redirect to login on error
+        navigate("/");
       }
     };
     checkManagerAccess();
@@ -66,20 +125,36 @@ const BookForGuestPage = () => {
     guestName: "",
     guestPhone: "",
     location: "",
+    scheduledDate: "",
+    scheduledTime: "",
+    duration: "",
+    members: "",
     notes: "",
+    reason: "",
     vehicleId: "",
-    driverName: " ",
-    driverNumber: " "
+    driverName: "",
+    driverNumber: ""
   });
   const [vehicles, setVehicles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [drivers, setDrivers] = useState([]);
 
-  
   useEffect(() => {
     fetchVehicles();
+  }, []);
+
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    axios.get(`${import.meta.env.VITE_API_BASE_URL}/api/vehicles/drivers`, {
+      headers: { Authorization: `Bearer ${token}` }
+    }).then(res => {
+      setDrivers(res.data);
+    }).catch(err => {
+      console.error("Error fetching drivers", err);
+    });
   }, []);
   
   const fetchVehicles = async () => {
@@ -90,11 +165,6 @@ const BookForGuestPage = () => {
         `${import.meta.env.VITE_API_BASE_URL}/api/vehicles/getVehicles`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
-      // console.log("Fetched Vehicles Raw Data:", response.data);
-      // Log specific details of each vehicle
-      // response.data.forEach(vehicle => {
-      //   console.log(`Vehicle ID: ${vehicle.id}, Name: ${vehicle.name}, Status: ${vehicle.status}`);
-      // });
       setVehicles(response.data);
       setLoading(false);
     } catch (error) {
@@ -113,13 +183,16 @@ const BookForGuestPage = () => {
   };
 
   const handleVehicleSelect = (vehicleId) => {
-    // console.log("Selected Vehicle ID:", value);
     const selectedVehicle = vehicles.find(vehicle => vehicle._id === vehicleId);
+    if (!selectedVehicle) {
+      setBookingData(prev => ({ ...prev, vehicleId, driverName: "", driverNumber: "" }));
+      return;
+    }
     setBookingData((prev) => ({
       ...prev,
       vehicleId: vehicleId,
-      driverName: selectedVehicle?.driverName || prev.driverName,
-      driverNumber: selectedVehicle?.driverNumber || prev.driverNumber
+      driverName: selectedVehicle.driverName || "",
+      driverNumber: selectedVehicle.driverNumber || ""
     }));
     if (error) setError("");
   };
@@ -127,9 +200,30 @@ const BookForGuestPage = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    // Validate form
-    if (!bookingData.guestName || !bookingData.guestPhone || !bookingData.location || !bookingData.vehicleId || !bookingData.driverName || !bookingData.driverNumber) {
-      setError("Please fill in all required fields.");
+    // Validate required fields as per backend
+    const requiredFields = [
+      'guestName', 'guestPhone', 'location', 'scheduledDate', 
+      'scheduledTime', 'duration', 'members', 'reason', 'vehicleId', 
+      'driverName', 'driverNumber'
+    ];
+    
+    const missingFields = requiredFields.filter(field => !bookingData[field]);
+    
+    if (missingFields.length > 0) {
+      setError("All fields are required. Please fill in all required fields.");
+      return;
+    }
+    
+    // Validate phone number (same regex as backend)
+    const phoneRegex = /^\+?[\d\s-]{10,}$/;
+    if (!phoneRegex.test(bookingData.guestPhone)) {
+      setError("Please provide a valid phone number");
+      return;
+    }
+    
+    // Validate driver phone number
+    if (!phoneRegex.test(bookingData.driverNumber)) {
+      setError("Please provide a valid driver phone number");
       return;
     }
     
@@ -137,9 +231,27 @@ const BookForGuestPage = () => {
     
     try {
       const token = localStorage.getItem("token");
+      
+      // Combine date and time for scheduledAt
+      const scheduledAt = new Date(`${bookingData.scheduledDate}T${bookingData.scheduledTime}`);
+      
+      const submissionData = {
+        location: bookingData.location,
+        guestName: bookingData.guestName,
+        guestPhone: bookingData.guestPhone,
+        vehicleId: bookingData.vehicleId,
+        driverName: bookingData.driverName,
+        driverNumber: bookingData.driverNumber,
+        notes: bookingData.notes,
+        reason: bookingData.reason,
+        scheduledAt: scheduledAt.toISOString(),
+        duration: parseFloat(bookingData.duration),
+        members: parseInt(bookingData.members)
+      };
+      
       const response = await axios.post(
         `${import.meta.env.VITE_API_BASE_URL}/api/bookings/bookGuest`,
-        bookingData,
+        submissionData,
         { 
           headers: { 
             Authorization: `Bearer ${token}`,
@@ -147,22 +259,18 @@ const BookForGuestPage = () => {
           } 
         }
       );
-      alert("Ride booked successfully!");
-      setError("");
-
-            
-      // Redirect to bookings page or show success message
-      navigate("/guest-booking", { 
-        state: { 
-          success: response.data.message || "Booking created successfully" 
-        } 
-      });
+      console.log(response)
+      
+      toast.success("Guest booking created successfully!");
+      navigate("/manager");
     } catch (err) {
-      setError(err.response?.data?.message || "Failed to create booking");
+      console.error("Booking error:", err);
+      setError(err.response?.data?.error || "Failed to create booking");
     } finally {
       setIsSubmitting(false);
     }
   };
+
   const handleLogout = () => {
     if (window.confirm("Are you sure you want to logout?")) {
       localStorage.removeItem("token");
@@ -170,24 +278,20 @@ const BookForGuestPage = () => {
     }
   };
   
-  const handleCancel = () => {
-    navigate(-1); 
-  };
+  // const handleCancel = () => {
+  //   navigate(-1); 
+  // };
 
-  // Navigation items
   const navItems = [
-    { name: "Home", path: "/manager", icon: <Home size={20} /> },
+    { name: "Home", path: "/home", icon: <Home size={20} /> },
+    { name: "Dashboard", path: "/manager", icon: <LayoutDashboard size={20} /> },
     { name: "Bookings", path: "/guest-booking", icon: <Calendar size={20} /> },
     { name: "Vehicles", path: "/get-vehicles", icon: <Car size={20} /> },
-    // { name: "Merge Rides", path: "/merge-ride", icon: <Merge size={20} /> },
-    
-
-   ];
+  ];
 
   const toggleSidebar = () => {
     setSidebarOpen(prev => !prev);
   };
-  
   
   return (
     <div className="flex flex-col min-h-screen bg-gray-100">
@@ -201,7 +305,7 @@ const BookForGuestPage = () => {
                   <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
                 </svg>
               </div>
-              <h2 className="text-white font-medium">Dashboard</h2>
+              <h2 className="text-white text-lg">Dashboard</h2>
             </div>
             <button 
               onClick={handleLogout}
@@ -244,128 +348,264 @@ const BookForGuestPage = () => {
               <CardHeader className="bg-gray-50 border-b pb-4">
                 <CardTitle className="flex items-center text-2xl font-bold text-blue-700">
                   <Car className="mr-2" size={24} />
-                  Book Vehicle for Guest
+                  Create Guest Booking
                 </CardTitle>
               </CardHeader>
               
-              <CardContent className="pt-6">
-                <form onSubmit={handleSubmit} className="space-y-6">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className="space-y-2">
-                      <label htmlFor="guestName" className="flex items-center text-sm font-medium text-gray-700">
-                        <User className="mr-2" size={16} />
-                        Guest Name *
-                      </label>
-                      <Input
-                        id="guestName"
-                        name="guestName"
-                        value={bookingData.guestName}
-                        onChange={handleChange}
-                        required
-                        className="w-full"
-                        placeholder="Enter guest name"
-                      />
+              <CardContent className="p-6 lg:p-8">
+                <form onSubmit={handleSubmit} className="space-y-8">
+                  {/* Guest Information */}
+                  <div className="space-y-6">
+                    <h3 className="text-lg font-semibold text-gray-800 border-b pb-2">
+                      Guest Information
+                    </h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div className="space-y-2">
+                        <label htmlFor="guestName" className="flex items-center text-sm font-medium text-gray-700">
+                          <User className="mr-2 text-blue-500" size={16} />
+                          Guest Name *
+                        </label>
+                        <Input
+                          id="guestName"
+                          name="guestName"
+                          value={bookingData.guestName}
+                          onChange={handleChange}
+                          required
+                          className="transition-all focus:ring-2 focus:ring-blue-500"
+                          placeholder="Enter guest's full name"
+                        />
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <label htmlFor="guestPhone" className="flex items-center text-sm font-medium text-gray-700">
+                          <Phone className="mr-2 text-green-500" size={16} />
+                          Guest Phone *
+                        </label>
+                        <Input
+                          id="guestPhone"
+                          name="guestPhone"
+                          value={bookingData.guestPhone}
+                          onChange={handleChange}
+                          required
+                          className="transition-all focus:ring-2 focus:ring-blue-500"
+                          placeholder="Enter phone number (+1234567890)"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Trip Details */}
+                  <div className="space-y-6">
+                    <h3 className="text-lg font-semibold text-gray-800 border-b pb-2">
+                      Trip Details
+                    </h3>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
+                      <div className="space-y-2">
+                        <label htmlFor="location" className="flex items-center text-sm font-medium text-gray-700">
+                          <MapPin className="mr-2 text-red-500" size={16} />
+                          Pickup Location *
+                        </label>
+                        <Input
+                          id="location"
+                          name="location"
+                          value={bookingData.location}
+                          onChange={handleChange}
+                          required
+                          className="transition-all focus:ring-2 focus:ring-blue-500"
+                          placeholder="Enter detailed pickup address"
+                        />
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <label htmlFor="reason" className="flex items-center text-sm font-medium text-gray-700">
+                          <Target className="mr-2 text-pink-500" size={16} />
+                          Reason for Trip *
+                        </label>
+                        <Input
+                          id="reason"
+                          name="reason"
+                          value={bookingData.reason}
+                          onChange={handleChange}
+                          required
+                          className="transition-all focus:ring-2 focus:ring-blue-500"
+                          placeholder="Enter reason for the trip"
+                        />
+                      </div>
                     </div>
                     
-                    <div className="space-y-2">
-                      <label htmlFor="guestPhone" className="flex items-center text-sm font-medium text-gray-700">
-                        <Phone className="mr-2" size={16} />
-                        Guest Phone *
-                      </label>
-                      <Input
-                        id="guestPhone"
-                        name="guestPhone"
-                        value={bookingData.guestPhone}
-                        onChange={handleChange}
-                        required
-                        className="w-full"
-                        placeholder="Enter phone number"
-                      />
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mt-4">
+                      <div className="space-y-2">
+                        <label className="flex items-center text-sm font-medium text-gray-700">
+                          <Calendar className="mr-2 text-purple-500" size={16} />
+                          Date *
+                        </label>
+                        <DateInput
+                          value={bookingData.scheduledDate}
+                          onChange={(date) => setBookingData(prev => ({ ...prev, scheduledDate: date }))}
+                          placeholder="Select date"
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <label className="flex items-center text-sm font-medium text-gray-700">
+                          <Clock className="mr-2 text-orange-500" size={16} />
+                          Time *
+                        </label>
+                        <TimePicker
+                          value={bookingData.scheduledTime}
+                          onChange={(time) => setBookingData(prev => ({ ...prev, scheduledTime: time }))}
+                          placeholder="Select time"
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <label className="flex items-center text-sm font-medium text-gray-700">
+                          <Clock className="mr-2 text-indigo-500" size={16} />
+                          Duration (Hours) *
+                        </label>
+                        <Select
+                          value={bookingData.duration || ""}
+                          onValueChange={(value) =>
+                            setBookingData((prev) => ({ ...prev, duration: value }))
+                          }
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select duration" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {[...Array(12)].map((_, i) => {
+                              const duration = (0.5 * (i + 1)).toFixed(1);
+                              return (
+                                <SelectItem key={duration} value={duration}>
+                                  {duration} hour{duration !== "1.0" ? "s" : ""}
+                                </SelectItem>
+                              );
+                            })}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className="space-y-2">
+                        <label htmlFor="members" className="flex items-center text-sm font-medium text-gray-700">
+                          <Users className="mr-2 text-teal-500" size={16} />
+                          Number of Members *
+                        </label>
+                        <Input
+                          id="members"
+                          name="members"
+                          type="number"
+                          min="1"
+                          max="20"
+                          value={bookingData.members}
+                          onChange={handleChange}
+                          required
+                          className="transition-all focus:ring-2 focus:ring-blue-500"
+                          placeholder="No. of people"
+                        />
+                      </div>
                     </div>
                   </div>
-                  
-                  <div className="space-y-2">
-                    <label htmlFor="location" className="flex items-center text-sm font-medium text-gray-700">
-                      <MapPin className="mr-2" size={16} />
-                      Pickup Location *
-                    </label>
-                    <Input
-                      id="location"
-                      name="location"
-                      value={bookingData.location}
-                      onChange={handleChange}
-                      required
-                      className="w-full"
-                      placeholder="Enter pickup location"
-                    />
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <label htmlFor="vehicle" className="flex items-center text-sm font-medium text-gray-700">
-                      <Car className="mr-2" size={16} />
-                      Select Vehicle *
-                    </label>
-                    {loading ? (
-                      <div className="flex items-center justify-center p-4 border rounded bg-gray-50">
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        <span className="text-sm text-gray-600">Loading vehicles...</span>
-                      </div>
-                    ) : (
-                      <Select 
-                        onValueChange={handleVehicleSelect} 
-                        value={bookingData.vehicleId}
+
+                  {/* Vehicle & Driver */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mt-4">
+                    {/* <h3 className="text-lg font-semibold text-gray-800 border-b pb-2">
+                      Vehicle & Driver Assignment
+                    </h3> */}
+                    
+                    <div className="space-y-2">
+                      <label className="flex items-center text-sm font-medium text-gray-700">
+                        <Car className="mr-2 text-blue-500" size={16} />
+                        Select Vehicle *
+                      </label>
+                      {loading ? (
+                        <div className="flex items-center justify-center p-6 border-2 border-dashed border-gray-300 rounded-lg bg-gray-50">
+                          <Loader2 className="mr-3 h-6 w-6 animate-spin text-blue-500" />
+                          <span className="text-gray-600">Loading available vehicles...</span>
+                        </div>
+                      ) : (
+                        <Select 
+                          onValueChange={handleVehicleSelect} 
+                          value={bookingData.vehicleId}
+                        >
+                          <SelectTrigger className="transition-all focus:ring-2 focus:ring-blue-500">
+                            <SelectValue placeholder="Choose an available vehicle" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {vehicles.length > 0 ? (
+                              vehicles.map((vehicle) => (
+                                <SelectItem 
+                                  key={vehicle._id} 
+                                  value={vehicle._id}
+                                  // disabled={vehicle.status !== 'available'}
+                                >
+                                  <div className="flex items-center justify-between w-full">
+                                    <span className= 'text-green-700 font-medium'>
+                                      {vehicle.name}
+                                    </span>
+                                    {/* <span className={`ml-3 text-xs px-3 py-1 rounded-full ${
+                                      vehicle.status === 'available' 
+                                        ? 'bg-green-100 text-green-700' 
+                                        : 'bg-red-100 text-red-700'
+                                    }`}>
+                                      {vehicle.status === 'available' ? 'Available' : vehicle.status}
+                                    </span> */}
+                                  </div>
+                                </SelectItem>
+                              ))
+                            ) : (
+                              <div className="px-4 py-6 text-center text-gray-500">
+                                No vehicles available at the moment
+                              </div>
+                            )}
+                          </SelectContent>
+                        </Select>
+                      )}
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="flex items-center text-sm font-medium text-gray-700">
+                        <User2 className="mr-2 text-cyan-500" size={16} />
+                        Select Driver *
+                      </label>
+                      <Select
+                        onValueChange={(selectedIndex) => {
+                          const selectedDriver = drivers[selectedIndex];
+                          if (selectedDriver) {
+                            setBookingData(prev => ({
+                              ...prev,
+                              driverName: selectedDriver.name,
+                              driverNumber: selectedDriver.number,
+                            }));
+                          }
+                        }}
                       >
-                        <SelectTrigger className="w-full">
-                          <SelectValue placeholder="Select a vehicle" />
+                        <SelectTrigger className="transition-all focus:ring-2 focus:ring-blue-500">
+                          <SelectValue placeholder="Choose a driver" />
                         </SelectTrigger>
                         <SelectContent>
-                          {vehicles.length > 0 ? (
-                            vehicles.map((vehicle) => (
-                              <SelectItem 
-                                key={vehicle._id} 
-                                value={vehicle._id}
-                                disabled={vehicle.status !== 'available'}
-                              >
-                                <div className="flex items-center justify-between">
-                                  <span className={vehicle.status === 'available' ? 'text-green-600 font-medium' : 'text-red-500'}>
-                                    {vehicle.name}
-                                  </span>
-                                  <span className="ml-2 text-xs px-2 py-1 rounded-full bg-blue-100">
-                                    {vehicle.status === 'available' ? 'Available' : `${vehicle.status}`}
-                                  </span>
+                          {drivers.length > 0 ? (
+                            drivers.map((driver, index) => (
+                              <SelectItem key={index} value={index.toString()}>
+                                <div className="flex flex-col text-left">
+                                  <span className="font-medium text-gray-800">{driver.name}</span>
+                                  <span className="text-xs text-gray-500">{driver.number}</span>
                                 </div>
                               </SelectItem>
                             ))
                           ) : (
-                            <div className="px-2 py-4 text-sm text-gray-500 text-center">
-                              No vehicles available
+                            <div className="px-4 py-6 text-center text-gray-500">
+                              No drivers available
                             </div>
                           )}
                         </SelectContent>
                       </Select>
-                    )}
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className="space-y-2">
-                      <label htmlFor="driverName" className="flex items-center text-sm font-medium text-gray-700">
-                        <User2 className="mr-2" size={16} />
-                        Driver Name *
-                      </label>
-                      <Input
-                        id="driverName"
-                        name="driverName"
-                        value={bookingData.driverName}
-                        onChange={handleChange}
-                        required
-                        className="w-full"
-                        placeholder="Driver's Name"
-                      />
                     </div>
+                      
                     <div className="space-y-2">
                       <label htmlFor="driverNumber" className="flex items-center text-sm font-medium text-gray-700">
-                        <FileDigit className="mr-2" size={16} />
-                        Driver Number *
+                        <FileDigit className="mr-2 text-yellow-500" size={16} />
+                        Driver Phone *
                       </label>
                       <Input
                         id="driverNumber"
@@ -373,54 +613,69 @@ const BookForGuestPage = () => {
                         value={bookingData.driverNumber}
                         onChange={handleChange}
                         required
-                        className="w-full"
-                        placeholder="Driver's Number"
+                        className="transition-all focus:ring-2 focus:ring-blue-500"
+                        placeholder="Enter driver's phone number"
                       />
                     </div>
                   </div>
 
-                  <div className="space-y-2">
-                    <label htmlFor="notes" className="flex items-center text-sm font-medium text-gray-700">
-                      <FileText className="mr-2" size={16} />
-                      Special Notes
-                    </label>
-                    <Textarea
-                      id="notes"
-                      name="notes"
-                      value={bookingData.notes}
-                      onChange={handleChange}
-                      className="w-full min-h-20"
-                      placeholder="Add any special requirements or notes here"
-                    />
-                  </div>
+                  {/* Additional Notes */}
+                  {/* <div className="space-y-6">
+                    <h3 className="text-lg font-semibold text-gray-800 border-b pb-2">
+                      Additional Information
+                    </h3>
+                    
+                    <div className="space-y-2">
+                      <label htmlFor="notes" className="flex items-center text-sm font-medium text-gray-700">
+                        <FileText className="mr-2 text-gray-500" size={16} />
+                        Special Notes or Requirements
+                      </label>
+                      <Textarea
+                        id="notes"
+                        name="notes"
+                        value={bookingData.notes}
+                        onChange={handleChange}
+                        className="min-h-24 transition-all focus:ring-2 focus:ring-blue-500"
+                        placeholder="Add any special requirements, instructions, or notes for this booking..."
+                      />
+                    </div>
+                  </div> */}
                   
                   {error && (
-                    <Alert variant="destructive" className="mt-4 border-red-500 bg-red-50">
-                      <AlertDescription className="text-red-700">{error}</AlertDescription>
+                    <Alert variant="destructive" className="border-red-200 bg-red-50">
+                      <AlertDescription className="text-red-800 font-medium">
+                        {error}
+                      </AlertDescription>
                     </Alert>
                   )}
                   
-                  <div className="flex justify-end space-x-4 mt-8 pt-4 border-t">
-                    <Button 
+                  {/* Action Buttons */}
+                  <div className="flex flex-col sm:flex-row justify-end space-y-3 sm:space-y-0 sm:space-x-4 pt-6 border-t">
+                    {/* <Button 
                       type="button" 
                       variant="outline" 
                       onClick={handleCancel}
                       disabled={isSubmitting}
-                      className="px-6"
+                      className="px-8 py-2 transition-all hover:bg-gray-50"
                     >
                       Cancel
-                    </Button>
+                    </Button> */}
                     <Button 
                       type="submit" 
                       disabled={isSubmitting || vehicles.length === 0 || loading}
-                      className="px-6 bg-blue-600 hover:bg-blue-700"
+                      className="px-8 py-2 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 transition-all shadow-lg"
                     >
                       {isSubmitting ? (
                         <>
                           <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Creating...
+                          Creating Booking...
                         </>
-                      ) : "Book"}
+                      ) : (
+                        <>
+                          <Calendar className="mr-2 h-4 w-4" />
+                          Create Booking
+                        </>
+                      )}
                     </Button>
                   </div>
                 </form>
@@ -449,7 +704,6 @@ const BookForGuestPage = () => {
       
       {/* Mobile sidebar */}
       {sidebarOpen && (
-        
         <div className="fixed inset-0 z-50 bg-black bg-opacity-40 md:hidden" onClick={toggleSidebar}>
           <div 
             className="absolute top-0 left-0 w-64 h-full bg-blue-950 shadow-lg p-4"

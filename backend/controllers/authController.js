@@ -211,7 +211,6 @@ const sendEmailOtp = async (req, res) => {
   }
 };
 
-
 const verifyEmailOtp = async (req, res) => {
   const { email, code } = req.body;
 
@@ -233,6 +232,36 @@ const verifyEmailOtp = async (req, res) => {
   res.status(200).json({ success: true, message: 'Email verified successfully' });
 };
 
+const verifyUsername = async (req, res) => {
+  const { username } = req.body;
+  if (!username) return res.status(400).json({ message: 'Username is required' });
+  
+  try {
+      const user = await User.findOne({ username });
+      if (!user) return res.status(404).json({ message: 'Username not found' });
+
+      return res.status(200).json({ message: 'Username verified' });
+  } catch (err) {
+      return res.status(500).json({ message: 'Server error', error: err.message });
+  }
+};
+
+const resetPassword = async (req, res) => {
+  const { username, newPassword } = req.body;
+  if (!username || !newPassword) return res.status(400).json({ message: 'All fields are required' }); 
+  try {
+    const user = await User.findOne({ username });
+    if (!user) return res.status(404).json({ message: 'User not found' });
+
+    const salt = await bcrypt.genSalt(10);
+    user.password = await bcrypt.hash(newPassword, salt);
+    await user.save();
+
+    return res.status(200).json({ message: 'Password reset successful' });
+  } catch (err) {
+    return res.status(500).json({ message: 'Server error', error: err.message });
+  }
+}
 module.exports = {
   register,
   login,
@@ -240,6 +269,8 @@ module.exports = {
   verifyCustomOtp,
   sendCustomOtp,
   sendEmailOtp,
-  verifyEmailOtp
+  verifyEmailOtp,
+  verifyUsername,
+  resetPassword
 
 };

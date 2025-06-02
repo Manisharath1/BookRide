@@ -1,3 +1,4 @@
+/* eslint-disable react/prop-types */
 import { useState, useEffect } from "react";
 import { FilterIcon, LayoutDashboardIcon, ViewIcon, MenuIcon, XIcon } from "lucide-react";
 import { Link } from "react-router-dom";
@@ -24,6 +25,7 @@ const DashboardPage = () => {
     const [vehicleUtilization, setVehicleUtilization] = useState([]);
     const [bookingStatus, setBookingStatus] = useState([]);
     const [recentBookings, setRecentBookings] = useState([]);
+    const [isMobile, setIsMobile] = useState(false);
 
     const navItems = [
         { name: "Dashboard", path: "/dashboard", icon: <LayoutDashboardIcon size={20} /> },
@@ -41,6 +43,7 @@ const DashboardPage = () => {
         'pending': '#FFC107',
         'approved': '#4CAF50',
         'completed': '#2196F3',
+        'confirmed': '#BCAF59',
         'cancelled': '#F44336',
         'merged': '#9C27B0'
     };
@@ -105,6 +108,13 @@ const DashboardPage = () => {
 
         fetchDashboardData();
     }, [timeRange]);
+
+    useEffect(() => {
+        const handleResize = () => setIsMobile(window.innerWidth < 768);
+        handleResize(); // set initially
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
+    }, []);
 
     // Create stat cards from the stats object
     const statCards = [
@@ -391,17 +401,21 @@ const DashboardPage = () => {
                                         <ResponsiveContainer width="100%" height="85%">
                                             <BarChart 
                                                 data={bookingStatus}
-                                                margin={{ top: 5, right: 10, bottom: 20, left: 10 }}
+                                                margin={{ top: 5, right: 5, bottom: 20, left: 40 }}
                                             >
                                                 <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
                                                 <XAxis 
                                                     dataKey="status" 
                                                     label={{ value: 'Status', position: 'insideBottom', dy: 15 }}
-                                                    tick={{ fontSize: 10, angle: window.innerWidth < 768 ? -45 : 0, textAnchor: window.innerWidth < 768 ? 'end' : 'middle' }}
-                                                    height={60}
+                                                    tick={{
+                                                        fontSize: 10,
+                                                        angle: isMobile ? -45 : 0,
+                                                        textAnchor: isMobile ? 'end' : 'middle'
+                                                    }}
+                                                    height={isMobile ? 70 : 40}
                                                 />
                                                 <YAxis 
-                                                    label={{ value: 'Bookings', angle: -90, position: 'insideLeft', dx: -15 }}
+                                                    label={{ value: 'Bookings', angle: -90, position: 'insideLeft', dx: -5, dy: 50 }}
                                                     allowDecimals={false} 
                                                     tickCount={5}  
                                                     domain={[0, 'dataMax + 1']}
@@ -481,6 +495,7 @@ const DashboardPage = () => {
                                                                     booking.status === 'completed' ? 'bg-green-100 text-green-800' :
                                                                     booking.status === 'approved' ? 'bg-blue-100 text-blue-800' :
                                                                     booking.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                                                                    booking.status === 'confirmed' ? 'bg-blue-100 text-blue-800' :
                                                                     'bg-red-100 text-red-800'
                                                                 }`}>
                                                                     {booking.status}

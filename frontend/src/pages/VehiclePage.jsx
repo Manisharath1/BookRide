@@ -7,6 +7,7 @@ import {
   Calendar,
   LogOut,
   CrossIcon,
+  LayoutDashboard,
  } from "lucide-react";
 import { Alert, AlertDescription } from '@/components/ui/alert';
 
@@ -394,10 +395,10 @@ const VehiclePage = () => {
   };
 
   const navItems = [
-    { name: "Home", path: "/manager", icon: <Home size={20} /> },
+    { name: "Home", path: "/home", icon: <Home size={20} /> },
+    { name: "Dashboard", path: "/manager", icon: <LayoutDashboard size={20} /> },
     { name: "Bookings", path: "/guest-booking", icon: <Calendar size={20} /> },
     { name: "Vehicles", path: "/get-vehicles", icon: <Car size={20} /> },
-    // { name: "Merge Rides", path: "/merge-ride", icon: <Merge size={20} /> },
   ];
 
   const toggleSidebar = () => {
@@ -428,7 +429,6 @@ const VehiclePage = () => {
       setError("Failed to release vehicle. Please try again.");
     }
   };
-  
 
    
   return (
@@ -436,35 +436,36 @@ const VehiclePage = () => {
       <div className="relative w-full z-10">
         <div className="bg-gradient-to-r from-pink-500 via-purple-500 to-blue-500 h-20">
           <div className="mx-auto flex justify-between items-center h-full px-4">
-            <div className="bg-blue-500 flex rounded justify-between p-2 md:hidden">
-              {isSidebarOpen ? (
-                <button
-                  onClick={toggleSidebar}
-                  className="text-2xl text-white"
-                >
-                  <CrossIcon/>
-                </button>
-              ) : (
-                <button
-                  onClick={toggleSidebar}
-                  className="text-2xl text-white"
-                >
-                  ☰
-                </button>
-              )}
-            </div>
-            <div className='flex justify-end items-center'>
-              <button 
-                onClick={handleLogout}
-                className="bg-transparent hover:bg-white/10 text-white font-medium py-2 px-4 rounded-lg flex items-center transition-all"
-              >
-                <span>Logout</span>
-                <LogOut className="ml-2 h-5 w-5" />
+            
+            {/* Sidebar Toggle (Mobile Only) */}
+            <div className="bg-blue-500 flex rounded p-2 md:hidden">
+              <button onClick={toggleSidebar} className="text-2xl text-white">
+                {isSidebarOpen ? <CrossIcon /> : '☰'}
               </button>
             </div>
+
+            {/* Left Section (User Icon + Dashboard) */}
+            <div className="flex items-center">
+              <div className="bg-blue-500 rounded-full p-1 mr-2">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-white" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
+                </svg>
+              </div>
+              <h2 className="text-white font-medium text-lg">Dashboard</h2>
+            </div>
+
+            {/* Right Section (Logout Button) */}
+            <button
+              onClick={handleLogout}
+              className="bg-transparent hover:bg-white/10 text-white font-medium py-2 px-4 rounded-lg flex items-center transition-all"
+            >
+              <span>Logout</span>
+              <LogOut className="ml-2 h-5 w-5" />
+            </button>
           </div>
         </div>
       </div>
+
       {/* Header/Navbar */}
       
       <div className="flex flex-1">

@@ -3,6 +3,7 @@ const Vehicle = require("../models/Vehicle");
 const User  = require("../models/User");
 const mongoose = require("mongoose");
 const Notification = require("../models/Notification");
+const { sendTransactionalSMS } = require('../utils/messageCentral');
 
 // ✅ Create a new booking
 const createBooking = async (req, res) => {
@@ -25,7 +26,6 @@ const createBooking = async (req, res) => {
 
     const savedBooking = await newBooking.save();
     res.status(201).json(savedBooking);
-
   } catch (err) {
     console.error('Create booking error:', err);
     res.status(500).json({ error: err.message });
@@ -38,7 +38,7 @@ const guestBooking = async (req, res) => {
     return res.status(403).json({ 
       error: "Access denied. Only managers can create guest bookings" 
     });
-  };
+  }
 
   const { 
     location, 
@@ -47,7 +47,11 @@ const guestBooking = async (req, res) => {
     vehicleId,
     driverName, 
     driverNumber, 
-    notes
+    notes,
+    scheduledAt,
+    duration,
+    members,
+    reason
   } = req.body;
   
   // Validate required fields
@@ -55,23 +59,45 @@ const guestBooking = async (req, res) => {
     return res.status(400).json({ error: "Location is required" });
   }
 
-  // For guest bookings, name and phone are required
   if (!guestName || !guestPhone) {
     return res.status(400).json({ 
       error: "Guest name and phone are required for guest bookings" 
     });
   }
 
-  if(!driverName || !driverNumber) {
-      return res.status(400).json({ 
-        error: "Driver's name and phone are required for guest bookings" 
-      });
-    }
+  if (!driverName || !driverNumber) {
+    return res.status(400).json({ 
+      error: "Driver's name and phone are required for guest bookings" 
+    });
+  }
 
-  // Validate vehicleId is provided
   if (!vehicleId) {
     return res.status(400).json({ 
       error: "Vehicle selection is required" 
+    });
+  }
+
+  if (!scheduledAt || isNaN(Date.parse(scheduledAt))) {
+    return res.status(400).json({ 
+      error: "Valid scheduled time is required" 
+    });
+  }
+
+  if (!duration || isNaN(duration)) {
+    return res.status(400).json({ 
+      error: "Duration is required and must be a number" 
+    });
+  }
+
+  if (!members || isNaN(parseInt(members))) {
+    return res.status(400).json({ 
+      error: "Number of members is required and must be a number" 
+    });
+  }
+
+  if (!reason) {
+    return res.status(400).json({ 
+      error: "Reason for booking is required" 
     });
   }
 
@@ -91,17 +117,21 @@ const guestBooking = async (req, res) => {
         error: "Selected vehicle is not available" 
       });
     }
-    
+
     const booking = new Booking({
       location,
-      status: "approved",
+      status: "confirmed",
       isGuestBooking: true,
       guestName,
       guestPhone,
       vehicleId,
       driverName, 
       driverNumber,
-      notes: notes || '', // Optional notes
+      notes: notes || '',
+      scheduledAt: new Date(scheduledAt),
+      duration,
+      members: parseInt(members),
+      reason,
       createdBy: req.userId  
     });
 
@@ -110,15 +140,15 @@ const guestBooking = async (req, res) => {
     await vehicle.save();
 
     await booking.save();
-    
+
     res.status(201).json({ 
-      message: "Booking request created successfully", 
+      message: "Guest booking created successfully", 
       booking 
     });
   } catch (err) {
-    console.error("Error creating booking:", err);
+    console.error("Error creating guest booking:", err);
     res.status(500).json({ 
-      error: "Failed to create booking",
+      error: "Failed to create guest booking",
       details: err.message 
     });
   }
@@ -148,6 +178,34 @@ const getPendingBookings = async (req, res) => {
     console.error("Error fetching pending bookings:", err);
     res.status(500).json({ 
       error: "Failed to fetch pending bookings",
+      details: err.message 
+    });
+  }
+};
+
+const getApproveBookings = async(req, res) =>{
+  try {
+     // Check if user is authenticated
+     if (!req.userId) {
+      return res.status(401).json({ message: 'User not authenticated' });
+    }
+    // Get the user to check their role
+    const user = await User.findById(req.userId);
+
+    // Check if user is a manager
+    if (!user || user.role !== 'manager') {
+      return res.status(403).json({ message: 'Access denied. Only managers can view all bookings.' });
+    }
+
+    const bookings = await Booking.find({ status: "approved" })
+      .populate('userId', 'username') 
+      .sort({ createdAt: -1 }); // Most recent first
+    
+    res.json(bookings);
+  } catch (err) {
+    console.error("Error fetching approved bookings:", err);
+    res.status(500).json({ 
+      error: "Failed to fetch approved bookings",
       details: err.message 
     });
   }
@@ -226,6 +284,21 @@ const approveBooking = async (req, res) => {
       await session.commitTransaction();
 
       const populatedBooking = await Booking.findById(bookingId).populate("userId", "username");
+      try {
+        // Send to user
+        await sendTransactionalSMS(
+          booking.userId.number,
+          `Hi ${booking.userId.username}, your booking for ${booking.location} is approved.`
+        );
+
+        // Send to driver
+        await sendTransactionalSMS(
+          driverNumber,
+          `You have been assigned a new ride for ${booking.location}.`
+        );
+      } catch (smsErr) {
+        console.error("Failed to send SMS notifications:", smsErr.message);
+      }
 
       res.json({ 
         message: "Booking approved successfully", 
@@ -272,7 +345,7 @@ const getAllBookings = async (req, res) => {
     // If user is a manager, proceed to fetch all bookings
     const bookings = await Booking.find({})
       .populate('userId', 'username')
-      .populate('vehicleId', 'name number driverName status')
+      .populate('vehicleId', 'vehicleName vehicleNumber driverName status')
       .sort({ createdAt: -1 });
       
       res.status(200).json(bookings);
@@ -294,7 +367,7 @@ const completeBooking = async (req, res) => {
     const booking = await Booking.findById(bookingId);
     if (!booking) return res.status(404).json({ error: "Booking not found" });
 
-    if (booking.status !== "approved" && booking.status !== "merged") {
+    if (booking.status !== "approved" && booking.status !== "shared") {
       return res.status(400).json({ error: "Only approved bookings can be marked as completed" });
     }
 
@@ -354,7 +427,7 @@ const cancelBooking = async (req, res) => {
     // If user is the owner
     else if (booking.userId?.toString?.() === userIdStr) {
       if (booking.isSharedRide) {
-        booking.userId = undefined;
+        // booking.userId = undefined;
         booking.ownerCancelled = true;
       } else {
         booking.status = "cancelled";
@@ -425,7 +498,8 @@ const getUserBookings = async (req, res) => {
     const userBookings = await Booking.find({
       $or: [
         { userId: req.userId },
-        { 'passengers.number': { $in: [userNumber, userNumberWithCountryCode] } } // 👈 look here
+        { 'passengers.number': { $in: [userNumber, userNumberWithCountryCode] } },
+        { 'cancellationHistory.userId': req.userId }
       ]
     })
     .populate('userId', 'username number _id')
@@ -436,12 +510,68 @@ const getUserBookings = async (req, res) => {
     })
     .sort({ createdAt: -1 });
 
-    res.json(userBookings);
+    // Process bookings to show correct status for each user
+    const enhancedBookings = await Promise.all(userBookings.map(async (booking) => {
+      const bookingObj = booking.toObject();
+      
+      // Check if THIS specific user has canceled
+      const userHasCanceled = booking.cancellationHistory.some(entry => {
+        // Check if userId matches directly as string or object
+        if (entry.userId) {
+          const entryIdStr = entry.userId.toString();
+          const reqUserIdStr = req.userId.toString();
+          return entryIdStr === reqUserIdStr;
+        }
+        
+        // Also check by username if stored in the cancellation record
+        if (entry.username && user.username) {
+          return entry.username === user.username;
+        }
+        
+        // Also check by phone number
+        if (entry.number) {
+          return entry.number === userNumber || entry.number === userNumberWithCountryCode;
+        }
+        
+        return false;
+      });
+
+      // For THIS specific user, override the status if they've canceled
+      if (userHasCanceled) {
+        bookingObj.status = 'cancelled';
+      }
+      
+      // User-specific flag for UI purposes
+      bookingObj.userHasCanceled = userHasCanceled;
+
+      // Process passengers if this is a shared ride
+      if (booking.isSharedRide && booking.passengers && booking.passengers.length > 0) {
+        const updatedPassengers = await Promise.all(booking.passengers.map(async (passenger) => {
+          const userDoc = await User.findOne({ number: passenger.number });
+
+          return {
+            ...passenger,
+            username: passenger.username || userDoc?.username || "Unknown User",
+            number: passenger.number || userDoc?.number || "N/A",
+            location: passenger.location || userDoc?.location || "N/A",
+            reason: passenger.reason || "N/A",
+            bookingTime: passenger.bookingTime || booking.createdAt || "N/A",
+            duration: passenger.duration ?? 1,
+            members: passenger.members ?? 1,
+          };
+        }));
+        
+        bookingObj.passengers = updatedPassengers;
+      }
+      
+      return bookingObj;
+    }));
+
+    res.json(enhancedBookings);
   } catch (err) {
     console.error('Get bookings error:', err);
     res.status(500).json({ error: err.message });
   }
-
 };
 
 const getNotifications = async (req, res) => {
@@ -518,29 +648,44 @@ const mergeRide = async (req, res) => {
     
     // Calculate the final duration (from earliest start to latest end) in hours
     const startTimeMs = new Date(earliestTime).getTime();
-    const finalDurationHours = (latestEndTime.getTime() - startTimeMs) / (60 * 60 * 1000);
+    const endTimeMs = new Date(latestEndTime).getTime();
+
+    const finalDurationHours = parseFloat(((endTimeMs - startTimeMs) / (60 * 60 * 1000)).toFixed(2));
     
-    // Get total number of members from the bookings being merged
-    const totalMembers = bookingsToMerge.reduce((total, booking) => {
-      // If members is a number, add it to the total
-      if (booking.members && typeof booking.members === 'number') {
-        return total + booking.members;
-      }
-      // If members is an array, add its length
-      else if (booking.members && Array.isArray(booking.members)) {
-        return total + booking.members.length;
-      }
-      return total;
-    }, 0);
-    
+       
     // Create passengers array with info from all merged bookings
-    const passengers = bookingsToMerge.map(booking => ({
-      username: booking.userId ? booking.userId.username : "Unknown",
-      number: booking.userId ? booking.userId.number : "N/A",
-      location: booking.location || "N/A",
-      reason: booking.reason || "N/A",
-      bookingTime: booking.scheduledAt
-    }));
+    let passengers = [];
+
+    for (const booking of bookingsToMerge) {
+      if (booking.status === 'shared' && Array.isArray(booking.passengers)) {
+        passengers.push(...booking.passengers);
+      } else {
+        let duration = typeof booking.duration === 'number'
+          ? booking.duration
+          : parseFloat(booking.duration) || 1;
+
+        let members = 1;
+        if (typeof booking.members === 'number') {
+          members = booking.members;
+        } else if (Array.isArray(booking.members)) {
+          members = booking.members.length;
+        } else if (!isNaN(parseInt(booking.members))) {
+          members = parseInt(booking.members);
+        }
+
+        passengers.push({
+          username: booking.userId?.username || "Unknown",
+          number: booking.userId?.number || "N/A",
+          location: booking.location || booking.userId?.location || "N/A",
+          reason: booking.reason || "N/A",
+          members,
+          duration,
+          bookingTime: booking.scheduledAt
+        });
+      }
+    }
+
+    const totalMembers = passengers.reduce((sum, p) => sum + (p.members || 1), 0);
     
     // Construct the merged booking
     const mergedBooking = new Booking({
@@ -550,12 +695,11 @@ const mergeRide = async (req, res) => {
       vehicleName: primaryBooking.vehicleName,
       driverName: primaryBooking.driverName,
       driverNumber: primaryBooking.driverNumber,
-      status: "shared", 
+      status: "shared",
       isSharedRide: true,
-      isActive: true, // Explicitly mark as active
+      isActive: true,
       mergedFrom: bookingIds,
       passengers,
-      // Add the missing required fields
       members: totalMembers,
       duration: newDetails.duration || finalDurationHours,
       reason: managerReason || "Bookings merged by manager",
@@ -642,7 +786,7 @@ const getBookingsByVehicles = async (req, res) => {
     
     // Get all bookings that are approved or pending
     const allBookings = await Booking.find({
-      status: { $in: ['approved', 'pending', 'merged'] }
+      status: { $in: ['approved', 'pending', 'shared', 'confirmed'] }
     })
       .populate('userId', 'username email number')
       .lean();
@@ -650,19 +794,24 @@ const getBookingsByVehicles = async (req, res) => {
     // Format bookings for the view page
     const formattedBookings = allBookings.map(booking => {
       // Find the vehicle for this booking
-      const vehicle = vehicles.find(v => 
+      const vehicle = vehicles.find(v =>
         v._id.toString() === booking.vehicleId?.toString()
       );
-      
+
+      const isGuest = booking.isGuestBooking;
+
       return {
         id: booking._id,
+        isGuestBooking: isGuest,
         vehicleId: vehicle?._id || 'unknown',
         vehicleName: vehicle?.name || 'Unknown Vehicle',
         vehicleNumber: vehicle?.number || 'No Registration',
-        username: booking.userId?.username || 'Not specified',
-        email: booking.userId?.email,
-        drivername: vehicle?.driverName || 'Not assigned',
-        number: booking.userId?.number || 'Not provided',
+        
+        username: isGuest ? booking.guestName : booking.userId?.username || 'Not specified',
+        number: isGuest ? booking.guestPhone : booking.userId?.number || 'Not provided',
+        drivername: isGuest ? booking.driverName : vehicle?.driverName || 'Not assigned',
+        number: isGuest ? booking.driverNumber : vehicle?.driverNumber|| 'Not provided',
+        
         date: new Date(booking.scheduledAt).toLocaleDateString(),
         time: new Date(booking.scheduledAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         location: booking.location || 'Not specified',
@@ -670,13 +819,123 @@ const getBookingsByVehicles = async (req, res) => {
         status: booking.status
       };
     });
-    
     res.json(formattedBookings);
   } catch (err) {
     console.error('Get bookings for view page error:', err);
     res.status(500).json({ error: err.message });
   }
 };
+
+const editRide = async (req, res) => {
+  try {
+    const { bookingId, driverName, driverNumber, vehicleName, scheduledAt } = req.body;
+
+    // Input validation
+    if (!bookingId) {
+      return res.status(400).json({ message: 'Booking ID is required' });
+    }
+
+    // Validate at least one field is provided for update
+    if (!driverName && !driverNumber && !vehicleName && !scheduledAt) {
+      return res.status(400).json({ message: 'At least one field must be provided for update' });
+    }
+
+    // Find the booking first
+    const booking = await Booking.findById(bookingId);
+    if (!booking) {
+      return res.status(404).json({ message: 'Booking not found' });
+    }
+
+    // Only allow edit for shared or approved bookings
+    if (!['shared', 'approved', 'confirmed'].includes(booking.status)) {
+      return res.status(400).json({ 
+        message: 'Only shared or approved bookings can be edited',
+        currentStatus: booking.status 
+      });
+    }
+
+    // Validate scheduledAt if provided
+    if (scheduledAt) {
+      const scheduledDate = new Date(scheduledAt);
+      if (isNaN(scheduledDate.getTime())) {
+        return res.status(400).json({ message: 'Invalid scheduled date format' });
+      }
+      
+      // Check if scheduled time is in the future
+      if (scheduledDate <= new Date()) {
+        return res.status(400).json({ message: 'Scheduled time must be in the future' });
+      }
+    }
+
+    // Validate driver number format if provided
+    if (driverNumber && !/^\d{10}$/.test(driverNumber.replace(/\s+/g, ''))) {
+      return res.status(400).json({ message: 'Driver number must be a valid 10-digit phone number' });
+    }
+
+    // Store original values for logging/audit
+    const originalValues = {
+      driverName: booking.driverName,
+      driverNumber: booking.driverNumber,
+      vehicleName: booking.vehicleName,
+      scheduledAt: booking.scheduledAt
+    };
+
+    // Update driver/vehicle fields locally in booking only
+    if (driverName !== undefined) booking.driverName = driverName.trim();
+    if (driverNumber !== undefined) booking.driverNumber = driverNumber.replace(/\s+/g, '');
+    if (vehicleName !== undefined) booking.vehicleName = vehicleName.trim();
+    if (scheduledAt !== undefined) booking.scheduledAt = new Date(scheduledAt);
+
+    // Add edit timestamp and manager info if available
+    booking.lastEditedAt = new Date();
+    if (req.user && req.user.id) {
+      booking.lastEditedBy = req.user.id; // Assuming user info is available in req
+    }
+
+    await booking.save();
+
+    // Log the changes for audit trail
+    console.log('Booking edited:', {
+      bookingId,
+      editedBy: req.user?.id || 'Unknown',
+      originalValues,
+      newValues: {
+        driverName: booking.driverName,
+        driverNumber: booking.driverNumber,
+        vehicleName: booking.vehicleName,
+        scheduledAt: booking.scheduledAt
+      },
+      timestamp: new Date()
+    });
+
+    return res.status(200).json({ 
+      message: 'Booking updated successfully',
+      updatedFields: {
+        ...(driverName !== undefined && { driverName: booking.driverName }),
+        ...(driverNumber !== undefined && { driverNumber: booking.driverNumber }),
+        ...(vehicleName !== undefined && { vehicleName: booking.vehicleName }),
+        ...(scheduledAt !== undefined && { scheduledAt: booking.scheduledAt })
+      }
+    });
+  } catch (err) {
+    console.error('Error in editRide:', err);
+    
+    // Handle specific MongoDB errors
+    if (err.name === 'ValidationError') {
+      return res.status(400).json({ 
+        message: 'Validation error', 
+        details: err.message 
+      });
+    }
+    
+    if (err.name === 'CastError') {
+      return res.status(400).json({ message: 'Invalid booking ID format' });
+    }
+    
+    return res.status(500).json({ message: 'Server error while editing booking' });
+  }
+};
+
 
 // ✅ Export the functions
 module.exports = {
@@ -692,5 +951,7 @@ module.exports = {
   reschedule,
   mergeRide,
   getBookingsByVehicles,
-  getById
+  getById,
+  editRide,
+  getApproveBookings
 };

@@ -11,6 +11,7 @@ router.post("/bookGuest", authMiddleware, bookingController.guestBooking);
 
 // Get pending bookings
 router.get("/pending", authMiddleware, bookingController.getPendingBookings);
+router.get("/approvedBooking", authMiddleware, bookingController.getApproveBookings);
 
 // Approve a booking
 router.post("/approve", authMiddleware, bookingController.approveBooking);
@@ -24,6 +25,7 @@ router.post("/cancel", authMiddleware, bookingController.cancelBooking);
 router.get("/notifications", authMiddleware, bookingController.getNotifications);
 router.put("/reschedule", authMiddleware, bookingController.reschedule);
 router.post("/merge", authMiddleware, bookingController.mergeRide);
+router.put("/editRide", authMiddleware, bookingController.editRide);
 
 router.get('/view', bookingController.getBookingsByVehicles);
 

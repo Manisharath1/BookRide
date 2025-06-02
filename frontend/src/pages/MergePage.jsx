@@ -41,15 +41,16 @@ const MergePage = () => {
         
         // Fetch all pending bookings for potential merging
         const bookingsRes = await axios.get(
-          `${import.meta.env.VITE_API_BASE_URL}/api/bookings/pending`,
+          `${import.meta.env.VITE_API_BASE_URL}/api/bookings/all`,
           { headers: { Authorization: `Bearer ${token}` } }
         );
         
         // Filter out the primary booking from potential merge candidates
-        const filteredBookings = bookingId 
-          ? bookingsRes.data.filter(booking => booking._id !== bookingId)
-          : bookingsRes.data;
-          
+        const filteredBookings = bookingsRes.data.filter(booking => 
+          ['pending', 'approved'].includes(booking.status) &&
+          booking._id !== bookingId
+        );
+
         setBookingsToMerge(filteredBookings);
         
         // Fetch all available vehicles
@@ -478,6 +479,8 @@ const MergePage = () => {
             {/* <p><span className="font-medium">Booking ID:</span> {mergedBooking?._id}</p> */}
             <p><span className="font-medium">Status:</span> {mergedBooking?.status}</p>
             <p><span className="font-medium">Scheduled Time:</span> {mergedBooking?.scheduledAt ? new Date(mergedBooking.scheduledAt).toLocaleString() : 'N/A'}</p>
+            <p><span className="font-medium">Total Members:</span> {mergedBooking?.members || 'N/A'}</p>
+            <p><span className="font-medium">Duration:</span> {mergedBooking?.duration || 'N/A'} hours</p>
           </div>
           <div>
             <p><span className="font-medium">Vehicle:</span> {mergedBooking?.vehicleName}</p>
@@ -495,11 +498,18 @@ const MergePage = () => {
               <p><span className="font-medium">Name:</span> {passenger.username}</p>
               <p><span className="font-medium">Contact:</span> {passenger.number}</p>
               <p><span className="font-medium">Location:</span> {passenger.location}</p>
-              <p><span className="font-medium">Member:</span> {passenger.members}</p>
+              <p><span className="font-medium">Duration:</span> {passenger.duration !== undefined ? `${passenger.duration} hours` : "N/A"}</p>
+              <p><span className="font-medium">Members:</span> {passenger.members !== undefined ? passenger.members : "N/A"}</p>
               <p><span className="font-medium">Reason:</span> {passenger.reason}</p>
               <p><span className="font-medium">Original Time:</span> {new Date(passenger.bookingTime).toLocaleString()}</p>
             </div>
           ))}
+
+          {(!mergedBooking?.passengers || mergedBooking.passengers.length === 0) && (
+            <div className="p-3 bg-gray-50 rounded-md text-center">
+              <p className="text-gray-500">No passenger information available</p>
+            </div>
+          )}
         </div>
       </div>
       

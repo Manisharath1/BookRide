@@ -52,7 +52,7 @@ const ApprovalPage = () => {
       try {
         const token = localStorage.getItem("token");
         const res = await axios.get(
-          `${import.meta.env.VITE_API_BASE_URL}/api/bookings/all`, // or an `/approved` endpoint if you have one
+          `${import.meta.env.VITE_API_BASE_URL}/api/bookings/all`, 
           { headers: { Authorization: `Bearer ${token}` } }
         );
   

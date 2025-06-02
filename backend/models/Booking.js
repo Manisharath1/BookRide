@@ -45,7 +45,7 @@ const bookingSchema = new mongoose.Schema({
   },
   status: { 
     type: String, 
-    enum: ["pending", "approved", "completed", "cancelled", "merged", "shared"], 
+    enum: ["pending", "approved", "completed", "cancelled", "merged", "shared", "confirmed"], 
     default: "pending",
     index: true // Add index for faster queries on status
   },
@@ -138,6 +138,8 @@ const bookingSchema = new mongoose.Schema({
       location: String,
       reason: String,
       bookingTime: Date,
+      members:Number,
+      duration:Number,
       cancelled: {
         type: Boolean,
         default: false
@@ -145,13 +147,16 @@ const bookingSchema = new mongoose.Schema({
     }
   ],
 
-  // Timestamps
-  approvedAt: Date,
-  completedAt: Date,
-  cancelledAt: Date
-}, {
-  timestamps: true // Adds createdAt and updatedAt automatically
-});
+  lastEditedAt: { type: Date },
+  lastEditedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+
+    // Timestamps
+    approvedAt: Date,
+    completedAt: Date,
+    cancelledAt: Date
+  }, {
+    timestamps: true // Adds createdAt and updatedAt automatically
+  });
 
 
 // Add indexes for common queries

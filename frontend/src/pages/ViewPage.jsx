@@ -88,11 +88,6 @@ const ViewPage = () => {
         <div className="bg-gradient-to-r from-pink-500 via-purple-500 to-blue-500 h-20">
           <div className="mx-auto flex justify-between items-center h-full px-4">
             <div className="flex justify-between items-center">
-              {/* <div className="bg-blue-500 rounded-full p-1 mr-2">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-white" viewBox="0 0 20 20" fill="currentColor">
-                  <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
-                </svg>
-              </div> */}
               <h2 className="text-white font-semibold text-2xl">Vehicle Booking System</h2>
             </div>
             <div className="space-x-4">
@@ -121,14 +116,6 @@ const ViewPage = () => {
             </ul>
           </nav>
         </div>
-
-        {/* Hero Section */}
-        {/* <div className="bg-blue-600 text-white p-8 md:p-12">
-          <div className="max-w-4xl mx-auto">
-            <h2 className="text-3xl md:text-4xl font-bold mb-4">Welcome to Vehicle Booking System</h2>
-            <p className="text-lg mb-6">View all vehicle bookings and their current status.</p>
-          </div>
-        </div> */}
 
         {/* Content Area */}
         <div className="flex-1 p-4 md:p-8 max-w-8xl mx-auto w-full">
@@ -188,7 +175,7 @@ const ViewPage = () => {
                               <div className="flex items-center">
                                 <Calendar className="h-4 w-4 text-gray-500 mr-2" />
                                 <span className="font-medium text-gray-700">{booking.date}</span>
-                                <span className="mx-2 text-gray-400">|</span>
+
                                 <Clock className="h-4 w-4 text-gray-500 mr-2" />
                                 <span className="text-gray-700">{booking.time}</span>
                               </div>
@@ -210,21 +197,21 @@ const ViewPage = () => {
                                       <User className="h-4 w-4 text-gray-500 mt-1 mr-2" />
                                       <div>
                                         <p className="text-xs text-gray-500">Booked By</p>
-                                        <p className="text-sm font-medium">{booking.username || 'Not specified'}</p>
+                                       <p className="text-sm font-medium">{booking.username || 'Unknown Guest'}</p>
                                       </div>
                                     </div>
                                     <div className="flex items-start">
                                       <User className="h-4 w-4 text-gray-500 mt-1 mr-2" />
                                       <div>
                                         <p className="text-xs text-gray-500">Driver</p>
-                                        <p className="text-sm font-medium">{booking.drivername || 'Not assigned'}</p>
+                                        <p className="text-sm font-medium">{booking.drivername || 'Not Assigned'}</p>
                                       </div>
                                     </div>
                                     <div className="flex items-start">
                                       <Phone className="h-4 w-4 text-gray-500 mt-1 mr-2" />
                                       <div>
                                         <p className="text-xs text-gray-500">Contact</p>
-                                        <p className="text-sm font-medium">{booking.number || 'Not provided'}</p>
+                                        <p className="text-sm font-medium">{booking.number || 'Not Provided'}</p>
                                       </div>
                                     </div>
                                   </div>

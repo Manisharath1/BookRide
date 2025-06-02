@@ -1,7 +1,8 @@
 const express = require("express");
-const { login, register, logout, verifyEmailOtp, sendEmailOtp, sendCustomOtp, verifyCustomOtp } = require("../controllers/authController");
+const { login, register, logout, verifyEmailOtp, sendEmailOtp, sendCustomOtp, verifyCustomOtp, verifyUsername, resetPassword } = require("../controllers/authController");
 const authMiddleware = require("../middleware/authMiddleware");
 const User = require("../models/User");
+const rateLimit = require('express-rate-limit');
 
 
 const router = express.Router();
@@ -32,6 +33,20 @@ router.get("/user", authMiddleware, async (req, res) => {
       res.status(500).json({ error: "Internal Server Error" });
     }
 });
+
+const resetPasswordLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 5, // Limit each IP to 5 requests per windowMs
+  message: {
+    error: 'Too many reset password attempts, please try again later.'
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+router.post('/verify-username', verifyUsername);
+router.post('/reset-password',resetPasswordLimiter, resetPassword);
+
+
 
 
 module.exports = router;
