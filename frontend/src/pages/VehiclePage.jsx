@@ -487,6 +487,7 @@ const VehiclePage = () => {
             </ul>
           </nav>
         </div>
+
         {sidebarOpen && (
           <div className="fixed inset-0 z-50 bg-black bg-opacity-40 md:hidden" onClick={toggleSidebar}>
             <div 
@@ -512,6 +513,7 @@ const VehiclePage = () => {
             </div>
           </div>
         )}
+
         <div className="flex-1 p-6 overflow-y-auto">
           {/* Success message */}
           {updateMessage && (
@@ -617,258 +619,259 @@ const VehiclePage = () => {
           </div>
           )}
         </div>
-          <Car className="fixed bottom-4 right-4 p-3 bg-blue-500 text-white rounded-full shadow-lg" size={60}
-            onClick={() => setShowAddModal(true)} />
+
+        <Car className="fixed bottom-4 right-4 p-3 bg-blue-500 text-white rounded-full shadow-lg" size={60}
+          onClick={() => setShowAddModal(true)} />
           
-          {/* Add Vehicle Modal */}
-          {showAddModal && (
-              <div className="overflow-y-auto fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-                <div className="bg-white rounded-lg w-full max-w-3xl p-6 mt-20">
-                  <h3 className="text-xl font-semibold mb-4">Add New Vehicle</h3>
-                  {error && (
-                    <Alert variant="destructive" className="mb-4 border-red-500 bg-red-50">
-                      <AlertDescription className="text-red-700">{error}</AlertDescription>
-                    </Alert>
-                  )}
-                  <form onSubmit={handleAddVehicle}>
-                    {/* Image preview and upload */}
-                    <div className="mb-4">
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Vehicle Image</label>
-                      <div className="flex items-center space-x-4">
-                        <div className="w-24 h-24 border rounded-md overflow-hidden bg-gray-100 flex items-center justify-center">
-                          {newImagePreview ? (
-                            <img 
-                              src={newImagePreview} 
-                              alt="Vehicle preview" 
-                              className="w-full h-full object-cover"
-                            />
-                          ) : (
-                            <span className="text-gray-400 text-xs text-center">No image</span>
-                          )}
-                        </div>
-                        <div className="flex-1">
-                          <input
-                            type="file"
-                            accept="image/*"
-                            onChange={handleAddImageChange}
-                            className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+        {/* Add Vehicle Modal */}
+        {showAddModal && (
+            <div className="overflow-y-auto fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+              <div className="bg-white rounded-lg w-full max-w-3xl p-6 mt-20">
+                <h3 className="text-xl font-semibold mb-4">Add New Vehicle</h3>
+                {error && (
+                  <Alert variant="destructive" className="mb-4 border-red-500 bg-red-50">
+                    <AlertDescription className="text-red-700">{error}</AlertDescription>
+                  </Alert>
+                )}
+                <form onSubmit={handleAddVehicle}>
+                  {/* Image preview and upload */}
+                  <div className="mb-4">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Vehicle Image</label>
+                    <div className="flex items-center space-x-4">
+                      <div className="w-24 h-24 border rounded-md overflow-hidden bg-gray-100 flex items-center justify-center">
+                        {newImagePreview ? (
+                          <img 
+                            src={newImagePreview} 
+                            alt="Vehicle preview" 
+                            className="w-full h-full object-cover"
                           />
-                          <p className="mt-1 text-xs text-gray-500">JPG, PNG, or GIF up to 5MB</p>
-                        </div>
+                        ) : (
+                          <span className="text-gray-400 text-xs text-center">No image</span>
+                        )}
+                      </div>
+                      <div className="flex-1">
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={handleAddImageChange}
+                          className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                        />
+                        <p className="mt-1 text-xs text-gray-500">JPG, PNG, or GIF up to 5MB</p>
                       </div>
                     </div>
-                      <div className='mb-4'>
-                        <label className="block text-sm font-medium text-gray-700">Vehicle Name</label>
-                        <input
-                          type="text"
-                          name="name"
-                          value={addVehicle.name}
-                          onChange={handleAddInputChange}
-                          className="w-full p-2 border border-gray-300 rounded"
-                          required
-                        />
-                      </div>
-
-                      <div className="mb-4 grid grid-cols-2 gap-4">
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">Vehicle No.</label>
-                          <input
-                            type="text"
-                            name="number"
-                            value={addVehicle.number}
-                            onChange={handleAddInputChange}
-                            className="w-full p-2 border border-gray-300 rounded"
-                            required
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">Vehicle ID</label>
-                          <input
-                            type="text"
-                            name="vehicleID"
-                            value={addVehicle.vehicleID}
-                            onChange={handleAddInputChange}
-                            className="w-full p-2 border border-gray-300 rounded"
-                            required
-                          />
-                        </div>
-                      </div>
-
-                    <div className="mb-4 grid grid-cols-2 gap-4">
-
-                      <div className = "mb-1">
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Driver Name</label>
-                        <input
-                          type="text"
-                          name="driverName"
-                          value={addVehicle.driverName}
-                          onChange={handleAddInputChange}
-                          className="w-full p-2 border border-gray-300 rounded"
-                          required
-                        />
-                      </div>   
-                      <div className = "mb-1">
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Driver Number</label>
-                        <input
-                          type="text"
-                          name="driverNumber"
-                          value={addVehicle.driverNumber}
-                          onChange={handleAddInputChange}
-                          className="w-full p-2 border border-gray-300 rounded"
-                          required
-                        />
-                      </div>
+                  </div>
+                    <div className='mb-4'>
+                      <label className="block text-sm font-medium text-gray-700">Vehicle Name</label>
+                      <input
+                        type="text"
+                        name="name"
+                        value={addVehicle.name}
+                        onChange={handleAddInputChange}
+                        className="w-full p-2 border border-gray-300 rounded"
+                        required
+                      />
                     </div>
 
                     <div className="mb-4 grid grid-cols-2 gap-4">
-                      <div className = "mb-1">
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Chassis Number</label>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Vehicle No.</label>
                         <input
                           type="text"
-                          name="chassisNumber"
-                          value={addVehicle.chassisNumber || ""}
+                          name="number"
+                          value={addVehicle.number}
                           onChange={handleAddInputChange}
                           className="w-full p-2 border border-gray-300 rounded"
                           required
                         />
                       </div>
-
-                      {/* Insurance Details */}
-                      <div className = "mb-1">
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Insurance Provider</label>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Vehicle ID</label>
                         <input
                           type="text"
-                          name="insuranceDetails.provider"
-                          value={addVehicle.insuranceDetails?.provider || ""}
+                          name="vehicleID"
+                          value={addVehicle.vehicleID}
                           onChange={handleAddInputChange}
                           className="w-full p-2 border border-gray-300 rounded"
+                          required
                         />
                       </div>
                     </div>
 
-                    <div className="mb-4 grid grid-cols-2 gap-2">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Insurance Valid From</label>
-                        <input
-                          type="date"
-                          name="insuranceDetails.validFrom"
-                          value={addVehicle.insuranceDetails?.validFrom || ""}
-                          onChange={handleAddInputChange}
-                          className="w-full p-2 border border-gray-300 rounded"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Insurance Valid Till</label>
-                        <input
-                          type="date"
-                          name="insuranceDetails.validTill"
-                          value={addVehicle.insuranceDetails?.validTill || ""}
-                          onChange={handleAddInputChange}
-                          className="w-full p-2 border border-gray-300 rounded"
-                        />
-                      </div>
+                  <div className="mb-4 grid grid-cols-2 gap-4">
+
+                    <div className = "mb-1">
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Driver Name</label>
+                      <input
+                        type="text"
+                        name="driverName"
+                        value={addVehicle.driverName}
+                        onChange={handleAddInputChange}
+                        className="w-full p-2 border border-gray-300 rounded"
+                        required
+                      />
+                    </div>   
+                    <div className = "mb-1">
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Driver Number</label>
+                      <input
+                        type="text"
+                        name="driverNumber"
+                        value={addVehicle.driverNumber}
+                        onChange={handleAddInputChange}
+                        className="w-full p-2 border border-gray-300 rounded"
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  <div className="mb-4 grid grid-cols-2 gap-4">
+                    <div className = "mb-1">
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Chassis Number</label>
+                      <input
+                        type="text"
+                        name="chassisNumber"
+                        value={addVehicle.chassisNumber || ""}
+                        onChange={handleAddInputChange}
+                        className="w-full p-2 border border-gray-300 rounded"
+                        required
+                      />
                     </div>
 
-                    {/* MV Tax Period */}
-                    <div className="mb-4 grid grid-cols-2 gap-2">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">MV Tax From</label>
-                        <input
-                          type="date"
-                          name="mvTaxPeriod.from"
-                          value={addVehicle.mvTaxPeriod?.from || ""}
-                          onChange={handleAddInputChange}
-                          className="w-full p-2 border border-gray-300 rounded"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">MV Tax To</label>
-                        <input
-                          type="date"
-                          name="mvTaxPeriod.to"
-                          value={addVehicle.mvTaxPeriod?.to || ""}
-                          onChange={handleAddInputChange}
-                          className="w-full p-2 border border-gray-300 rounded"
-                        />
-                      </div>
+                    {/* Insurance Details */}
+                    <div className = "mb-1">
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Insurance Provider</label>
+                      <input
+                        type="text"
+                        name="insuranceDetails.provider"
+                        value={addVehicle.insuranceDetails?.provider || ""}
+                        onChange={handleAddInputChange}
+                        className="w-full p-2 border border-gray-300 rounded"
+                      />
                     </div>
+                  </div>
 
-                    {/* Pollution Clearance */}
-                    <div className="mb-4 grid grid-cols-2 gap-2">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Pollution Valid From</label>
-                        <input
-                          type="date"
-                          name="pollutionClearance.validFrom"
-                          value={addVehicle.pollutionClearance?.validFrom || ""}
-                          onChange={handleAddInputChange}
-                          className="w-full p-2 border border-gray-300 rounded"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Pollution Valid Till</label>
-                        <input
-                          type="date"
-                          name="pollutionClearance.validTill"
-                          value={addVehicle.pollutionClearance?.validTill || ""}
-                          onChange={handleAddInputChange}
-                          className="w-full p-2 border border-gray-300 rounded"
-                        />
-                      </div>
+                  <div className="mb-4 grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Insurance Valid From</label>
+                      <input
+                        type="date"
+                        name="insuranceDetails.validFrom"
+                        value={addVehicle.insuranceDetails?.validFrom || ""}
+                        onChange={handleAddInputChange}
+                        className="w-full p-2 border border-gray-300 rounded"
+                      />
                     </div>
-
-                    <div className="mb-4 grid grid-cols-2 gap-4">
-                      {/* RC Validity */}
-                      <div className = "mb-1">
-                        <label className="block text-sm font-medium text-gray-700 mb-1">RC Validity</label>
-                        <input
-                          type="date"
-                          name="rcValidity"
-                          value={addVehicle.rcValidity || ""}
-                          onChange={handleAddInputChange}
-                          className="w-full p-2 border border-gray-300 rounded"
-                        />
-                      </div>
-                      <div className = "mb-1">
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
-                        <select
-                          name="status"
-                          value={addVehicle.status}
-                          onChange={handleAddInputChange}
-                          className="w-full p-2 border border-gray-300 rounded"
-                        >
-                          <option value="available">Available</option>
-                          <option value="assigned">Assigned</option>
-                          <option value="in service">In service</option>
-                        </select>
-                      </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Insurance Valid Till</label>
+                      <input
+                        type="date"
+                        name="insuranceDetails.validTill"
+                        value={addVehicle.insuranceDetails?.validTill || ""}
+                        onChange={handleAddInputChange}
+                        className="w-full p-2 border border-gray-300 rounded"
+                      />
                     </div>
+                  </div>
 
-                    <div className="flex justify-end gap-2 mt-6">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setShowAddModal(false);
-                          setError("");
-                          setNewImagePreview(null);
-                          setNewVehicleImage(null);
-                        }}
-                        className="px-4 py-2 bg-gray-200 hover:bg-gray-300 rounded"
+                  {/* MV Tax Period */}
+                  <div className="mb-4 grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">MV Tax From</label>
+                      <input
+                        type="date"
+                        name="mvTaxPeriod.from"
+                        value={addVehicle.mvTaxPeriod?.from || ""}
+                        onChange={handleAddInputChange}
+                        className="w-full p-2 border border-gray-300 rounded"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">MV Tax To</label>
+                      <input
+                        type="date"
+                        name="mvTaxPeriod.to"
+                        value={addVehicle.mvTaxPeriod?.to || ""}
+                        onChange={handleAddInputChange}
+                        className="w-full p-2 border border-gray-300 rounded"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Pollution Clearance */}
+                  <div className="mb-4 grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Pollution Valid From</label>
+                      <input
+                        type="date"
+                        name="pollutionClearance.validFrom"
+                        value={addVehicle.pollutionClearance?.validFrom || ""}
+                        onChange={handleAddInputChange}
+                        className="w-full p-2 border border-gray-300 rounded"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Pollution Valid Till</label>
+                      <input
+                        type="date"
+                        name="pollutionClearance.validTill"
+                        value={addVehicle.pollutionClearance?.validTill || ""}
+                        onChange={handleAddInputChange}
+                        className="w-full p-2 border border-gray-300 rounded"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="mb-4 grid grid-cols-2 gap-4">
+                    {/* RC Validity */}
+                    <div className = "mb-1">
+                      <label className="block text-sm font-medium text-gray-700 mb-1">RC Validity</label>
+                      <input
+                        type="date"
+                        name="rcValidity"
+                        value={addVehicle.rcValidity || ""}
+                        onChange={handleAddInputChange}
+                        className="w-full p-2 border border-gray-300 rounded"
+                      />
+                    </div>
+                    <div className = "mb-1">
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+                      <select
+                        name="status"
+                        value={addVehicle.status}
+                        onChange={handleAddInputChange}
+                        className="w-full p-2 border border-gray-300 rounded"
                       >
-                        Cancel
-                      </button>
-                      <button
-                        type="submit"
-                        className="px-4 py-2 bg-green-500 text-white hover:bg-green-600 rounded"
-                      >
-                        Add Vehicle
-                      </button>
+                        <option value="available">Available</option>
+                        <option value="assigned">Assigned</option>
+                        <option value="in service">In service</option>
+                      </select>
                     </div>
-                  </form>
-                </div>
+                  </div>
+
+                  <div className="flex justify-end gap-2 mt-6">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowAddModal(false);
+                        setError("");
+                        setNewImagePreview(null);
+                        setNewVehicleImage(null);
+                      }}
+                      className="px-4 py-2 bg-gray-200 hover:bg-gray-300 rounded"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      className="px-4 py-2 bg-green-500 text-white hover:bg-green-600 rounded"
+                    >
+                      Add Vehicle
+                    </button>
+                  </div>
+                </form>
               </div>
-          )}
-        </div>
+            </div>
+        )}
+      </div>
       
       {/* Update Vehicle Modal */}
       {showModal && (

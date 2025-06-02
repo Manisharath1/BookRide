@@ -1,10 +1,11 @@
+/* eslint-disable react/prop-types */
 import { useState, useRef, useEffect } from 'react';
 import { Calendar, Clock, ChevronLeft, ChevronRight, Trash, X, Check, Edit, Plus } from 'lucide-react';
 
 // eslint-disable-next-line react/prop-types
 const CalendarSelector = ({ setSelectedTime, existingEvents, selectedTime  = [] }) => {
   // State for tracking dates and selections
-  const calendarRef = useRef(null);
+  // const calendarRef = useRef(null);
   const [currentDate, setCurrentDate] = useState(new Date());
   const [currentView, setCurrentView] = useState('week'); // 'month', 'week', 'day'
   const [selectedDate, setSelectedDate] = useState(new Date());
