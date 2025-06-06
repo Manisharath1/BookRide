@@ -1,10 +1,10 @@
 const User = require("../models/User");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
-const twilio = require('twilio');
-const Otp = require('../models/Otp');
-const sgMail = require('@sendgrid/mail');
-const { sendOtpSMS, verifyOtp } = require('../utils/messageCentral');
+// const twilio = require('twilio');
+// const Otp = require('../models/Otp');
+// // const sgMail = require('@sendgrid/mail');
+// const { sendOtpSMS, verifyOtp } = require('../utils/messageCentral');
 
 
 // const API_KEY = process.env.SENDGRID_API_KEY;
@@ -12,14 +12,82 @@ const { sendOtpSMS, verifyOtp } = require('../utils/messageCentral');
 // const FROM_EMAIL = process.env.FROM_EMAIL;
 
 // Register a new user
-const register = async (req, res) => {
-  const { username, email, number, password, role, googleId } = req.body;
+// const register = async (req, res) => {
+//   const { username, email, number, password, role, googleId } = req.body;
 
+//   try {
+//     // Check if user already exists
+//     const existingUser = await User.findOne({ email });
+//     if (existingUser) {
+//       return res.status(400).json({ error: 'User already exists. Please login.' });
+//     }
+
+//     // Validate ILS email
+//     if (!email.endsWith('@ils.res.in')) {
+//       return res.status(400).json({ error: 'Only emails with ils.res.in domain are allowed' });
+//     }
+
+//     let hashedPassword = '';
+
+//     // If NOT Google user, enforce OTP verification
+//     if (!googleId) {
+//       const verifiedOtp = await Otp.findOne({ number, verified: true });
+
+//       if (!verifiedOtp) {
+//         return res.status(400).json({ error: 'Please verify your phone number before registering.' });
+//       }
+//       await verifiedOtp.deleteOne();
+
+//       if (!password || password.length < 6) {
+//         return res.status(400).json({ error: 'Password must be at least 6 characters' });
+//       }
+
+//       hashedPassword = await bcrypt.hash(password, 10);
+//       await verifiedOtp.deleteOne(); // clear used OTP
+//     } else {
+//       // For Google users, still validate and hash password
+//       if (!password || password.length < 6) {
+//         return res.status(400).json({ error: 'Password must be at least 6 characters' });
+//       }
+//       hashedPassword = await bcrypt.hash(password, 10);
+//     }
+
+//     // Create user - store phone number for all users
+//     const user = new User({
+//       username,
+//       email,
+//       googleId: googleId || null,
+//       number, // Store phone number for both Google and regular users
+//       password: hashedPassword,
+//       role: role || 'user'
+//     });
+
+//     await user.save();
+
+//     return res.status(201).json({
+//       success: true,
+//       message: 'User registered successfully'
+//     });
+
+//   } catch (err) {
+//     console.error('Registration error:', err);
+//     return res.status(500).json({
+//       error: 'An error occurred during registration. Please try again.'
+//     });
+//   }
+// };
+
+const register = async (req, res) => {
+  const { username, email, number, password } = req.body;
+  
   try {
-    // Check if user already exists
-    const existingUser = await User.findOne({ email });
-    if (existingUser) {
-      return res.status(400).json({ error: 'User already exists. Please login.' });
+    // Input validation
+    if (!username || username.length < 3) {
+      return res.status(400).json({ error: 'Username must be at least 3 characters' });
+    }
+
+    if (!email) {
+      return res.status(400).json({ error: 'Email is required' });
     }
 
     // Validate ILS email
@@ -27,39 +95,42 @@ const register = async (req, res) => {
       return res.status(400).json({ error: 'Only emails with ils.res.in domain are allowed' });
     }
 
-    let hashedPassword = '';
-
-    // If NOT Google user, enforce OTP verification
-    if (!googleId) {
-      const verifiedOtp = await Otp.findOne({ number, verified: true });
-
-      if (!verifiedOtp) {
-        return res.status(400).json({ error: 'Please verify your phone number before registering.' });
-      }
-      await verifiedOtp.deleteOne();
-
-      if (!password || password.length < 6) {
-        return res.status(400).json({ error: 'Password must be at least 6 characters' });
-      }
-
-      hashedPassword = await bcrypt.hash(password, 10);
-      await verifiedOtp.deleteOne(); // clear used OTP
-    } else {
-      // For Google users, still validate and hash password
-      if (!password || password.length < 6) {
-        return res.status(400).json({ error: 'Password must be at least 6 characters' });
-      }
-      hashedPassword = await bcrypt.hash(password, 10);
+    if (!number || number.length < 10) {
+      return res.status(400).json({ error: 'Valid phone number is required' });
     }
 
-    // Create user - store phone number for all users
+    if (!password || password.length < 6) {
+      return res.status(400).json({ error: 'Password must be at least 6 characters' });
+    }
+
+    // Check if user already exists by email
+    const existingUserByEmail = await findOne({ email });
+    if (existingUserByEmail) {
+      return res.status(400).json({ error: 'User with this email already exists' });
+    }
+
+    // Check if user already exists by username
+    const existingUserByUsername = await findOne({ username });
+    if (existingUserByUsername) {
+      return res.status(400).json({ error: 'Username already taken' });
+    }
+
+    // Check if phone number already exists
+    const existingUserByPhone = await findOne({ number });
+    if (existingUserByPhone) {
+      return res.status(400).json({ error: 'Phone number already registered' });
+    }
+
+    // Hash password
+    const hashedPassword = await hash(password, 12); // Use 12 rounds for better security
+
+    // Create user with default role 'user'
     const user = new User({
       username,
       email,
-      googleId: googleId || null,
-      number, // Store phone number for both Google and regular users
+      number,
       password: hashedPassword,
-      role: role || 'user'
+      role: 'user'
     });
 
     await user.save();
@@ -71,6 +142,15 @@ const register = async (req, res) => {
 
   } catch (err) {
     console.error('Registration error:', err);
+    
+    // Handle duplicate key errors (if you have unique indexes)
+    if (err.code === 11000) {
+      const field = Object.keys(err.keyPattern)[0];
+      return res.status(400).json({
+        error: `This ${field} is already registered`
+      });
+    }
+
     return res.status(500).json({
       error: 'An error occurred during registration. Please try again.'
     });
@@ -95,7 +175,6 @@ const login = async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 };
-
 // Logout a user
 const logout = async (req, res) => {
   try {
@@ -121,123 +200,123 @@ const logout = async (req, res) => {
 };
 
 //mobile otp
-const verifyCustomOtp = async (req, res) => {
-  try {
-    const { number, code } = req.body;
+// const verifyCustomOtp = async (req, res) => {
+//   try {
+//     const { number, code } = req.body;
 
-    if (!code || !number) {
-      return res.status(400).json({ error: 'Missing phone number or code' });
-    }
+//     if (!code || !number) {
+//       return res.status(400).json({ error: 'Missing phone number or code' });
+//     }
 
-    const otpRecord = await Otp.findOne({ number });
+//     const otpRecord = await Otp.findOne({ number });
 
-    if (!otpRecord || !otpRecord.verificationId) {
-      return res.status(400).json({ error: 'OTP not found or expired' });
-    }
+//     if (!otpRecord || !otpRecord.verificationId) {
+//       return res.status(400).json({ error: 'OTP not found or expired' });
+//     }
 
-    // Call MessageCentral validation API
-    const response = await verifyOtp(otpRecord.verificationId, code);
+//     // Call MessageCentral validation API
+//     const response = await verifyOtp(otpRecord.verificationId, code);
 
-    if (response?.data?.verificationStatus === 'VERIFICATION_COMPLETED') {
-      otpRecord.verified = true;
-      await otpRecord.save();
-      return res.status(200).json({ message: 'OTP verified successfully' });
-    } else {
-      return res.status(400).json({ error: 'Invalid or expired OTP' });
-    }
+//     if (response?.data?.verificationStatus === 'VERIFICATION_COMPLETED') {
+//       otpRecord.verified = true;
+//       await otpRecord.save();
+//       return res.status(200).json({ message: 'OTP verified successfully' });
+//     } else {
+//       return res.status(400).json({ error: 'Invalid or expired OTP' });
+//     }
 
-  } catch (err) {
-    console.error('OTP verification failed:', err?.response?.data || err.message || err);
-    res.status(500).json({ error: 'Internal Server Error during OTP verification' });
-  }
-};
+//   } catch (err) {
+//     console.error('OTP verification failed:', err?.response?.data || err.message || err);
+//     res.status(500).json({ error: 'Internal Server Error during OTP verification' });
+//   }
+// };
 
-//mobile otp
-const sendCustomOtp = async (req, res) => {
-  try {
-    const { number } = req.body;
-    if (!number) return res.status(400).json({ error: "Phone number is required" });
+// //mobile otp
+// const sendCustomOtp = async (req, res) => {
+//   try {
+//     const { number } = req.body;
+//     if (!number) return res.status(400).json({ error: "Phone number is required" });
 
-    // Send OTP via MessageCentral
-    const verificationId = await sendOtpSMS(number);
+//     // Send OTP via MessageCentral
+//     const verificationId = await sendOtpSMS(number);
 
-    // Store in DB
-    await Otp.findOneAndUpdate(
-      { number },
-      { verificationId, createdAt: new Date(), verified: false },
-      { upsert: true }
-    );
+//     // Store in DB
+//     await Otp.findOneAndUpdate(
+//       { number },
+//       { verificationId, createdAt: new Date(), verified: false },
+//       { upsert: true }
+//     );
 
-    res.json({ message: 'OTP sent successfully' });
-  } catch (err) {
-    console.error('OTP send error:', err);
-    res.status(500).json({ error: 'Failed to send OTP' });
-  }
-};
-// const generateOTP = () => Math.floor(100000 + Math.random() * 900000).toString(); 
+//     res.json({ message: 'OTP sent successfully' });
+//   } catch (err) {
+//     console.error('OTP send error:', err);
+//     res.status(500).json({ error: 'Failed to send OTP' });
+//   }
+// };
+// // const generateOTP = () => Math.floor(100000 + Math.random() * 900000).toString(); 
 
-//emailotp
-const sendEmailOtp = async (req, res) => {
-  const { email } = req.body;
+// //emailotp
+// const sendEmailOtp = async (req, res) => {
+//   const { email } = req.body;
 
-  if (!email || !email.endsWith('@ils.res.in')) {
-    return res.status(400).json({ error: 'Valid ils.res.in email is required' });
-  }
+//   if (!email || !email.endsWith('@ils.res.in')) {
+//     return res.status(400).json({ error: 'Valid ils.res.in email is required' });
+//   }
 
-  const otp = Math.floor(100000 + Math.random() * 900000).toString();
+//   const otp = Math.floor(100000 + Math.random() * 900000).toString();
 
-  try {
-    await sgMail.send({
-      to: email,
-      from: FROM_EMAIL,
-      subject: 'Your ILS OTP Code',
-      text: `Your OTP is ${otp}. It is valid for 5 minutes.`,
-    });
+//   try {
+//     await sgMail.send({
+//       to: email,
+//       from: FROM_EMAIL,
+//       subject: 'Your ILS OTP Code',
+//       text: `Your OTP is ${otp}. It is valid for 5 minutes.`,
+//     });
 
-    // Remove any existing OTPs
-    await Otp.deleteMany({ email });
+//     // Remove any existing OTPs
+//     await Otp.deleteMany({ email });
 
-    // Save new OTP
-    await Otp.create({
-      email,
-      code: otp,
-      expiresAt: new Date(Date.now() + 5 * 60 * 1000)
-    });
+//     // Save new OTP
+//     await Otp.create({
+//       email,
+//       code: otp,
+//       expiresAt: new Date(Date.now() + 5 * 60 * 1000)
+//     });
 
-    return res.status(200).json({ success: true, message: 'OTP sent to your email' });
-  } catch (error) {
-    console.error("❌ SendGrid OTP error:", error.response?.body || error.message || error);
-    return res.status(500).json({ error: 'Failed to send OTP. Please try again.' });
-  }
-};
+//     return res.status(200).json({ success: true, message: 'OTP sent to your email' });
+//   } catch (error) {
+//     console.error("❌ SendGrid OTP error:", error.response?.body || error.message || error);
+//     return res.status(500).json({ error: 'Failed to send OTP. Please try again.' });
+//   }
+// };
 
-const verifyEmailOtp = async (req, res) => {
-  const { email, code } = req.body;
+// const verifyEmailOtp = async (req, res) => {
+//   const { email, code } = req.body;
 
-  const record = await Otp.findOne({ email });
+//   const record = await Otp.findOne({ email });
 
-  if (!record) return res.status(400).json({ error: 'OTP not found for this email' });
-  if (record.expiresAt < Date.now()) {
-    await Otp.deleteOne({ _id: record._id });
-    return res.status(400).json({ error: 'OTP has expired' });
-  }
+//   if (!record) return res.status(400).json({ error: 'OTP not found for this email' });
+//   if (record.expiresAt < Date.now()) {
+//     await Otp.deleteOne({ _id: record._id });
+//     return res.status(400).json({ error: 'OTP has expired' });
+//   }
 
-  if (record.code !== code) {
-    return res.status(400).json({ error: 'Invalid OTP' });
-  }
+//   if (record.code !== code) {
+//     return res.status(400).json({ error: 'Invalid OTP' });
+//   }
 
-  record.verified = true;
-  await record.save();
+//   record.verified = true;
+//   await record.save();
 
-  res.status(200).json({ success: true, message: 'Email verified successfully' });
-};
+//   res.status(200).json({ success: true, message: 'Email verified successfully' });
+// };
 
 const verifyUsername = async (req, res) => {
   const { username } = req.body;
   if (!username) return res.status(400).json({ message: 'Username is required' });
   
   try {
-      const user = await User.findOne({ username });
+      const user = await findOne({ username });
       if (!user) return res.status(404).json({ message: 'Username not found' });
 
       return res.status(200).json({ message: 'Username verified' });
@@ -250,11 +329,11 @@ const resetPassword = async (req, res) => {
   const { username, newPassword } = req.body;
   if (!username || !newPassword) return res.status(400).json({ message: 'All fields are required' }); 
   try {
-    const user = await User.findOne({ username });
+    const user = await findOne({ username });
     if (!user) return res.status(404).json({ message: 'User not found' });
 
-    const salt = await bcrypt.genSalt(10);
-    user.password = await bcrypt.hash(newPassword, salt);
+    const salt = await genSalt(10);
+    user.password = await hash(newPassword, salt);
     await user.save();
 
     return res.status(200).json({ message: 'Password reset successful' });
@@ -266,10 +345,10 @@ module.exports = {
   register,
   login,
   logout,
-  verifyCustomOtp,
-  sendCustomOtp,
-  sendEmailOtp,
-  verifyEmailOtp,
+  // verifyCustomOtp,
+  // sendCustomOtp,
+  // sendEmailOtp,
+  // verifyEmailOtp,
   verifyUsername,
   resetPassword
 

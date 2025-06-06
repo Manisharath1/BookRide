@@ -217,6 +217,8 @@ const MergePage = () => {
                 <p>Location: {primaryBooking.location}</p>
                 <p>Scheduled: {new Date(primaryBooking.scheduledAt).toLocaleString()}</p>
                 <p>User: {primaryBooking.userId?.username || "N/A"}</p>
+                <p>Duration: {primaryBooking.duration || "N/A"}</p>
+                <p>Member: {primaryBooking.members || "N/A"}</p>
               </div>
               <div className="flex items-center">
                 <input 
@@ -230,22 +232,24 @@ const MergePage = () => {
           </div>
         )}
         
-        <div className="space-y-3 max-h-96 overflow-y-auto">
+        <div className="grid grid-cols-4 sm:grid-cols-3 gap-2 max-h-96 overflow-y-auto">
           {bookingsToMerge.map(booking => (
             <div 
               key={booking._id} 
-              className={`p-3 rounded-md ${
-                selectedBookings.includes(booking._id) ? "bg-blue-50 border border-blue-300" : "bg-gray-50"
+              className={`p-4 rounded-lg shadow-sm border ${
+                selectedBookings.includes(booking._id)
+                  ? "bg-blue-50 border-blue-300"
+                  : "bg-white border-gray-200"
               }`}
             >
-              <div className="flex items-center justify-between">
-                <div>
-                  <p><span className="font-medium">Location:</span> {booking.location}</p>
-                  <p><span className="font-medium">Scheduled:</span> {new Date(booking.scheduledAt).toLocaleString()}</p>
-                  <p><span className="font-medium">User:</span> {booking.userId?.username || "N/A"}</p>
-                  <p><span className="font-medium">Reason:</span> {booking.reason || "N/A"}</p>
-                </div>
-                <div className="flex items-center">
+              <div className="grid grid-cols-2 gap-x-1 gap-y-2">
+                <p className="text-sm"><span className="font-bold text-sm">Location:</span> {booking.location}</p>
+                <p className="text-sm"><span className="font-bold text-sm">Scheduled:</span> {new Date(booking.scheduledAt).toLocaleString()}</p>
+                <p className="text-sm"><span className="font-bold text-sm">User:</span> {booking.userId?.username || "N/A"}</p>
+                <p className="text-sm"><span className="font-bold text-sm">Reason:</span> {booking.reason || "N/A"}</p>
+                <p className="text-sm"><span className="font-bold text-sm">Duration:</span> {booking.duration || "N/A"}</p>
+                <p className="text-sm"><span className="font-bold text-sm">Member:</span> {booking.members || "N/A"}</p>
+                <div className="col-span-2 flex justify-end mt-2">
                   <input 
                     type="checkbox" 
                     checked={selectedBookings.includes(booking._id)} 
@@ -256,13 +260,14 @@ const MergePage = () => {
               </div>
             </div>
           ))}
-          
+
           {bookingsToMerge.length === 0 && (
-            <div className="p-4 bg-gray-50 rounded-md text-center">
+            <div className="col-span-full p-4 bg-gray-50 rounded-md text-center">
               <p className="text-gray-500">No bookings available for merging</p>
             </div>
           )}
         </div>
+
       </div>
       
       <div className="mt-6 flex justify-end">
@@ -349,7 +354,12 @@ const MergePage = () => {
           </h4>
           {selectedDriver && (
             <button 
-              onClick={() => document.getElementById('change-driver-section').classList.toggle('hidden')}
+              onClick={() => {
+                const changeDriverSection = document.getElementById('change-driver-section');
+                if (changeDriverSection) {
+                  changeDriverSection.classList.toggle('hidden');
+                }
+              }}
               className="text-sm px-3 py-1 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded-full border border-blue-200 transition-colors flex items-center"
             >
               <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
@@ -388,37 +398,60 @@ const MergePage = () => {
         <div id="change-driver-section" className="hidden mt-4">
           <h5 className="font-medium text-gray-700 mb-2">Select a Different Driver</h5>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 max-h-60 overflow-y-auto pr-1">
-            {drivers.map(driver => (
-              <div 
-                key={driver._id}
-                onClick={() => setSelectedDriver({
-                  _id: driver._id,
-                  name: driver.name,
-                  number: driver.number
-                })}
-                className={`p-3 rounded-lg cursor-pointer transition-all duration-200 hover:shadow-md ${
-                  selectedDriver?._id === driver._id 
-                    ? "bg-sky-50 border-2 border-blue-900 shadow-sm" 
-                    : "bg-gray-50 hover:bg-gray-100 border border-gray-200"
-                }`}
-              >
-                <div className="flex items-center justify-between">
-                  <div className="flex-1">
-                    <p className={`font-semibold ${selectedDriver?._id === driver._id ? "text-blue-800" : "text-gray-800"}`}>
-                      {driver.name}
-                    </p>
-                    <p className="text-sm text-gray-600 flex items-center mt-1">
-                      <Phone size={14} className="mr-1" /> {driver.number}
-                    </p>
-                  </div>
-                  {selectedDriver?._id === driver._id && (
-                    <div className="bg-blue-500 rounded-full p-1 text-white">
-                      <Check size={16} />
+            {drivers.map((driver, index) => {
+              // Create a unique identifier - use _id if available, otherwise use index or name+number combo
+              const driverId = driver._id || driver.id || `${driver.name}-${driver.number}` || index;
+              const selectedId = selectedDriver?._id || selectedDriver?.id || (selectedDriver ? `${selectedDriver.name}-${selectedDriver.number}` : null);
+              const isSelected = selectedDriver && selectedId === driverId;
+              
+              return (
+                <div 
+                  key={`driver-${driverId}-${index}`}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    console.log('Selecting driver:', driverId, driver.name, 'Full driver object:', driver);
+                    
+                    // Create a clean copy of the driver object with proper ID
+                    setSelectedDriver({
+                      _id: driverId,
+                      id: driverId, // Backup ID field
+                      name: driver.name,
+                      number: driver.number
+                    });
+                    
+                    // Hide the change driver section after selection
+                    setTimeout(() => {
+                      const changeDriverSection = document.getElementById('change-driver-section');
+                      if (changeDriverSection) {
+                        changeDriverSection.classList.add('hidden');
+                      }
+                    }, 100);
+                  }}
+                  className={`p-3 rounded-lg cursor-pointer transition-all duration-200 hover:shadow-md ${
+                    isSelected
+                      ? "bg-sky-50 border-2 border-blue-900 shadow-sm" 
+                      : "bg-gray-50 hover:bg-gray-100 border border-gray-200"
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex-1">
+                      <p className={`font-semibold ${isSelected ? "text-blue-800" : "text-gray-800"}`}>
+                        {driver.name}
+                      </p>
+                      <p className="text-sm text-gray-600 flex items-center mt-1">
+                        <Phone size={14} className="mr-1" /> {driver.number}
+                      </p>
                     </div>
-                  )}
+                    {isSelected && (
+                      <div className="bg-blue-500 rounded-full p-1 text-white">
+                        <Check size={16} />
+                      </div>
+                    )}
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
             
             {drivers.length === 0 && (
               <div className="col-span-full p-4 bg-gray-50 rounded-lg border border-dashed border-gray-300 text-center">

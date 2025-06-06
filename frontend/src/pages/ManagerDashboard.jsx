@@ -8,9 +8,6 @@ import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
-
-
-
 import axios from "axios";
 import {  
   Car, 
@@ -403,7 +400,7 @@ const ManagerDashboard = () => {
   ]
   
   return (
-    <div className="flex flex-col min-h-screen">
+    <div className="flex flex-col min-h-screen bg-gray-100">
       <div className="sticky top-0 w-full h-20 overflow-hidden z-30">
         <div className="absolute inset-0 bg-gradient-to-r from-pink-500 via-purple-500 to-blue-500">
           <svg 
@@ -855,6 +852,7 @@ const ManagerDashboard = () => {
           </div>
         </div>
       </div>
+      
       {editModal && selectedBooking && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
           <div className="bg-white rounded-xl shadow-lg p-6 w-full max-w-md relative">

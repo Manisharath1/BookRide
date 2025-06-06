@@ -16,7 +16,7 @@ exports.getDashboardStats = async (req, res) => {
 
     // Get active bookings count (bookings with status 'approved')
     const activeBookings = await Booking.countDocuments({
-      status: 'approved'
+      status: { $in: ['approved', 'confirmed', 'shared'] }
     });
 
     // Get total drivers count (based on vehicles with drivers)
@@ -34,12 +34,17 @@ exports.getDashboardStats = async (req, res) => {
       status: 'pending'
     });
 
+    const confirmedBookings = await Booking.countDocuments({
+      status: 'confirmed'
+    });
+
     res.status(200).json({
       availableVehicles,
       activeBookings,
       totalDrivers,
       completedTrips,
-      pendingBookings
+      pendingBookings,
+      confirmedBookings
     });
   } catch (error) {
     console.error('Error fetching dashboard stats:', error);
@@ -202,7 +207,7 @@ exports.getDriverActivity = async (req, res) => {
     // Get all bookings that have been assigned a driver
     const bookings = await Booking.find({
       driverName: { $exists: true, $ne: '' },
-      status: { $in: ['approved', 'completed'] }
+      status: { $in: ['approved', 'confirmed'] }
     }).select('driverName');
 
     // Count bookings per driver

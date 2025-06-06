@@ -646,11 +646,13 @@ const mergeRide = async (req, res) => {
       }
     });
     
-    // Calculate the final duration (from earliest start to latest end) in hours
-    const startTimeMs = new Date(earliestTime).getTime();
-    const endTimeMs = new Date(latestEndTime).getTime();
-
-    const finalDurationHours = parseFloat(((endTimeMs - startTimeMs) / (60 * 60 * 1000)).toFixed(2));
+    const finalDurationHours = Math.max(
+      ...bookingsToMerge.map(booking =>
+        typeof booking.duration === 'number'
+          ? booking.duration
+          : parseFloat(booking.duration) || 1
+      )
+    );
     
        
     // Create passengers array with info from all merged bookings
@@ -687,7 +689,7 @@ const mergeRide = async (req, res) => {
 
     const totalMembers = passengers.reduce((sum, p) => sum + (p.members || 1), 0);
     
-    // Construct the merged booking
+    
     const mergedBooking = new Booking({
       userId: primaryBooking.userId,
       location: primaryBooking.location,

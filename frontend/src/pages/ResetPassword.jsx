@@ -122,7 +122,7 @@ const ResetPassword = () => {
 
             <Button 
               onClick={handleVerifyUsername} 
-              className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2 px-4 rounded-lg mt-4 sm:mt-6 transition-all duration-200 flex items-center justify-center h-10 sm:h-11 text-sm sm:text-base"
+              className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 text-white py-3 rounded-lg font-semibold hover:from-indigo-700 hover:to-purple-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transform hover:scale-[1.02] transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
               disabled={isLoading}
             >
               {isLoading ? (
@@ -263,7 +263,7 @@ const ResetPassword = () => {
   };
   
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-100 to-indigo-200 p-4">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-200 via-blue-50 to-purple-200 p-4">
       <div className="w-full max-w-md">
         <div className="relative">
           <Card className="w-full border-none shadow-lg pt-10">
