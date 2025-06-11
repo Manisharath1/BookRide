@@ -51,7 +51,8 @@ const guestBooking = async (req, res) => {
     scheduledAt,
     duration,
     members,
-    reason
+    reason,
+    serviceType
   } = req.body;
   
   // Validate required fields
@@ -101,6 +102,12 @@ const guestBooking = async (req, res) => {
     });
   }
 
+  if (!serviceType || !['pickup', 'dropoff'].includes(serviceType)) {
+    return res.status(400).json({
+      error: "Service type is required and must be either 'pickup' or 'dropoff'"
+    });
+  }
+
   // Basic phone validation
   const phoneRegex = /^\+?[\d\s-]{10,}$/;
   if (!phoneRegex.test(guestPhone)) {
@@ -125,6 +132,7 @@ const guestBooking = async (req, res) => {
       guestName,
       guestPhone,
       vehicleId,
+      vehicleName: vehicle.name,
       driverName, 
       driverNumber,
       notes: notes || '',
@@ -132,6 +140,7 @@ const guestBooking = async (req, res) => {
       duration,
       members: parseInt(members),
       reason,
+      serviceType,
       createdBy: req.userId  
     });
 
@@ -143,7 +152,11 @@ const guestBooking = async (req, res) => {
 
     res.status(201).json({ 
       message: "Guest booking created successfully", 
-      booking 
+      booking: {
+        ...booking.toObject(),
+        vehicleName: vehicle.name,
+        serviceTypeDisplay: serviceType === 'pickup' ? 'Pickup Service' : 'Drop-off Service'
+      } 
     });
   } catch (err) {
     console.error("Error creating guest booking:", err);
@@ -367,9 +380,10 @@ const completeBooking = async (req, res) => {
     const booking = await Booking.findById(bookingId);
     if (!booking) return res.status(404).json({ error: "Booking not found" });
 
-    if (booking.status !== "approved" && booking.status !== "shared") {
-      return res.status(400).json({ error: "Only approved bookings can be marked as completed" });
+    if (booking.status !== "approved" && booking.status !== "shared" && booking.status !== "confirmed") {
+      return res.status(400).json({ error: "Only approved, shared, or confirmed bookings can be marked as completed" });
     }
+
 
     booking.status = "completed";
     booking.completedAt = new Date();

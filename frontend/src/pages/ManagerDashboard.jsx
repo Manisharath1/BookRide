@@ -73,7 +73,7 @@ const useAPI = () => {
 
 // Main Dashboard Component
 const ManagerDashboard = () => {
-  const [bookings, setBookings] = useState({ pending: [], approved: [], cancelled: [], merged: [], completed: [], confirmed: [], shared:[], all: [] });
+  const [bookings, setBookings] = useState({ pending: [], approved: [], cancelled: [], merged: [], completed: [], confirmed: [], shared:[], all: [], completedGuests: [], guestAll: []  });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
@@ -85,7 +85,9 @@ const ManagerDashboard = () => {
   const [selectedBooking, setSelectedBooking] = useState(null);
   const [updatedData, setUpdatedData] = useState({});
   const [vehicles, setVehicles] = useState([]);
-  // const [guestBookings, setGuestBookings] = useState([]);
+ 
+  const [entriesPerPage, setEntriesPerPage] = useState(2);
+  const [currentPage, setCurrentPage] = useState(1);
   
   const navigate = useNavigate();
   const { apiCall } = useAPI();
@@ -136,15 +138,20 @@ const ManagerDashboard = () => {
         apiCall("get","/api/bookings/pending"),
         apiCall("get", "/api/bookings/all")
       ]);
+
+      const guestBookings = allBookings.filter(b => b.isGuestBooking === true || b.isGuestBooking === "true");
+      const regularBookings = allBookings.filter(b => !b.isGuestBooking || b.isGuestBooking === false);
+      const guestAll  = allBookings.filter(b => b.isGuestBooking === true || b.isGuestBooking === "true");
       
       // Filter out the original bookings that were merged into other bookings
-      const filteredBookings = allBookings.filter(b => b.status !== 'merged');
+      const filteredBookings = regularBookings.filter(b => b.status !== 'merged');
       
       const approved = filteredBookings.filter(b => b.status === 'approved');
       const shared = filteredBookings.filter(b => b.status === 'shared');
       const cancelled = filteredBookings.filter(b => b.status === 'cancelled');
       const completed = filteredBookings.filter(b => b.status === 'completed');
       const confirmed = filteredBookings.filter(b => b.status === 'confirmed');
+      const completedGuestBookings = guestBookings.filter(b => b.status === 'completed');
       
       // For the merged category, show the new merged bookings (they have status 'approved' and isSharedRide=true)
       // const merged = filteredBookings.filter(
@@ -158,7 +165,9 @@ const ManagerDashboard = () => {
         cancelled,
         completed,
         confirmed,
-        all: filteredBookings 
+        all: filteredBookings,
+        completedGuests: completedGuestBookings,
+        guestAll 
       });
       setError("");
     } catch (error) {
@@ -384,7 +393,7 @@ const ManagerDashboard = () => {
   const navItems = [
     { name: "Home", path: "/home", icon: <Home size={20} /> },
     { name: "Dashboard", path: "/manager", icon: <LayoutDashboard size={20} /> },
-    { name: "Bookings", path: "/guest-booking", icon: <Calendar size={20} /> },
+    { name: "Guest Booking", path: "/guest-booking", icon: <Calendar size={20} /> },
     { name: "Vehicles", path: "/get-vehicles", icon: <Car size={20} /> },
   ];
 
@@ -395,9 +404,16 @@ const ManagerDashboard = () => {
     ...bookings.shared
   ];
 
-  const confirmedBookings = [
-    ...bookings.confirmed
-  ]
+  const handleEntriesChange = (e) => {
+    setEntriesPerPage(Number(e.target.value));
+    setCurrentPage(1); // reset to first page on change
+  };
+
+  const paginate = (data) => {
+    const start = (currentPage - 1) * entriesPerPage;
+    return data.slice(start, start + entriesPerPage);
+  };
+
   
   return (
     <div className="flex flex-col min-h-screen bg-gray-100">
@@ -458,20 +474,40 @@ const ManagerDashboard = () => {
                 <AlertDescription className="text-green-800">{successMessage}</AlertDescription>
               </Alert>
             )}
-            
-            <div className="flex justify-between items-center mb-6">
-              <h1 className="text-2xl font-bold">Booking Management</h1>
-              <div className="relative">
-                <Input
-                  type="text"
-                  placeholder="Search bookings..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10 w-64"
-                />
-                <Search className="absolute left-3 top-2.5 h-5 w-5 text-gray-400" />
+
+            <div className="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4">
+              {/* Left Section: Heading + Search */}
+              <div className="flex flex-col sm:flex-row items-center gap-4 w-full sm:w-auto">
+                <h1 className="text-2xl font-bold whitespace-nowrap">Booking Management</h1>
+                
+              </div>
+
+              {/* Right Section: Entries Selector */}
+              <div className="flex items-center gap-2">
+                <label className="text-sm whitespace-nowrap">Show</label>
+                <select
+                  value={entriesPerPage}
+                  onChange={handleEntriesChange}
+                  className="border rounded px-2 py-1 text-sm"
+                >
+                  {[2, 10, 25, 50, 100].map(num => (
+                    <option key={num} value={num}>{num}</option>
+                  ))}
+                </select>
+                <span className="text-sm whitespace-nowrap">entries</span>
+                <div className="relative w-full sm:w-64">
+                  <Input
+                    type="text"
+                    placeholder="Search bookings..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-10 w-full"
+                  />
+                  <Search className="absolute left-3 top-2.5 h-5 w-5 text-gray-400" />
+                </div>
               </div>
             </div>
+
             
             <div className="space-y-6">
               {/* Pending Bookings Table */}
@@ -503,7 +539,7 @@ const ManagerDashboard = () => {
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-200">
-                          {filterBookings(bookings.pending).map((booking) => (
+                          {paginate(filterBookings(bookings.pending)).map((booking) => (
                             <tr key={booking._id} className="hover:bg-gray-50">
                               <td className="px-4 py-3 text-center text-sm">{booking.userId?.username || 'Unknown User'}</td>
                               <td className="px-4 py-3 text-center text-sm">
@@ -583,7 +619,8 @@ const ManagerDashboard = () => {
                         </thead>
 
                         <tbody className="bg-white divide-y divide-gray-200">
-                          {filterBookings(nonPendingBookings).map((booking) => (
+                         {paginate(filterBookings([...nonPendingBookings].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))))
+                          .map((booking) => (
                             <React.Fragment key={booking._id}>
                               <tr className="group hover:bg-gray-50 transition-colors">
                                 <td className="px-2 sm:px-4 py-2 sm:py-3 text-center">{booking.userId?.username || "Unknown User"}</td>
@@ -606,7 +643,7 @@ const ManagerDashboard = () => {
                                 <td className="px-2 sm:px-4 py-2 sm:py-3 text-center">{booking.displayDuration || booking.duration || "-"}</td>
                                 <td className="px-2 sm:px-4 py-2 sm:py-3 text-center">{booking.members ? (booking.displayMembers || booking.members) : "-"}</td>
                                 <td className="px-2 sm:px-4 py-2 sm:py-3 text-center">{booking.driverName || <span className="text-gray-500 italic">Not assigned</span>}</td>
-                                <td className="px-2 sm:px-4 py-2 sm:py-3 text-center">{booking.vehicleName}</td>
+                                <td className="px-2 sm:px-4 py-2 sm:py-3 text-center">{booking.vehicleName || <span className="text-gray-500 italic">Not assigned</span>}</td>
                                 <td className="px-2 sm:px-4 py-2 sm:py-3 text-center">{getStatusBadge(booking.status)}</td>
 
                                 <td className="px-2 sm:px-4 py-2 sm:py-3 text-center">
@@ -624,25 +661,57 @@ const ManagerDashboard = () => {
                                       </div>
                                     </div>
                                   )}
+                                  {["completed", "cancelled"].includes(booking.status) && (
+                                    <span className="text-gray-400 text-xs">N/A</span>
+                                  )}
                                 </td>
                                 <td>
-                                  <div className="flex justify-center gap-2">
-                                    <Button variant="ghost" size="sm" className="h-8 text-red-600 hover:text-red-700 hover:bg-red-50" onClick={() => { setSelectedBooking(booking); setEditModal(true); }}>
-                                      <EditIcon className="w-4 h-4 mr-1.5" />
-                                    </Button>
-                                    <Button variant="ghost" size="sm" className="h-8 text-purple-600 hover:text-purple-700 hover:bg-purple-50" onClick={() => navigate(`/manager/merge/${booking._id}`)}>
-                                      <MergeIcon className="w-4 h-4 mr-1.5" />
-                                      Merge
-                                    </Button>
-                                  </div>
-                                  {(["shared", "completed", "cancelled"].includes(booking.status)) && (
-                                    <div className="mt-2 flex justify-center">
-                                      <Button variant="ghost" size="icon" className="rounded-full h-8 w-8 p-0" onClick={() => toggleSharedDetails(booking._id)}>
-                                        {expandedSharedRows[booking._id] ? <ChevronDown className="w-5 h-5 text-primary" /> : <ChevronRight className="w-5 h-5 text-primary" />}
+                                  {/* Edit and Merge buttons if not completed */}
+                                  {!["completed", "cancelled"].includes(booking.status) && (
+                                    <div className="flex justify-center gap-2">
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className="h-8 text-red-600 hover:text-red-700 hover:bg-red-50"
+                                        onClick={() => {
+                                          setSelectedBooking(booking);
+                                          setEditModal(true);
+                                        }}
+                                      >
+                                        <EditIcon className="w-4 h-4 mr-1.5" />
+                                      </Button>
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className="h-8 text-purple-600 hover:text-purple-700 hover:bg-purple-50"
+                                        onClick={() => navigate(`/manager/merge/${booking._id}`)}
+                                      >
+                                        <MergeIcon className="w-4 h-4 mr-1.5" />
+                                        Merge
                                       </Button>
                                     </div>
                                   )}
+
+                                  {/* Dropdown toggle for shared and completed */}
+                                  {["shared", "completed", "cancelled"].includes(booking.status) && (
+                                    <div className="mt-2 flex justify-center">
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="rounded-full h-8 w-8 p-0"
+                                        onClick={() => toggleSharedDetails(booking._id)}
+                                      >
+                                        {expandedSharedRows[booking._id] ? (
+                                          <ChevronDown className="w-5 h-5 text-primary" />
+                                        ) : (
+                                          <ChevronRight className="w-5 h-5 text-primary" />
+                                        )}
+                                      </Button>
+                                    </div>
+                                  )}
+                                 
                                 </td>
+
                               </tr>
 
                               {/* Expandable Passengers */}
@@ -692,6 +761,7 @@ const ManagerDashboard = () => {
                           ))}
                         </tbody>
                       </table>
+                      
                     )}
                   </div>
                 </CardContent>
@@ -701,7 +771,7 @@ const ManagerDashboard = () => {
                 <CardHeader className="bg-blue-50">
                   <CardTitle className="text-xl flex items-center">
                     <CheckCircle className="mr-2 h-5 w-5 text-green-600" />
-                    Guest Bookings ({confirmedBookings.length})
+                    Guest Bookings ({bookings.guestAll .length})
                   </CardTitle>
                 </CardHeader>
 
@@ -709,7 +779,7 @@ const ManagerDashboard = () => {
                   <div className="overflow-x-auto">
                     {loading ? (
                       <div className="p-6 text-center">Loading bookings...</div>
-                    ) : confirmedBookings.length === 0 ? (
+                    ) : bookings.completedGuests.length === 0 ? (
                       <div className="p-6 text-center text-gray-500">No bookings found</div>
                     ) : (
                       <table className="min-w-[640px] w-full divide-y divide-gray-200 border border-gray-200 rounded-lg overflow-hidden text-xs sm:text-sm">
@@ -731,7 +801,7 @@ const ManagerDashboard = () => {
                         </thead>
 
                         <tbody className="bg-white divide-y divide-gray-200">
-                          {filterBookings(confirmedBookings).map((booking) => (
+                          {paginate(filterBookings(bookings.guestAll)).map((booking) => (
                             <React.Fragment key={booking._id}>
                               <tr className="group hover:bg-gray-50 transition-colors">
                                 <td className="px-2 sm:px-4 py-2 sm:py-3 text-center">{booking.guestName || "Unknown User"}</td>
@@ -755,7 +825,7 @@ const ManagerDashboard = () => {
                                 <td className="px-2 sm:px-4 py-2 sm:py-3 text-center">{booking.displayDuration || booking.duration || "-"}</td>
                                 <td className="px-2 sm:px-4 py-2 sm:py-3 text-center">{booking.members ? (booking.displayMembers || booking.members) : "-"}</td>
                                 <td className="px-2 sm:px-4 py-2 sm:py-3 text-center">{booking.driverName || <span className="text-gray-500 italic">Not assigned</span>}</td>
-                                <td className="px-2 sm:px-4 py-2 sm:py-3 text-center">{booking.vehicleName}</td>
+                                <td className="px-2 sm:px-4 py-2 sm:py-3 text-center">{booking.vehicleName || booking.vehicleId?.name || "N/A"}</td>
                                 <td className="px-2 sm:px-4 py-2 sm:py-3 text-center">{getStatusBadge(booking.status)}</td>
 
                                 <td className="px-2 sm:px-4 py-2 sm:py-3 text-center">
@@ -771,74 +841,25 @@ const ManagerDashboard = () => {
                                           Cancel
                                         </Button>
                                       </div>
-                                      {/* <div className="flex justify-center gap-2">
-                                        <Button variant="ghost" size="sm" className="h-8 text-red-600 hover:text-red-700 hover:bg-red-50" onClick={() => { setSelectedBooking(booking); setEditModal(true); }}>
-                                          <EditIcon className="w-4 h-4 mr-1.5" />
-                                        </Button>
-                                        <Button variant="outline" size="sm" className="bg-purple-50 text-purple-600 hover:bg-purple-100" onClick={() => navigate(`/manager/merge/${booking._id}`)}>
-                                          Merge
-                                        </Button>
-                                      </div> */}
                                     </div>
                                   )}
+                                  {["completed", "cancelled"].includes(booking.status) && (
+                                    <span className="text-gray-400 text-xs">N/A</span>
+                                  )}
                                 </td>
-                                <td>
+                                <td className="px-2 sm:px-4 py-2 sm:py-3 text-center">
                                   {(["confirmed"].includes(booking.status)) && (
                                     <div className="flex justify-center gap-2">
                                       <Button variant="ghost" size="sm" className="h-8 text-red-600 hover:text-red-700 hover:bg-red-50" onClick={() => { setSelectedBooking(booking); setEditModal(true); }}>
                                         <EditIcon className="w-4 h-4 mr-1.5" />
                                       </Button>
-                                      {/* <Button variant="ghost" size="icon" className="rounded-full h-8 w-8 p-0" onClick={() => toggleSharedDetails(booking._id)}>
-                                        {expandedSharedRows[booking._id] ? <ChevronDown className="w-5 h-5 text-primary" /> : <ChevronRight className="w-5 h-5 text-primary" />}
-                                      </Button> */}
                                     </div>
+                                  )}
+                                  {["completed", "cancelled"].includes(booking.status) && (
+                                    <span className="text-gray-400 text-xs">N/A</span>
                                   )}
                                 </td>
                               </tr>
-
-                              {/* Expandable Passengers */}
-                              {expandedSharedRows[booking._id] && booking.passengers?.length > 0 && (
-                                <tr className="bg-gray-50/50 border-b border-gray-200">
-                                  <td colSpan={11} className="px-4 py-4">
-                                    <div className="text-center mb-3">
-                                      <h4 className="font-medium text-sm text-gray-700">
-                                        <User className="inline-block w-4 h-4 mr-1.5" />
-                                        Passengers ({booking.passengers.length})
-                                      </h4>
-                                    </div>
-
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 max-h-[400px] overflow-y-auto pr-2">
-                                      {booking.passengers.map((passenger, index) => (
-                                        <Card key={index} className="h-full flex flex-col overflow-hidden border-blue-200 shadow-sm hover:shadow transition-shadow">
-                                          <CardContent className="p-0">
-                                            <div className="bg-primary/5 px-4 py-2.5 border-b border-blue-200 text-center">
-                                              <span className="font-medium text-sm">{passenger.username}</span>
-                                              <Badge variant="outline" className="bg-white text-xs ml-2">
-                                                Passenger {index + 1}
-                                              </Badge>
-                                            </div>
-                                            <div className="p-4 space-y-2 text-xs sm:text-sm text-left">
-                                              {[
-                                                { label: "Contact", value: passenger.number },
-                                                { label: "Location", value: passenger.location },
-                                                { label: "Reason", value: passenger.reason },
-                                                { label: "Members", value: passenger.members },
-                                                { label: "Duration", value: passenger.duration },
-                                                { label: "Time", value: new Date(passenger.bookingTime).toLocaleString() },
-                                              ].map((item, idx) => (
-                                                <div className="flex gap-2" key={idx}>
-                                                  <span className="text-gray-500 w-20 flex-shrink-0">{item.label}:</span>
-                                                  <span className="font-medium break-words">{item.value}</span>
-                                                </div>
-                                              ))}
-                                            </div>
-                                          </CardContent>
-                                        </Card>
-                                      ))}
-                                    </div>
-                                  </td>
-                                </tr>
-                              )}
                             </React.Fragment>
                           ))}
                         </tbody>
@@ -847,11 +868,56 @@ const ManagerDashboard = () => {
                   </div>
                 </CardContent>
               </Card>
+              <div className="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4">
+                {/* Entries Selector */}
+                <div className="flex items-center gap-2">
+                  <label className="text-sm whitespace-nowrap">Show</label>
+                  <select
+                    value={entriesPerPage}
+                    onChange={(e) => {
+                      setEntriesPerPage(Number(e.target.value));
+                      setCurrentPage(1);
+                    }}
+                    className="border rounded px-2 py-1 text-sm"
+                  >
+                    {[10, 25, 50, 100].map(num => (
+                      <option key={num} value={num}>{num}</option>
+                    ))}
+                  </select>
+                  <span className="text-sm whitespace-nowrap">entries per page</span>
+                </div>
 
+                {/* Pagination Controls */}
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                    disabled={currentPage === 1}
+                  >
+                    Previous
+                  </Button>
+                  <span className="text-sm">Page {currentPage}</span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage(p => p + 1)}
+                    disabled={
+                      currentPage * entriesPerPage >= Math.max(
+                        filterBookings(nonPendingBookings).length,
+                        filterBookings(bookings.guestAll).length
+                      )
+                    }
+                  >
+                    Next
+                  </Button>
+                </div>
+              </div>
             </div>
           </div>
         </div>
       </div>
+      
       
       {editModal && selectedBooking && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">

@@ -28,7 +28,9 @@ import {
   Clock,
   Users,
   Target,
-  LayoutDashboard
+  LayoutDashboard,
+  ArrowDown,
+  ArrowUp
  } from "lucide-react";
 import { toast } from 'react-toastify';
 
@@ -133,7 +135,8 @@ const BookForGuestPage = () => {
     reason: "",
     vehicleId: "",
     driverName: "",
-    driverNumber: ""
+    driverNumber: "",
+    serviceType: "pickup"
   });
   const [vehicles, setVehicles] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -204,7 +207,7 @@ const BookForGuestPage = () => {
     const requiredFields = [
       'guestName', 'guestPhone', 'location', 'scheduledDate', 
       'scheduledTime', 'duration', 'members', 'reason', 'vehicleId', 
-      'driverName', 'driverNumber'
+      'driverName', 'driverNumber', 'serviceType'
     ];
     
     const missingFields = requiredFields.filter(field => !bookingData[field]);
@@ -246,7 +249,8 @@ const BookForGuestPage = () => {
         reason: bookingData.reason,
         scheduledAt: scheduledAt.toISOString(),
         duration: parseFloat(bookingData.duration),
-        members: parseInt(bookingData.members)
+        members: parseInt(bookingData.members),
+        serviceType: bookingData.serviceType
       };
       
       const response = await axios.post(
@@ -285,12 +289,16 @@ const BookForGuestPage = () => {
   const navItems = [
     { name: "Home", path: "/home", icon: <Home size={20} /> },
     { name: "Dashboard", path: "/manager", icon: <LayoutDashboard size={20} /> },
-    { name: "Bookings", path: "/guest-booking", icon: <Calendar size={20} /> },
+    { name: "Guest Booking", path: "/guest-booking", icon: <Calendar size={20} /> },
     { name: "Vehicles", path: "/get-vehicles", icon: <Car size={20} /> },
   ];
 
   const toggleSidebar = () => {
     setSidebarOpen(prev => !prev);
+  };
+
+  const getLocationLabel = () => {
+    return bookingData.serviceType === 'pickup' ? 'Pickup Location' : 'Drop-off Location';
   };
   
   return (
@@ -359,7 +367,7 @@ const BookForGuestPage = () => {
                     <h3 className="text-lg font-semibold text-gray-800 border-b pb-2">
                       Guest Information
                     </h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                       <div className="space-y-2">
                         <label htmlFor="guestName" className="flex items-center text-sm font-medium text-gray-700">
                           <User className="mr-2 text-blue-500" size={16} />
@@ -391,6 +399,35 @@ const BookForGuestPage = () => {
                           placeholder="Enter phone number (+1234567890)"
                         />
                       </div>
+
+                      <div className="space-y-2">
+                        <label className="flex items-center text-sm font-medium text-gray-700">
+                          <Car className="mr-2 text-blue-500" size={16} />
+                          Service Type *
+                        </label>
+                        <Select
+                          value={bookingData.serviceType}
+                          onValueChange={(value) => setBookingData(prev => ({ ...prev, serviceType: value }))}
+                        >
+                          <SelectTrigger className="w-full transition-all focus:ring-2 focus:ring-blue-500">
+                            <SelectValue placeholder="Select service type" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="pickup">
+                              <div className="flex items-center">
+                                <ArrowUp className="mr-2 h-4 w-4 text-green-500" />
+                                <span>Pickup Service</span>
+                              </div>
+                            </SelectItem>
+                            <SelectItem value="dropoff">
+                              <div className="flex items-center">
+                                <ArrowDown className="mr-2 h-4 w-4 text-blue-500" />
+                                <span>Drop-off Service</span>
+                              </div>
+                            </SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
                     </div>
                   </div>
 
@@ -400,11 +437,11 @@ const BookForGuestPage = () => {
                       Trip Details
                     </h3>
                     
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-4">
                       <div className="space-y-2">
                         <label htmlFor="location" className="flex items-center text-sm font-medium text-gray-700">
                           <MapPin className="mr-2 text-red-500" size={16} />
-                          Pickup Location *
+                          {getLocationLabel()} *
                         </label>
                         <Input
                           id="location"
@@ -413,7 +450,7 @@ const BookForGuestPage = () => {
                           onChange={handleChange}
                           required
                           className="transition-all focus:ring-2 focus:ring-blue-500"
-                          placeholder="Enter detailed pickup address"
+                          placeholder={`Enter detailed ${bookingData.serviceType === 'pickup' ? 'pickup' : 'drop-off'} address`}
                         />
                       </div>
                       
@@ -432,9 +469,29 @@ const BookForGuestPage = () => {
                           placeholder="Enter reason for the trip"
                         />
                       </div>
+
+                      <div className="space-y-2">
+                        <label htmlFor="members" className="flex items-center text-sm font-medium text-gray-700">
+                          <Users className="mr-2 text-teal-500" size={16} />
+                          Number of Members *
+                        </label>
+                        <Input
+                          id="members"
+                          name="members"
+                          type="number"
+                          min="1"
+                          max="20"
+                          value={bookingData.members}
+                          onChange={handleChange}
+                          required
+                          className="transition-all focus:ring-2 focus:ring-blue-500"
+                          placeholder="No. of people"
+                        />
+                      </div>
+
                     </div>
                     
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mt-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mt-4">
                       <div className="space-y-2">
                         <label className="flex items-center text-sm font-medium text-gray-700">
                           <Calendar className="mr-2 text-purple-500" size={16} />
@@ -485,34 +542,12 @@ const BookForGuestPage = () => {
                           </SelectContent>
                         </Select>
                       </div>
-
-                      <div className="space-y-2">
-                        <label htmlFor="members" className="flex items-center text-sm font-medium text-gray-700">
-                          <Users className="mr-2 text-teal-500" size={16} />
-                          Number of Members *
-                        </label>
-                        <Input
-                          id="members"
-                          name="members"
-                          type="number"
-                          min="1"
-                          max="20"
-                          value={bookingData.members}
-                          onChange={handleChange}
-                          required
-                          className="transition-all focus:ring-2 focus:ring-blue-500"
-                          placeholder="No. of people"
-                        />
-                      </div>
                     </div>
+
                   </div>
 
                   {/* Vehicle & Driver */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mt-4">
-                    {/* <h3 className="text-lg font-semibold text-gray-800 border-b pb-2">
-                      Vehicle & Driver Assignment
-                    </h3> */}
-                    
                     <div className="space-y-2">
                       <label className="flex items-center text-sm font-medium text-gray-700">
                         <Car className="mr-2 text-blue-500" size={16} />
@@ -537,19 +572,11 @@ const BookForGuestPage = () => {
                                 <SelectItem 
                                   key={vehicle._id} 
                                   value={vehicle._id}
-                                  // disabled={vehicle.status !== 'available'}
                                 >
                                   <div className="flex items-center justify-between w-full">
                                     <span className= 'text-green-700 font-medium'>
                                       {vehicle.name}
                                     </span>
-                                    {/* <span className={`ml-3 text-xs px-3 py-1 rounded-full ${
-                                      vehicle.status === 'available' 
-                                        ? 'bg-green-100 text-green-700' 
-                                        : 'bg-red-100 text-red-700'
-                                    }`}>
-                                      {vehicle.status === 'available' ? 'Available' : vehicle.status}
-                                    </span> */}
                                   </div>
                                 </SelectItem>
                               ))
@@ -618,28 +645,6 @@ const BookForGuestPage = () => {
                       />
                     </div>
                   </div>
-
-                  {/* Additional Notes */}
-                  {/* <div className="space-y-6">
-                    <h3 className="text-lg font-semibold text-gray-800 border-b pb-2">
-                      Additional Information
-                    </h3>
-                    
-                    <div className="space-y-2">
-                      <label htmlFor="notes" className="flex items-center text-sm font-medium text-gray-700">
-                        <FileText className="mr-2 text-gray-500" size={16} />
-                        Special Notes or Requirements
-                      </label>
-                      <Textarea
-                        id="notes"
-                        name="notes"
-                        value={bookingData.notes}
-                        onChange={handleChange}
-                        className="min-h-24 transition-all focus:ring-2 focus:ring-blue-500"
-                        placeholder="Add any special requirements, instructions, or notes for this booking..."
-                      />
-                    </div>
-                  </div> */}
                   
                   {error && (
                     <Alert variant="destructive" className="border-red-200 bg-red-50">
@@ -651,15 +656,6 @@ const BookForGuestPage = () => {
                   
                   {/* Action Buttons */}
                   <div className="flex flex-col sm:flex-row justify-end space-y-3 sm:space-y-0 sm:space-x-4 pt-6 border-t">
-                    {/* <Button 
-                      type="button" 
-                      variant="outline" 
-                      onClick={handleCancel}
-                      disabled={isSubmitting}
-                      className="px-8 py-2 transition-all hover:bg-gray-50"
-                    >
-                      Cancel
-                    </Button> */}
                     <Button 
                       type="submit" 
                       disabled={isSubmitting || vehicles.length === 0 || loading}
@@ -707,7 +703,7 @@ const BookForGuestPage = () => {
         <div className="fixed inset-0 z-50 bg-black bg-opacity-40 md:hidden" onClick={toggleSidebar}>
           <div 
             className="absolute top-0 left-0 w-64 h-full bg-blue-950 shadow-lg p-4"
-            onClick={(e) => e.stopPropagation()} // prevent closing when clicking inside
+            onClick={(e) => e.stopPropagation()}
           >
             <nav className="mt-6">
               <h2 className="text-2xl text-white text-center mb-10 font-bold">Dashboard</h2>
@@ -716,7 +712,7 @@ const BookForGuestPage = () => {
                   <li key={item.name}>
                     <Link
                       to={item.path}
-                      onClick={() => setSidebarOpen(false)} // Close sidebar on link click
+                      onClick={() => setSidebarOpen(false)}
                       className="flex items-center py-3 px-4 rounded-md hover:bg-blue-100 text-white hover:text-blue-600 transition-colors"
                     >
                       <span className="mr-3">{item.icon}</span>

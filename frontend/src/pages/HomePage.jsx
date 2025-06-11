@@ -105,7 +105,7 @@ const HomePage = () => {
   const navItems = [
   { name: "Home", path: "/home", icon: <Home size={20} /> },
   { name: "Dashboard", path: "/manager", icon: <LayoutDashboard size={20} /> },
-  { name: "Bookings", path: "/guest-booking", icon: <Calendar size={20} /> },
+  { name: "Guest Booking", path: "/guest-booking", icon: <Calendar size={20} /> },
   { name: "Vehicles", path: "/get-vehicles", icon: <Car size={20} /> },
   ];
 
@@ -185,7 +185,7 @@ return (
           <Link 
             key={item.name}
             to={item.path}
-            className="flex items-center px-4 py-3 rounded-md hover:bg-blue-900 transition"
+            className="flex items-center py-2 px-4 mx-2 rounded-md text-gray-300 hover:bg-blue-900 transition-colors"
           >
             <span className="mr-3">{item.icon}</span>
             {item.name}

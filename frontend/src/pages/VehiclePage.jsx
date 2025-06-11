@@ -397,7 +397,7 @@ const VehiclePage = () => {
   const navItems = [
     { name: "Home", path: "/home", icon: <Home size={20} /> },
     { name: "Dashboard", path: "/manager", icon: <LayoutDashboard size={20} /> },
-    { name: "Bookings", path: "/guest-booking", icon: <Calendar size={20} /> },
+    { name: "Guest Booking", path: "/guest-booking", icon: <Calendar size={20} /> },
     { name: "Vehicles", path: "/get-vehicles", icon: <Car size={20} /> },
   ];
 

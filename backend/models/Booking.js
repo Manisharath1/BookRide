@@ -35,6 +35,12 @@ const bookingSchema = new mongoose.Schema({
       message: props => `${props.value} is not a valid phone number!`
     }
   },
+  serviceType: {
+    type: String,
+    enum: ['pickup', 'dropoff'],
+    required: true,
+    default: 'pickup'
+  },
   scheduledAt: { type: Date },
 
   // Booking Details
