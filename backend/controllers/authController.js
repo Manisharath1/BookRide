@@ -341,6 +341,87 @@ const resetPassword = async (req, res) => {
     return res.status(500).json({ message: 'Server error', error: err.message });
   }
 }
+
+const updateProfile = async(req, res) => {
+  try {
+    const { username, number } = req.body;
+    const userId = req.userId; // ✅ Changed from req.user.id to req.userId
+
+    console.log('Update request:', { username, number, userId }); // Debug log
+
+    // Basic validation
+    if (!username || !number) {
+      return res.status(400).json({
+        message: 'Username and phone number are required'
+      });
+    }
+
+    // Clean inputs
+    const cleanUsername = username.trim();
+    const cleanNumber = number.replace(/\s+/g, '');
+
+    // Validate phone number (10-15 digits)
+    if (!/^[0-9]{10,15}$/.test(cleanNumber)) {
+      return res.status(400).json({
+        message: 'Phone number must be 10-15 digits'
+      });
+    }
+
+    // Check if username exists (excluding current user)
+    const existingUsername = await User.findOne({
+      username: cleanUsername,
+      _id: { $ne: userId }
+    });
+
+    if (existingUsername) {
+      return res.status(409).json({
+        message: 'Username already exists'
+      });
+    }
+
+    // Check if number exists (excluding current user)
+    const existingNumber = await User.findOne({
+      number: cleanNumber,
+      _id: { $ne: userId }
+    });
+
+    if (existingNumber) {
+      return res.status(409).json({
+        message: 'Phone number already exists'
+      });
+    }
+
+    // Update user
+    const updatedUser = await User.findByIdAndUpdate(
+      userId,
+      { 
+        username: cleanUsername, 
+        number: cleanNumber 
+      },
+      { new: true }
+    ).select('-password');
+
+    if (!updatedUser) {
+      return res.status(404).json({
+        message: 'User not found'
+      });
+    }
+
+    console.log('Profile updated successfully for user:', userId); // Debug log
+
+    res.status(200).json({
+      message: 'Profile updated successfully',
+      username: updatedUser.username,
+      number: updatedUser.number
+    });
+
+  } catch (error) {
+    console.error('Profile update error:', error);
+    res.status(500).json({
+      message: 'Server error. Please try again later.'
+    });
+  }
+};
 module.exports = {
   register,
   login,
@@ -350,6 +431,7 @@ module.exports = {
   // sendEmailOtp,
   // verifyEmailOtp,
   verifyUsername,
-  resetPassword
+  resetPassword,
+  updateProfile
 
 };

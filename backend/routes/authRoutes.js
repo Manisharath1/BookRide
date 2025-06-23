@@ -1,5 +1,5 @@
 const express = require("express");
-const { login, register, logout, verifyUsername, resetPassword } = require("../controllers/authController");
+const { login, register, logout, verifyUsername, resetPassword, updateProfile } = require("../controllers/authController");
 const authMiddleware = require("../middleware/authMiddleware");
 const User = require("../models/User");
 const rateLimit = require('express-rate-limit');
@@ -10,6 +10,7 @@ const router = express.Router();
 router.post("/register", register);
 router.post("/login", login);
 router.post("/logout", logout);
+router.put("/update-profile",authMiddleware, updateProfile);
 // router.post("/verify-code", verifyEmailOtp);
 // router.post("/send-email", sendEmailOtp);
 // router.post('/send-otp', sendCustomOtp);

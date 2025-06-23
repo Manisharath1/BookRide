@@ -3,7 +3,8 @@ const Vehicle = require("../models/Vehicle");
 const User  = require("../models/User");
 const mongoose = require("mongoose");
 const Notification = require("../models/Notification");
-const { sendTransactionalSMS } = require('../utils/messageCentral');
+const sendMsg91SMS = require("../service/sendMsg91SMS");
+
 
 // ✅ Create a new booking
 const createBooking = async (req, res) => {
@@ -296,21 +297,20 @@ const approveBooking = async (req, res) => {
 
       await session.commitTransaction();
 
-      const populatedBooking = await Booking.findById(bookingId).populate("userId", "username");
+      const populatedBooking = await Booking.findById(bookingId).populate("userId", "username number");
       try {
-        // Send to user
-        await sendTransactionalSMS(
-          booking.userId.number,
-          `Hi ${booking.userId.username}, your booking for ${booking.location} is approved.`
-        );
+        if (!populatedBooking.userId?.number) {
+          console.error("❌ User mobile number is missing.");
+          return res.status(400).json({ error: "User mobile number not found." });
+        }
 
-        // Send to driver
-        await sendTransactionalSMS(
-          driverNumber,
-          `You have been assigned a new ride for ${booking.location}.`
-        );
+        const number = populatedBooking.userId.number.replace(/^91/, "");
+        console.log("Sending to:", populatedBooking.userId.number);
+        console.log("Final format:", `91${number}`);
+
+        await sendMsg91SMS(`91${number}`, booking.driverName, booking.vehicleName);
       } catch (smsErr) {
-        console.error("Failed to send SMS notifications:", smsErr.message);
+        console.error("Failed to send user SMS:", smsErr.message);
       }
 
       res.json({ 
@@ -318,11 +318,11 @@ const approveBooking = async (req, res) => {
         booking: populatedBooking 
       });
 
-      // Send notification (not in transaction)
-      await Notification.create({
-        userId: booking.userId,
-        message: `Your booking for ${booking.location} has been approved.`
-      });
+      // // 📢 Optional notification record
+      // await Notification.create({
+      //   userId: booking.userId,
+      //   message: `Your booking for ${booking.location} has been approved.`
+      // });
 
     } catch (error) {
       await session.abortTransaction();

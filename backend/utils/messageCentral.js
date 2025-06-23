@@ -1,4 +1,5 @@
 const axios = require('axios');
+require('dotenv').config();
 
 let authToken = null;
 
@@ -18,7 +19,7 @@ async function getToken() {
   } else {
     throw new Error('Unable to fetch token from MessageCentral');
   }
-}
+};
 
 async function sendOtpSMS(number) {
   if (!authToken) await getToken();
@@ -40,7 +41,7 @@ async function sendOtpSMS(number) {
   );
 
   return response.data.data.verificationId;
-}
+};
 
 async function verifyOtp(verificationId, code) {
     if (!authToken) await getToken();
@@ -59,10 +60,43 @@ async function verifyOtp(verificationId, code) {
     );
   
     return response.data;
+};
+
+async function sendTransactionalSMS(number, messageText) {
+  if (!authToken) await getToken();
+
+  const sanitizedNumber = number.replace(/\D/g, '').replace(/^91/, '');
+  console.log("📤 Sending SMS to:", sanitizedNumber, "| Message:", messageText);
+
+  const response = await axios.post(
+    `${process.env.MESSAGE_CENTRAL_API_BASE}/verification/v3/send`,
+    {},
+    {
+      params: {
+        countryCode: '91',
+        flowType: 'SMS',
+        mobileNumber: sanitizedNumber,
+        type: 'SMS',
+        messageType: 'TRANSACTIONAL',
+        senderId: process.env.MESSAGE_CENTRAL_SENDER_ID,
+        message: messageText
+      },
+      headers: {
+        authToken
+      }
+    }
+  );
+
+  const data = response.data;
+  console.log("📩 SMS Response:", data); 
+  return data;
 }
+
+
   
 
 module.exports = {
   sendOtpSMS,
-  verifyOtp
+  verifyOtp,
+  sendTransactionalSMS
 };

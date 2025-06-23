@@ -404,10 +404,10 @@ const ManagerDashboard = () => {
     ...bookings.shared
   ];
 
-  const handleEntriesChange = (e) => {
-    setEntriesPerPage(Number(e.target.value));
-    setCurrentPage(1); // reset to first page on change
-  };
+  // const handleEntriesChange = (e) => {
+  //   setEntriesPerPage(Number(e.target.value));
+  //   setCurrentPage(1); // reset to first page on change
+  // };
 
   const paginate = (data) => {
     const start = (currentPage - 1) * entriesPerPage;
@@ -479,12 +479,11 @@ const ManagerDashboard = () => {
               {/* Left Section: Heading + Search */}
               <div className="flex flex-col sm:flex-row items-center gap-4 w-full sm:w-auto">
                 <h1 className="text-2xl font-bold whitespace-nowrap">Booking Management</h1>
-                
               </div>
 
               {/* Right Section: Entries Selector */}
               <div className="flex items-center gap-2">
-                <label className="text-sm whitespace-nowrap">Show</label>
+                {/* <label className="text-sm whitespace-nowrap">Show</label>
                 <select
                   value={entriesPerPage}
                   onChange={handleEntriesChange}
@@ -494,7 +493,7 @@ const ManagerDashboard = () => {
                     <option key={num} value={num}>{num}</option>
                   ))}
                 </select>
-                <span className="text-sm whitespace-nowrap">entries</span>
+                <span className="text-sm whitespace-nowrap">entries</span> */}
                 <div className="relative w-full sm:w-64">
                   <Input
                     type="text"
@@ -880,7 +879,7 @@ const ManagerDashboard = () => {
                     }}
                     className="border rounded px-2 py-1 text-sm"
                   >
-                    {[10, 25, 50, 100].map(num => (
+                    {[2, 25, 50, 100].map(num => (
                       <option key={num} value={num}>{num}</option>
                     ))}
                   </select>
