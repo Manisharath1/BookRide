@@ -31,6 +31,9 @@ router.get('/view', bookingController.getBookingsByVehicles);
 
 router.get('/:id',  bookingController.getById);
 
+// Add to your booking routes file
+router.post('/removePassenger', authMiddleware, bookingController.removePassenger);
+router.post('/unmerge', authMiddleware, bookingController.unmergeRide);
 
 
 // Route to get bookings for a specific vehicle

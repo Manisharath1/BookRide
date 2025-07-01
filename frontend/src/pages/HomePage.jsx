@@ -14,8 +14,6 @@ import FullCalendarScheduler from "../components/FullCalendarSelector";
 import "react-toastify/dist/ReactToastify.css";
 
 
-
-
 const useAPI = () => {
     const navigate = useNavigate();
     const baseURL = import.meta.env.VITE_API_BASE_URL;
@@ -112,40 +110,40 @@ const HomePage = () => {
   useEffect(() =>{
 
     const fetchApprovedBookings = async () => {
-        try {
-        const token = localStorage.getItem("token");
-        const res = await axios.get(
-            `${import.meta.env.VITE_API_BASE_URL}/api/bookings/all`,
-            { headers: { Authorization: `Bearer ${token}` } }
-        );
-    
-        const approved = res.data.filter(b => b.status === 'approved' || b.status === 'shared' || b.status === 'confirmed');
-    
-        // Map to calendar-friendly format
-        const events = approved.map(b => {
-            const startDate = new Date(b.scheduledAt);
-            const endDate = new Date(startDate.getTime() + (b.duration || 1) * 60 * 60 * 1000);
-        
-            const pad = (n) => (n < 10 ? '0' + n : n);
-            const formatTime = (date) => `${pad(date.getHours())}:${pad(date.getMinutes() >= 30 ? 30 : 0)}`;
-        
-            return {
-            id: `external-${b._id}`,
-            title: b.location || 'Booked',
-            date: startDate,
-            startTime: formatTime(startDate),
-            endTime: formatTime(endDate),
-            color: 'bg-green-500',
-            readOnly: true
-            };
-        });
-    
-        setExistingEvents(events);
-        setBookingList(approved);
-        // console.log("Approved calendar events loaded:", events);
-        } catch (err) {
-        console.error("Failed to load approved bookings", err);
-        }
+      try {
+      const token = localStorage.getItem("token");
+      const res = await axios.get(
+          `${import.meta.env.VITE_API_BASE_URL}/api/bookings/all`,
+          { headers: { Authorization: `Bearer ${token}` } }
+      );
+  
+      const approved = res.data.filter(b => b.status === 'approved' || b.status === 'shared' || b.status === 'confirmed');
+  
+      // Map to calendar-friendly format
+      const events = approved.map(b => {
+          const startDate = new Date(b.scheduledAt);
+          const endDate = new Date(startDate.getTime() + (b.duration || 1) * 60 * 60 * 1000);
+      
+          const pad = (n) => (n < 10 ? '0' + n : n);
+          const formatTime = (date) => `${pad(date.getHours())}:${pad(date.getMinutes() >= 30 ? 30 : 0)}`;
+      
+          return {
+          id: `external-${b._id}`,
+          title: b.location || 'Booked',
+          date: startDate,
+          startTime: formatTime(startDate),
+          endTime: formatTime(endDate),
+          color: 'bg-green-500',
+          readOnly: true
+          };
+      });
+  
+      setExistingEvents(events);
+      setBookingList(approved);
+      // console.log("Approved calendar events loaded:", events);
+      } catch (err) {
+      console.error("Failed to load approved bookings", err);
+      }
     };
 
     fetchApprovedBookings();
@@ -227,7 +225,24 @@ return (
                       className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow cursor-pointer"
                     >
                       <div className="flex justify-between items-start mb-2">
-                        <h3 className="font-semibold text-gray-800">{b.location}</h3>
+                        <h3 className="font-semibold text-gray-800">{b.status === 'shared' ? (
+                          <p className="space-y-1">Multiple Destinations</p>
+                        ) : b.status === 'approved' ? (
+                          <div className="text-xs">
+                            {b.pickupLocation && b.location ? (
+                              <span>
+                                <span className="text-blue-600">Pickup: {b.pickupLocation}</span>
+                                <span className="mx-1 font-bold">--→
+                                </span>
+                                <span className="text-green-600">Drop: {b.location}</span>
+                              </span>
+                            ) : (
+                              b.location || b.pickupLocation
+                            )}
+                          </div>
+                        ) : (
+                          b.location
+                        )}</h3>
                         <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full font-medium capitalize">
                           {b.status}
                         </span>

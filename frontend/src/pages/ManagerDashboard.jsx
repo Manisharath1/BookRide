@@ -7,6 +7,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import DatePicker from "react-datepicker";
+import { X, Split } from 'lucide-react';
 import "react-datepicker/dist/react-datepicker.css";
 import axios from "axios";
 import {  
@@ -86,7 +87,7 @@ const ManagerDashboard = () => {
   const [updatedData, setUpdatedData] = useState({});
   const [vehicles, setVehicles] = useState([]);
  
-  const [entriesPerPage, setEntriesPerPage] = useState(2);
+  const [entriesPerPage, setEntriesPerPage] = useState(5  );
   const [currentPage, setCurrentPage] = useState(1);
   
   const navigate = useNavigate();
@@ -242,18 +243,59 @@ const ManagerDashboard = () => {
     try {
       const token = localStorage.getItem("token");
 
-      console.log("🛠 Sending update to backend for booking:", bookingId);
-      console.log("📦 Payload:", updatedData);
+      console.log("🛠 Original updatedData received:", updatedData);
+      console.log("📋 Booking ID:", bookingId);
+
+      // Prepare the payload with all possible fields
+      const payload = {
+        bookingId,
+        // Common fields
+        driverName: updatedData.driverName,
+        driverNumber: updatedData.driverNumber,
+        vehicleName: updatedData.vehicleName,
+        vehicleId: updatedData.vehicleId,
+        scheduledAt: updatedData.scheduledAt,
+        members: updatedData.members,
+        location: updatedData.location,
+        // Regular booking field
+        pickupLocation: updatedData.pickupLocation,
+        // Guest booking specific fields
+        guestName: updatedData.guestName,
+        guestPhone: updatedData.guestPhone,
+        reason: updatedData.reason,
+        duration: updatedData.duration
+      };
+
+      console.log("📦 Full payload before cleaning:", payload);
+
+      // Remove undefined fields to avoid sending unnecessary data
+      const cleanPayload = Object.fromEntries(
+        Object.entries(payload).filter(([key, value]) => {
+          // Keep bookingId even if it's the only field
+          if (key === 'bookingId') return true;
+          
+          // Filter out undefined, null, empty strings, and NaN values
+          return value !== undefined && 
+                value !== null && 
+                value !== '' && 
+                !Number.isNaN(value);
+        })
+      );
+
+      console.log("🛠 Sending cleaned payload:", cleanPayload);
+
+      // Validate that we have at least one field to update besides bookingId
+      const updateFields = Object.keys(cleanPayload).filter(key => key !== 'bookingId');
+      if (updateFields.length === 0) {
+        toast.error("No changes detected. Please modify at least one field.");
+        return;
+      }
+
+      console.log("✅ Fields being updated:", updateFields);
 
       const response = await axios.put(
         `${import.meta.env.VITE_API_BASE_URL}/api/bookings/editRide`,
-        {
-          bookingId,
-          driverName: updatedData.driverName,
-          driverNumber: updatedData.driverNumber,
-          vehicleName: updatedData.vehicleName,
-          scheduledAt: updatedData.scheduledAt
-        },
+        cleanPayload,
         {
           headers: {
             Authorization: `Bearer ${token}`
@@ -271,7 +313,9 @@ const ManagerDashboard = () => {
                 b._id === bookingId
                   ? {
                       ...b,
-                      ...response.data.updatedFields
+                      ...response.data.updatedFields,
+                      // Ensure lastEditedAt is updated
+                      lastEditedAt: response.data.booking.lastEditedAt
                     }
                   : b
               )
@@ -289,11 +333,31 @@ const ManagerDashboard = () => {
         };
       });
 
-      toast.success("Booking updated successfully");
+      // Show success message based on booking type
+      const bookingType = response.data.bookingType || 'regular';
+      const successMessage = bookingType === 'guest' 
+        ? "Guest booking updated successfully" 
+        : "Booking updated successfully";
+      
+      toast.success(successMessage);
 
     } catch (err) {
       console.error("❌ Failed to update booking:", err);
-      toast.error(err.response?.data?.message || "Update failed. Try again.");
+      console.error("❌ Error response:", err.response?.data);
+      console.error("❌ Error status:", err.response?.status);
+      
+      // More specific error handling
+      if (err.response?.status === 400) {
+        const errorMessage = err.response.data.message || "Invalid data provided";
+        console.error("❌ Validation error:", errorMessage);
+        toast.error(errorMessage);
+      } else if (err.response?.status === 404) {
+        toast.error("Booking not found");
+      } else if (err.response?.status === 403) {
+        toast.error("Not authorized to edit this booking");
+      } else {
+        toast.error(err.response?.data?.message || "Update failed. Please try again.");
+      }
     }
   };
 
@@ -403,6 +467,94 @@ const ManagerDashboard = () => {
     ...bookings.cancelled,
     ...bookings.shared
   ];
+
+  const handleRemovePassenger = async (bookingId, passengerIndex, passengerName) => {
+    if (!window.confirm(`Remove ${passengerName} from this shared ride? They will be converted to an individual booking.`)) {
+      return;
+    }
+
+    try {
+      const token = localStorage.getItem('token');
+      console.log('Removing passenger:', { bookingId, passengerIndex, passengerName });
+      
+      const response = await axios.post(
+        `${import.meta.env.VITE_API_BASE_URL}/api/bookings/removePassenger`,
+        {
+          bookingId,
+          passengerIndex
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`
+          }
+        }
+      );
+
+      console.log('Response data:', response.data);
+      toast.success('Passenger removed successfully');
+      // Refresh bookings
+      fetchBookings();
+
+    } catch (error) {
+      console.error('Remove passenger error:', error);
+      if (error.response) {
+        // Server responded with error status
+        console.error('Error response:', error.response.data);
+        toast.error(error.response.data.error || 'Failed to remove passenger');
+      } else if (error.request) {
+        // Request was made but no response received
+        console.error('No response received:', error.request);
+        toast.error('No response from server');
+      } else {
+        // Something else happened
+        console.error('Error:', error.message);
+        toast.error('Failed to remove passenger: ' + error.message);
+      }
+    }
+  };
+
+  const handleUnmergeRide = async (bookingId) => {
+    if (!window.confirm('Unmerge this shared ride? All passengers will be converted back to individual bookings.')) {
+      return;
+    }
+
+    try {
+      const token = localStorage.getItem('token');
+      console.log('Unmerging ride:', bookingId);
+      
+      const response = await axios.post(
+        `${import.meta.env.VITE_API_BASE_URL}/api/bookings/unmerge`,
+        {
+          bookingId
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`
+          }
+        }
+      );
+
+      console.log('Unmerge response data:', response.data);
+      toast.success('Ride unmerged successfully');
+      fetchBookings();
+
+    } catch (error) {
+      console.error('Unmerge error:', error);
+      if (error.response) {
+        // Server responded with error status
+        console.error('Error response:', error.response.data);
+        toast.error(error.response.data.error || 'Failed to unmerge ride');
+      } else if (error.request) {
+        // Request was made but no response received
+        console.error('No response received:', error.request);
+        toast.error('No response from server');
+      } else {
+        // Something else happened
+        console.error('Error:', error.message);
+        toast.error('Failed to unmerge ride: ' + error.message);
+      }
+    }
+  };
 
   // const handleEntriesChange = (e) => {
   //   setEntriesPerPage(Number(e.target.value));
@@ -530,7 +682,8 @@ const ManagerDashboard = () => {
                           <tr>
                             <th className="px-4 py-3 text-center text-sm font-medium text-gray-500">User</th>
                             <th className="px-4 py-3 text-center text-sm font-medium text-gray-500">Date & Time</th>
-                            <th className="px-4 py-3 text-center text-sm font-medium text-gray-500">Location</th>
+                            <th className="px-4 py-3 text-center text-sm font-medium text-gray-500">Pickup Location</th>
+                            <th className="px-4 py-3 text-center text-sm font-medium text-gray-500">Drop Location</th>
                             <th className="px-4 py-3 text-center text-sm font-medium text-gray-500">Reason</th>
                             <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Duration</th>
                             <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Members</th>
@@ -544,6 +697,7 @@ const ManagerDashboard = () => {
                               <td className="px-4 py-3 text-center text-sm">
                                 {formatDate(booking)}
                               </td>
+                              <td className="px-4 py-3 text-center text-sm">{booking.pickupLocation}</td>
                               <td className="px-4 py-3 text-center text-sm">{booking.location}</td>
                               <td className="px-4 py-3 text-center text-sm">{booking.reason}</td>
                               <td className="px-6 py-4 text-center whitespace-nowrap">{booking.duration || "-"}</td>
@@ -627,15 +781,34 @@ const ManagerDashboard = () => {
                                   <TooltipProvider>
                                     <Tooltip>
                                       <TooltipTrigger asChild>
-                                        <span>{formatDate(booking).split(",")[0]}</span>
+                                        <p>{formatDate(booking)}</p>
                                       </TooltipTrigger>
                                       <TooltipContent>
-                                        <p>{formatDate(booking)}</p>
+                                        <span>{formatDate(booking).split(",")[0]}</span>
                                       </TooltipContent>
                                     </Tooltip>
                                   </TooltipProvider>
                                 </td>
-                                <td className="px-2 sm:px-4 py-2 sm:py-3 text-center break-words">{booking.location}</td>
+                                <td className="px-2 sm:px-4 py-2 sm:py-3 text-center break-words">
+                                  {booking.status === 'shared' ? (
+                                    <p className="space-y-1">Multiple Destinations</p>
+                                  ) : booking.status === 'approved' ? (
+                                    <div className="text-xs">
+                                      {booking.pickupLocation && booking.location ? (
+                                        <span>
+                                          <span className="text-blue-600">Pickup: {booking.pickupLocation}</span>
+                                          <span className="mx-1 font-bold">--→
+                                          </span>
+                                          <span className="text-green-600">Drop: {booking.location}</span>
+                                        </span>
+                                      ) : (
+                                        booking.location || booking.pickupLocation
+                                      )}
+                                    </div>
+                                  ) : (
+                                    booking.location
+                                  )}
+                                </td>
                                 <td className="px-2 sm:px-4 py-2 sm:py-3 text-center break-words" title={booking.reason}>
                                   <span className="max-w-[150px] truncate inline-block">{booking.reason}</span>
                                 </td>
@@ -717,27 +890,55 @@ const ManagerDashboard = () => {
                               {expandedSharedRows[booking._id] && booking.passengers?.length > 0 && (
                                 <tr className="bg-gray-50/50 border-b border-gray-200">
                                   <td colSpan={11} className="px-4 py-4">
-                                    <div className="text-center mb-3">
+                                    <div className="flex justify-between items-center mb-3">
                                       <h4 className="font-medium text-sm text-gray-700">
                                         <User className="inline-block w-4 h-4 mr-1.5" />
                                         Passengers ({booking.passengers.length})
                                       </h4>
+                                      
+                                      {/* Unmerge entire ride button */}
+                                      <Button
+                                        variant="destructive"
+                                        size="sm"
+                                        className="h-8"
+                                        onClick={() => handleUnmergeRide(booking._id)}
+                                      >
+                                        <Split className="w-4 h-4 mr-1.5" />
+                                        Unmerge All
+                                      </Button>
                                     </div>
 
                                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 max-h-[400px] overflow-y-auto pr-2">
                                       {booking.passengers.map((passenger, index) => (
                                         <Card key={index} className="h-full flex flex-col overflow-hidden border-blue-200 shadow-sm hover:shadow transition-shadow">
                                           <CardContent className="p-0">
-                                            <div className="bg-primary/5 px-4 py-2.5 border-b border-blue-200 text-center">
-                                              <span className="font-medium text-sm">{passenger.username}</span>
-                                              <Badge variant="outline" className="bg-white text-xs ml-2">
-                                                Passenger {index + 1}
-                                              </Badge>
+                                            <div className="bg-primary/5 px-4 py-2.5 border-b border-blue-200">
+                                              <div className="flex justify-between items-center">
+                                                <div className="text-center flex-1">
+                                                  <span className="font-medium text-sm">{passenger.username}</span>
+                                                  <Badge variant="outline" className="bg-white text-xs ml-2">
+                                                    Passenger {index + 1}
+                                                  </Badge>
+                                                </div>
+                                                
+                                                {/* Remove passenger button */}
+                                                <Button
+                                                  variant="ghost"
+                                                  size="sm"
+                                                  className="h-6 w-6 p-0 text-red-500 hover:text-red-700 hover:bg-red-50"
+                                                  onClick={() => handleRemovePassenger(booking._id, index, passenger.username)}
+                                                  title={`Remove ${passenger.username}`}
+                                                >
+                                                  <X className="w-4 h-4" />
+                                                </Button>
+                                              </div>
                                             </div>
+                                            
                                             <div className="p-4 space-y-2 text-xs sm:text-sm text-left">
                                               {[
                                                 { label: "Contact", value: passenger.number },
-                                                { label: "Location", value: passenger.location },
+                                                { label: "Pickup Location", value: passenger.pickupLocation },
+                                                { label: "Drop Location", value: passenger.location },
                                                 { label: "Reason", value: passenger.reason },
                                                 { label: "Members", value: passenger.members },
                                                 { label: "Duration", value: passenger.duration },
@@ -760,7 +961,6 @@ const ManagerDashboard = () => {
                           ))}
                         </tbody>
                       </table>
-                      
                     )}
                   </div>
                 </CardContent>
@@ -778,7 +978,7 @@ const ManagerDashboard = () => {
                   <div className="overflow-x-auto">
                     {loading ? (
                       <div className="p-6 text-center">Loading bookings...</div>
-                    ) : bookings.completedGuests.length === 0 ? (
+                    ) : bookings.completedGuests.length === 1 ? (
                       <div className="p-6 text-center text-gray-500">No bookings found</div>
                     ) : (
                       <table className="min-w-[640px] w-full divide-y divide-gray-200 border border-gray-200 rounded-lg overflow-hidden text-xs sm:text-sm">
@@ -806,16 +1006,7 @@ const ManagerDashboard = () => {
                                 <td className="px-2 sm:px-4 py-2 sm:py-3 text-center">{booking.guestName || "Unknown User"}</td>
                                 <td className="px-2 sm:px-4 py-2 sm:py-3 text-center">{booking.guestPhone || "Unknown User"}</td>
                                 <td className="px-2 sm:px-4 py-2 sm:py-3 text-center">
-                                  <TooltipProvider>
-                                    <Tooltip>
-                                      <TooltipTrigger asChild>
-                                        <span>{formatDate(booking).split(",")[0]}</span>
-                                      </TooltipTrigger>
-                                      <TooltipContent>
-                                        <p>{formatDate(booking)}</p>
-                                      </TooltipContent>
-                                    </Tooltip>
-                                  </TooltipProvider>
+                                  <p>{formatDate(booking)}</p>
                                 </td>
                                 <td className="px-2 sm:px-4 py-2 sm:py-3 text-center break-words">{booking.location}</td>
                                 <td className="px-2 sm:px-4 py-2 sm:py-3 text-center break-words" title={booking.reason}>
@@ -879,7 +1070,7 @@ const ManagerDashboard = () => {
                     }}
                     className="border rounded px-2 py-1 text-sm"
                   >
-                    {[2, 25, 50, 100].map(num => (
+                    {[5, 25, 50, 100].map(num => (
                       <option key={num} value={num}>{num}</option>
                     ))}
                   </select>
@@ -919,116 +1110,408 @@ const ManagerDashboard = () => {
       
       
       {editModal && selectedBooking && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
-          <div className="bg-white rounded-xl shadow-lg p-6 w-full max-w-md relative">
-            <h2 className="text-lg font-bold mb-4">Edit Booking</h2>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-60 backdrop-blur-sm p-4 overflow-hidden">
+          <div className="bg-white rounded-lg shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto relative border border-gray-200">
+            {/* Header */}
+            <div className="bg-gray-900 text-white p-6 rounded-t-lg sticky top-0 z-10">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-xl font-semibold">
+                    {selectedBooking.status === 'confirmed' ? 'Edit Guest Booking' : 'Edit Booking'}
+                  </h2>
+                  {selectedBooking.status === 'confirmed' && (
+                    <p className="text-sm text-gray-300 mt-1">Guest booking details</p>
+                  )}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEditModal(false);
+                    setUpdatedData({});
+                  }}
+                  className="text-gray-300 hover:text-white transition-colors p-2 hover:bg-gray-800 rounded-md"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+
+            {/* Form Content */}
             <form
               onSubmit={(e) => {
                 e.preventDefault();
                 handleEditBooking(selectedBooking._id, updatedData);
                 setEditModal(false);
-                setUpdatedData({}); // Reset after submission
+                setUpdatedData({});
               }}
-              className="space-y-4"
+              className="p-6 bg-gray-50"
             >
-              {/* Vehicle Dropdown */}
-              <div>
-                <label className="block text-sm font-medium mb-1">Select Vehicle</label>
-                <select
-                  value={updatedData.vehicleId || selectedBooking?.vehicleId?._id || ""}
-                  onChange={(e) => {
-                    const selected = vehicles.find(v => v._id === e.target.value);
-                    if (selected) {
-                      setUpdatedData(prev => ({
-                        ...prev,
-                        vehicleId: selected._id,
-                        vehicleName: selected.name,
-                        driverName: selected.driverName,
-                        driverNumber: selected.driverNumber
-                      }));
-                    }
-                  }}
-                  className="w-full border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  required
-                >
-                  <option value="" disabled>Select Vehicle</option>
-                  {vehicles.map(vehicle => (
-                    <option key={vehicle._id} value={vehicle._id}>
-                      {vehicle.name}
-                    </option>
-                  ))}
-                </select>
+              {/* Guest Information Section - Only for confirmed bookings */}
+              {selectedBooking.status === 'confirmed' && (
+                <div className="mb-6 bg-white p-4 rounded-md border border-gray-200">
+                  <h3 className="text-sm font-medium text-gray-800 mb-3 pb-2 border-b border-gray-200">
+                    Guest Information
+                  </h3>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 mb-1.5">Guest Name</label>
+                      <input
+                        type="text"
+                        placeholder="Enter guest name"
+                        value={
+                          updatedData.guestName !== undefined 
+                            ? updatedData.guestName 
+                            : selectedBooking?.guestName || ""
+                        }
+                        onChange={(e) => {
+                          setUpdatedData(prev => ({
+                            ...prev,
+                            guestName: e.target.value
+                          }));
+                        }}
+                        className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-gray-900"
+                        required
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 mb-1.5">Guest Phone</label>
+                      <input
+                        type="tel"
+                        placeholder="Enter guest phone number"
+                        value={
+                          updatedData.guestPhone !== undefined 
+                            ? updatedData.guestPhone 
+                            : selectedBooking?.guestPhone || ""
+                        }
+                        onChange={(e) => {
+                          setUpdatedData(prev => ({
+                            ...prev,
+                            guestPhone: e.target.value
+                          }));
+                        }}
+                        className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-gray-900"
+                        required
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Grid Layout for Better Organization */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                
+                {/* Vehicle Selection */}
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Vehicle Selection
+                  </label>
+                  <select
+                    value={updatedData.vehicleId || selectedBooking?.vehicleId?._id || ""}
+                    onChange={(e) => {
+                      const selected = vehicles.find(v => v._id === e.target.value);
+                      if (selected) {
+                        setUpdatedData(prev => ({
+                          ...prev,
+                          vehicleId: selected._id,
+                          vehicleName: selected.name
+                        }));
+                      }
+                    }}
+                    className="w-full border border-gray-300 rounded-md px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:border-transparent transition-all duration-200 bg-white text-gray-900"
+                    required
+                  >
+                    <option value="" disabled>Select Vehicle</option>
+                    {vehicles.map(vehicle => (
+                      <option key={vehicle._id} value={vehicle._id}>
+                        {vehicle.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Driver Information Section */}
+                <div className="bg-white p-4 rounded-md border border-gray-200">
+                  <h3 className="text-sm font-medium text-gray-800 mb-3 pb-2 border-b border-gray-200">
+                    Driver Information
+                  </h3>
+                  
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 mb-1.5">Driver Name</label>
+                      <select
+                        value={updatedData.driverName || selectedBooking?.driverName || ""}
+                        onChange={(e) => {
+                          const selectedVehicle = vehicles.find(vehicle => vehicle.driverName === e.target.value);
+                          if (selectedVehicle) {
+                            setUpdatedData(prev => ({
+                              ...prev,
+                              driverName: selectedVehicle.driverName,
+                              driverNumber: selectedVehicle.driverNumber 
+                            }));
+                          }
+                        }}
+                        className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-500 bg-white text-gray-900"
+                        required
+                      >
+                        <option value="" disabled>Select Driver</option>
+                        {vehicles.map(vehicle => (
+                          <option key={vehicle._id} value={vehicle.driverName}>
+                            {vehicle.driverName}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 mb-1.5">Driver Number</label>
+                      <input
+                        type="text"
+                        placeholder="Driver Number"
+                        value={updatedData.driverNumber || selectedBooking?.driverNumber || ""}
+                        readOnly
+                        className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm bg-gray-100 text-gray-700"
+                      />
+                      {updatedData.driverName && updatedData.driverNumber && (
+                        <p className="text-xs text-gray-500 mt-1.5 flex items-center">
+                          <span className="w-2 h-2 bg-green-500 rounded-full mr-2"></span>
+                          Auto-populated for {updatedData.driverName}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Trip Details Section */}
+                <div className="bg-white p-4 rounded-md border border-gray-200">
+                  <h3 className="text-sm font-medium text-gray-800 mb-3 pb-2 border-b border-gray-200">
+                    Trip Details
+                  </h3>
+                  
+                  <div className="space-y-4">
+                    {/* Show only location for guest bookings (confirmed status) */}
+                    {selectedBooking.status === 'confirmed' ? (
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-1.5">Location</label>
+                        <input
+                          type="text"
+                          placeholder="Enter location"
+                          value={
+                            updatedData.location !== undefined 
+                              ? updatedData.location 
+                              : selectedBooking?.location || ""
+                          }
+                          onChange={(e) => {
+                            setUpdatedData(prev => ({
+                              ...prev,
+                              location: e.target.value
+                            }));
+                          }}
+                          className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-gray-900"
+                        />
+                      </div>
+                    ) : (
+                      /* Show both location and pickupLocation for regular bookings */
+                      <>
+                        <div>
+                          <label className="block text-xs font-medium text-gray-600 mb-1.5">Location</label>
+                          <input
+                            type="text"
+                            placeholder="Enter location"
+                            value={
+                              updatedData.location !== undefined 
+                                ? updatedData.location 
+                                : selectedBooking?.location || ""
+                            }
+                            onChange={(e) => {
+                              setUpdatedData(prev => ({
+                                ...prev,
+                                location: e.target.value
+                              }));
+                            }}
+                            className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-500 bg-white text-gray-900"
+                          />
+                        </div>
+                        
+                        <div>
+                          <label className="block text-xs font-medium text-gray-600 mb-1.5">Pickup Location</label>
+                          <input
+                            type="text"
+                            placeholder="Enter pickup location"
+                            value={
+                              updatedData.pickupLocation !== undefined 
+                                ? updatedData.pickupLocation 
+                                : selectedBooking?.pickupLocation || ""
+                            }
+                            onChange={(e) => {
+                              setUpdatedData(prev => ({
+                                ...prev,
+                                pickupLocation: e.target.value
+                              }));
+                            }}
+                            className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-500 bg-white text-gray-900"
+                          />
+                        </div>
+                      </>
+                    )}
+
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 mb-1.5">Number of Members</label>
+                      <input
+                        type="number"
+                        placeholder="Enter number of members"
+                        value={updatedData.members || selectedBooking?.members || ""}
+                        onChange={(e) => {
+                          setUpdatedData(prev => ({
+                            ...prev,
+                            members: parseInt(e.target.value) || 0
+                          }));
+                        }}
+                        className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-500 bg-white text-gray-900"
+                        min="1"
+                      />
+                    </div>
+
+                    {/* Duration field for guest bookings */}
+                    {selectedBooking.status === 'confirmed' && (
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-1.5">Duration (hours)</label>
+                        <input
+                          type="number"
+                          placeholder="Enter duration in hours"
+                          value={updatedData.duration || selectedBooking?.duration || ""}
+                          onChange={(e) => {
+                            setUpdatedData(prev => ({
+                              ...prev,
+                              duration: parseFloat(e.target.value) || 0
+                            }));
+                          }}
+                          className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-gray-900"
+                          min="0.5"
+                          step="0.5"
+                        />
+                      </div>
+                    )}
+
+                    {/* Reason field for guest bookings */}
+                    {selectedBooking.status === 'confirmed' && (
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-1.5">Reason</label>
+                        <input
+                          type="text"
+                          placeholder="Enter reason for booking"
+                          value={
+                            updatedData.reason !== undefined 
+                              ? updatedData.reason 
+                              : selectedBooking?.reason || ""
+                          }
+                          onChange={(e) => {
+                            setUpdatedData(prev => ({
+                              ...prev,
+                              reason: e.target.value
+                            }));
+                          }}
+                          className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-gray-900"
+                        />
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Schedule Section */}
+                <div className="md:col-span-2 bg-white p-4 rounded-md border border-gray-200">
+                  <h3 className="text-sm font-medium text-gray-800 mb-3 pb-2 border-b border-gray-200">
+                    Schedule Information
+                  </h3>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1.5">Scheduled Date & Time</label>
+                    <DatePicker
+                      selected={
+                        updatedData.scheduledAt
+                          ? new Date(updatedData.scheduledAt)
+                          : selectedBooking?.scheduledAt
+                          ? new Date(selectedBooking.scheduledAt)
+                          : null
+                      }
+                      onChange={(date) => {
+                        console.log("Time changed to:", date);
+                        setUpdatedData((prev) => ({
+                          ...prev,
+                          scheduledAt: date.toISOString(),
+                        }));
+                      }}
+                      showTimeSelect
+                      dateFormat="Pp"
+                      className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-500 bg-white text-gray-900"
+                      placeholderText="Select date and time"
+                      withPortal
+                    />
+                  </div>
+                </div>
               </div>
 
-              
-
-              {/* Driver Name */}
-              <div>
-                <label className="block text-sm font-medium mb-1">Driver Name</label>
-                <input
-                  type="text"
-                  placeholder="Driver Name"
-                  value={updatedData.driverName || selectedBooking?.driverName || ""}
-                  readOnly
-                  className="w-full border rounded px-3 py-2 bg-gray-100"
-                />
+              {/* Current Status Indicator */}
+              <div className="mt-6 p-4 bg-white rounded-md border border-gray-200">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-gray-800">Current Status</p>
+                    <p className="text-xs text-gray-500 mt-0.5">
+                      {selectedBooking.status === 'confirmed' 
+                        ? 'Guest booking status and last modification'
+                        : 'Booking status and last modification'
+                      }
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <span className={`inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium border ${
+                      selectedBooking.status === 'confirmed' 
+                        ? 'bg-blue-50 text-blue-700 border-blue-200' 
+                        : selectedBooking.status === 'approved'
+                        ? 'bg-green-50 text-green-700 border-green-200'
+                        : 'bg-yellow-50 text-yellow-700 border-yellow-200'
+                    }`}>
+                      {selectedBooking.status === 'confirmed' ? 'GUEST BOOKING' : selectedBooking.status?.toUpperCase()}
+                    </span>
+                    <p className="text-xs text-gray-500 mt-1">
+                      {selectedBooking.lastEditedAt 
+                        ? `Modified: ${new Date(selectedBooking.lastEditedAt).toLocaleDateString()}`
+                        : 'No previous modifications'
+                      }
+                    </p>
+                  </div>
+                </div>
               </div>
 
-              {/* Driver Number */}
-              <div>
-                <label className="block text-sm font-medium mb-1">Driver Number</label>
-                <input
-                  type="text"
-                  placeholder="Driver Number"
-                  value={updatedData.driverNumber || selectedBooking?.driverNumber || ""}
-                  readOnly
-                  className="w-full border rounded px-3 py-2 bg-gray-100"
-                />
-              </div>
-
-              {/* Editable Scheduled Time - FIXED */}
-              <div>
-                <label className="block text-sm font-medium mb-1">Scheduled Time</label>
-                <DatePicker
-                  selected={
-                    updatedData.scheduledAt
-                      ? new Date(updatedData.scheduledAt)
-                      : selectedBooking?.scheduledAt
-                      ? new Date(selectedBooking.scheduledAt)
-                      : null
-                  }
-                  onChange={(date) => {
-                    console.log("Time changed to:", date); // Debug log
-                    setUpdatedData((prev) => ({
-                      ...prev,
-                      scheduledAt: date.toISOString(),
-                    }));
-                  }}
-                  showTimeSelect
-                  dateFormat="Pp"
-                  className="w-full border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholderText="Select date and time"
-                />
-              </div>
-
-              <div className="flex justify-end space-x-2 pt-4">
-                <Button 
+              {/* Action Buttons */}
+              <div className="flex justify-end space-x-3 pt-6 border-t border-gray-200 mt-6">
+                <button
                   type="button" 
-                  variant="secondary" 
                   onClick={() => {
                     setEditModal(false);
-                    setUpdatedData({}); // Reset updated data
+                    setUpdatedData({});
                   }}
+                  className="px-5 py-2.5 text-gray-700 bg-white border border-gray-300 rounded-md font-medium hover:bg-gray-50 hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-500 transition-all duration-200"
                 >
                   Cancel
-                </Button>
-                <Button type="submit">Save Changes</Button>
+                </button>
+                <button
+                  type="submit"
+                  className={`px-5 py-2.5 rounded-md font-medium focus:outline-none focus:ring-2 transition-all duration-200 shadow-sm ${
+                    selectedBooking.status === 'confirmed'
+                      ? 'bg-blue-600 text-white hover:bg-blue-700 focus:ring-blue-500'
+                      : 'bg-gray-900 text-white hover:bg-gray-800 focus:ring-gray-500'
+                  }`}
+                >
+                  {selectedBooking.status === 'confirmed' ? 'Update Guest Booking' : 'Save Changes'}
+                </button>
               </div>
             </form>
           </div>
         </div>
       )}
-
 
       <button
         onClick={() => setSidebarOpen(prev => !prev)}

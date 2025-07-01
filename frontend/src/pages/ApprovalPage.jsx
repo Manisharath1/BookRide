@@ -31,6 +31,7 @@ const ApprovalPage = () => {
         });
         setBooking(res.data);
       } catch (err) {
+        console.log(err);
         toast.error("Booking not found");
         navigate("/manager");
       }
@@ -44,6 +45,7 @@ const ApprovalPage = () => {
         });
         setVehicles(res.data);
       } catch (err) {
+        console.log(err);
         toast.error("Failed to load vehicles");
       }
     };
@@ -157,6 +159,20 @@ const ApprovalPage = () => {
     }
   };
 
+  useEffect(() => {
+    if (booking && booking.scheduledAt && !selectedTime) {
+      const requestedTime = new Date(booking.scheduledAt);
+      console.log('Setting default time:', requestedTime);
+      console.log('Formatted time:', requestedTime.toLocaleString());
+      setSelectedTime(requestedTime);
+    }
+  }, [booking, selectedTime]);
+
+  // Also log when selectedTime changes
+  useEffect(() => {
+    console.log('selectedTime changed to:', selectedTime);
+  }, [selectedTime]);
+
   if (!booking) return <p className="p-4">Loading...</p>;
 
   return (
@@ -214,7 +230,12 @@ const ApprovalPage = () => {
             <h1 className="text-xl sm:text-2xl font-bold text-blue-800 mb-4">Approve Booking</h1>
             {/* Time Slot Section */}
             <div className="bg-white shadow rounded-lg p-3 sm:p-4 border border-blue-100 mb-4">
-              <FullCalendarSelector selectedTime={selectedTime} setSelectedTime={setSelectedTime} existingEvents={existingEvents} />
+              <FullCalendarSelector 
+              selectedTime={selectedTime} 
+              setSelectedTime={setSelectedTime} 
+              existingEvents={existingEvents}
+              defaultTime={booking?.scheduledAt ? new Date(booking.scheduledAt) : null}
+              booking={booking} />
             </div>
 
             <div className="flex flex-col md:flex-row gap-4 mb-4">
@@ -262,7 +283,17 @@ const ApprovalPage = () => {
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path>
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path>
                         </svg>
-                        <span className="text-xs font-medium uppercase tracking-wider text-gray-500">Location</span>
+                        <span className="text-xs font-medium uppercase tracking-wider text-gray-500">Pickup Location</span>
+                      </div>
+                      <p className="font-medium text-gray-800">{booking.pickupLocation || "N/A"}</p>
+                    </div>
+                    <div className="flex flex-col">
+                      <div className="flex items-center mb-2">
+                        <svg className="w-4 h-4 text-blue-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path>
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                        </svg>
+                        <span className="text-xs font-medium uppercase tracking-wider text-gray-500"> Drop Location</span>
                       </div>
                       <p className="font-medium text-gray-800">{booking.location || "N/A"}</p>
                     </div>

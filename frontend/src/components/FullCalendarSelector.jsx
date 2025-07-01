@@ -1,9 +1,9 @@
 /* eslint-disable react/prop-types */
 import { useState, useRef, useEffect } from 'react';
-import { Calendar, Clock, ChevronLeft, ChevronRight, Trash, X, Check, Edit, Plus } from 'lucide-react';
+import { Calendar, Clock, ChevronLeft, ChevronRight, Trash, X, Check, Edit } from 'lucide-react';
 
 // eslint-disable-next-line react/prop-types
-const CalendarSelector = ({ setSelectedTime, existingEvents, selectedTime  = [] }) => {
+const CalendarSelector = ({ setSelectedTime, existingEvents, selectedTime = [], defaultTime, booking }) => {
   // State for tracking dates and selections
   // const calendarRef = useRef(null);
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -148,7 +148,6 @@ const CalendarSelector = ({ setSelectedTime, existingEvents, selectedTime  = [] 
     else if (currentView === 'week') nextWeek();
     else nextDay();
   };
-  
 
   useEffect(() => {
     if (selectedTime instanceof Date) {
@@ -156,27 +155,49 @@ const CalendarSelector = ({ setSelectedTime, existingEvents, selectedTime  = [] 
       setCurrentDate(new Date(selectedTime));
       setSelectedDate(new Date(selectedTime));
 
+      // Create a visual event for the selected time
+     
+      
+
+      // Scroll to the time slot
       setTimeout(() => {
-        const targetEvent = existingEvents.find(e =>
-          e.date instanceof Date &&
-          e.date.toDateString() === selectedTime.toDateString() &&
-          selectedTime.getHours() === parseInt(e.startTime.split(":")[0])
-        );
-
-        if (targetEvent) {
-          const el = document.getElementById(`event-${targetEvent.id}`);
-          if (el) {
-            el.scrollIntoView({ behavior: "smooth", block: "center" });
-
-            el.classList.add("highlighted-event");
-            setTimeout(() => {
-              el.classList.remove("highlighted-event");
-            }, 1000); // Remove after animation completes
-          }
+        const targetElement = document.getElementById(`event-selected-booking-time`);
+        if (targetElement) {
+          targetElement.scrollIntoView({ behavior: "smooth", block: "center" });
         }
-      }, 200); // Delay to wait for render
+      }, 200);
     }
   }, [selectedTime]);
+
+  useEffect(() => {
+  // Create visual indicator for default time when component loads
+  if (defaultTime && !selectedTime) {
+    const startHour = defaultTime.getHours();
+    const startMinute = defaultTime.getMinutes();
+    
+    // Get duration from booking prop (you'll need to pass this)
+    
+    const durationHours = booking?.duration || 1; // Default to 1 hour if not provided
+    
+    const endHour = startHour + durationHours;
+    const endMinute = startMinute;
+
+    const defaultTimeEvent = {
+      id: 'requested-booking-time',
+      title: 'Requested Time',
+      date: new Date(defaultTime),
+      startTime: `${startHour.toString().padStart(2, '0')}:${startMinute.toString().padStart(2, '0')}`,
+      endTime: `${endHour.toString().padStart(2, '0')}:${endMinute.toString().padStart(2, '0')}`,
+      color: 'bg-blue-600 text-white',
+      readOnly: true
+    };
+
+    setEvents(prev => {
+      const filtered = prev.filter(e => e.id !== 'requested-booking-time');
+      return [...filtered, defaultTimeEvent];
+    });
+  }
+}, [defaultTime, selectedTime, booking?.duration]); // Add booking.duration as dependency
 
 
 
@@ -263,25 +284,6 @@ const CalendarSelector = ({ setSelectedTime, existingEvents, selectedTime  = [] 
     }
   };
 
-  // Create new event by clicking on add button
-  const handleAddEvent = () => {
-    // Default to current time rounded to nearest 30 min
-    const now = new Date();
-    const hour = now.getHours();
-    const minutes = now.getMinutes() >= 30 ? 30 : 0;
-    const startTime = formatTime(hour, minutes);
-    
-    // Default end time is 1 hour later
-    const endHour = minutes === 30 ? hour + 1 : hour;
-    const endMinutes = minutes === 30 ? 0 : 30;
-    const endTime = formatTime(endHour + 1, endMinutes);
-    
-    setTimeRange({ start: startTime, end: endTime });
-    setEditingEvent(null);
-    setEventName('');
-    setShowModal(true);
-  };
-
   // Drag selection handlers - FIXED to properly handle drag events
   const handleDragStart = (time, day = selectedDate) => {
     setIsDragging(true);
@@ -341,7 +343,6 @@ const CalendarSelector = ({ setSelectedTime, existingEvents, selectedTime  = [] 
     setSelectedDate(new Date(event.date));
     setShowModal(true);
   };
-
 
   const handleSaveEvent = () => {
     if (!eventName || !timeRange.start || !timeRange.end) return;
@@ -530,14 +531,10 @@ const CalendarSelector = ({ setSelectedTime, existingEvents, selectedTime  = [] 
   
     // Function to calculate correct time slot positions
     const getTimePosition = (time) => {
-      const timeIndex = timeSlots.findIndex(t => t === time);
-      if (timeIndex === -1) {
-        // Try to parse manually in case time like '06:30' doesn't exist in timeSlots
-        const [hour, minute] = time.split(':').map(Number);
-        const totalMinutes = hour * 60 + minute;
-        return Math.floor((totalMinutes - (5 * 60)) / 30) * timeHeight; // since your slots start from 5:00 AM
-      }
-      return timeIndex * timeHeight;
+      const [hour, minute] = time.split(':').map(Number);
+      const totalMinutes = hour * 60 + minute;
+      const slotIndex = Math.floor(totalMinutes / 30); // 30-minute intervals
+      return slotIndex * timeHeight;
     };
   
     return (
@@ -781,7 +778,6 @@ const CalendarSelector = ({ setSelectedTime, existingEvents, selectedTime  = [] 
       </div>
     );
   };
-  
 
   // Format the header date range based on current view
   const getHeaderDate = () => {
@@ -859,13 +855,6 @@ const CalendarSelector = ({ setSelectedTime, existingEvents, selectedTime  = [] 
                   Day
                 </button>
               </div>
-              <button 
-                className="flex items-center px-3 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
-                onClick={handleAddEvent}
-              >
-                <Plus size={16} className="mr-1" />
-                Add Event
-              </button>
             </div>
           </div>
 
@@ -900,7 +889,7 @@ const CalendarSelector = ({ setSelectedTime, existingEvents, selectedTime  = [] 
           <div className="bg-white rounded-lg shadow-xl w-full max-w-md overflow-hidden">
             <div className="flex justify-between items-center px-4 py-3 bg-gray-50 border-b">
               <h3 className="text-lg font-medium text-gray-900">
-                {editingEvent ? 'Edit Event' : 'New Event'}
+                {editingEvent ? 'Edit' : 'New Event'}
               </h3>
               <button 
                 onClick={() => setShowModal(false)}
@@ -913,7 +902,7 @@ const CalendarSelector = ({ setSelectedTime, existingEvents, selectedTime  = [] 
             <div className="p-4">
               <div className="mb-4">
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Event Name
+                  Name
                 </label>
                 <input 
                   type="text" 

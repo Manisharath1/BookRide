@@ -208,66 +208,196 @@ const MergePage = () => {
       </div>
       
       <div className="mt-8">
-        <h4 className="text-lg font-medium mb-2">Select Bookings to Merge</h4>
+        <div className="mb-6">
+          <h4 className="text-xl font-semibold text-gray-900 mb-2">Select Bookings to Merge</h4>
+          <p className="text-gray-600 text-sm">Choose bookings to combine into a single ride</p>
+        </div>
+
+        {/* Primary Booking Card */}
         {primaryBooking && (
-          <div className="mb-4 p-3 bg-blue-100 rounded-md">
-            <div className="flex items-center justify-between">
-              <div>
-                <h5 className="font-semibold">Primary Booking</h5>
-                <p>Location: {primaryBooking.location}</p>
-                <p>Scheduled: {new Date(primaryBooking.scheduledAt).toLocaleString()}</p>
-                <p>User: {primaryBooking.userId?.username || "N/A"}</p>
-                <p>Duration: {primaryBooking.duration || "N/A"}</p>
-                <p>Member: {primaryBooking.members || "N/A"}</p>
+          <div className="mb-6 border border-slate-200 rounded-xl overflow-hidden shadow-sm">
+            <div className="bg-slate-50 border-b border-slate-200 px-4 py-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center">
+                  <div className="w-2 h-2 bg-slate-600 rounded-full mr-2"></div>
+                  <h5 className="font-semibold text-gray-900">Primary Booking</h5>
+                </div>
+                <div className="flex items-center">
+                  <input 
+                    type="checkbox" 
+                    checked={true} 
+                    disabled 
+                    className="w-4 h-4 text-slate-600 bg-gray-100 border-gray-300 rounded focus:ring-slate-500" 
+                  />
+                </div>
               </div>
-              <div className="flex items-center">
-                <input 
-                  type="checkbox" 
-                  checked={true} 
-                  disabled 
-                  className="w-5 h-5 accent-blue-600" 
-                />
+            </div>
+            <div className="p-4 bg-white">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div className="flex items-start space-x-3">
+                  <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                    <svg className="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                  </div>
+                  <div>
+                    <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Pickup</p>
+                    <p className="text-sm font-medium text-gray-900">{primaryBooking.pickupLocation}</p>
+                  </div>
+                </div>
+                
+                <div className="flex items-start space-x-3">
+                  <div className="w-8 h-8 bg-red-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                    <svg className="w-4 h-4 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+                    </svg>
+                  </div>
+                  <div>
+                    <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Drop</p>
+                    <p className="text-sm font-medium text-gray-900">{primaryBooking.location}</p>
+                  </div>
+                </div>
+                
+                <div className="flex items-start space-x-3">
+                  <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                    <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  </div>
+                  <div>
+                    <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Scheduled</p>
+                    <p className="text-sm font-medium text-gray-900">{new Date(primaryBooking.scheduledAt).toLocaleString()}</p>
+                  </div>
+                </div>
+                
+                <div className="flex items-start space-x-3">
+                  <div className="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                    <svg className="w-4 h-4 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                    </svg>
+                  </div>
+                  <div>
+                    <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">User</p>
+                    <p className="text-sm font-medium text-gray-900">{primaryBooking.userId?.username || "N/A"}</p>
+                  </div>
+                </div>
+                
+                <div className="flex items-start space-x-3">
+                  <div className="w-8 h-8 bg-orange-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                    <svg className="w-4 h-4 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  </div>
+                  <div>
+                    <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Duration</p>
+                    <p className="text-sm font-medium text-gray-900">{primaryBooking.duration ? `${primaryBooking.duration}h` : "N/A"}</p>
+                  </div>
+                </div>
+                
+                <div className="flex items-start space-x-3">
+                  <div className="w-8 h-8 bg-teal-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                    <svg className="w-4 h-4 text-teal-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                    </svg>
+                  </div>
+                  <div>
+                    <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Members</p>
+                    <p className="text-sm font-medium text-gray-900">{primaryBooking.members || "N/A"}</p>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
         )}
         
-        <div className="grid grid-cols-4 sm:grid-cols-3 gap-2 max-h-96 overflow-y-auto">
-          {bookingsToMerge.map(booking => (
-            <div 
-              key={booking._id} 
-              className={`p-4 rounded-lg shadow-sm border ${
-                selectedBookings.includes(booking._id)
-                  ? "bg-blue-50 border-blue-300"
-                  : "bg-white border-gray-200"
-              }`}
-            >
-              <div className="grid grid-cols-2 gap-x-1 gap-y-2">
-                <p className="text-sm"><span className="font-bold text-sm">Location:</span> {booking.location}</p>
-                <p className="text-sm"><span className="font-bold text-sm">Scheduled:</span> {new Date(booking.scheduledAt).toLocaleString()}</p>
-                <p className="text-sm"><span className="font-bold text-sm">User:</span> {booking.userId?.username || "N/A"}</p>
-                <p className="text-sm"><span className="font-bold text-sm">Reason:</span> {booking.reason || "N/A"}</p>
-                <p className="text-sm"><span className="font-bold text-sm">Duration:</span> {booking.duration || "N/A"}</p>
-                <p className="text-sm"><span className="font-bold text-sm">Member:</span> {booking.members || "N/A"}</p>
-                <div className="col-span-2 flex justify-end mt-2">
-                  <input 
-                    type="checkbox" 
-                    checked={selectedBookings.includes(booking._id)} 
-                    onChange={() => handleBookingSelection(booking._id)} 
-                    className="w-5 h-5 accent-blue-600" 
-                  />
-                </div>
+        {/* Available Bookings */}
+        <div className="bg-gray-50 rounded-xl p-6">
+          <h5 className="text-lg font-medium text-gray-900 mb-4">Available Bookings</h5>
+          
+          {bookingsToMerge.length === 0 ? (
+            <div className="text-center py-12">
+              <div className="w-16 h-16 bg-gray-200 rounded-full flex items-center justify-center mx-auto mb-4">
+                <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                </svg>
               </div>
+              <p className="text-gray-500 text-lg font-medium">No bookings available</p>
+              <p className="text-gray-400 text-sm mt-1">There are no other bookings available for merging at this time</p>
             </div>
-          ))}
-
-          {bookingsToMerge.length === 0 && (
-            <div className="col-span-full p-4 bg-gray-50 rounded-md text-center">
-              <p className="text-gray-500">No bookings available for merging</p>
+          ) : (
+            <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4 max-h-96 overflow-y-auto">
+              {bookingsToMerge.map(booking => (
+                <div 
+                  key={booking._id} 
+                  className={`relative border rounded-xl p-4 transition-all duration-200 cursor-pointer hover:shadow-md ${
+                    selectedBookings.includes(booking._id)
+                      ? "bg-slate-50 border-slate-300 shadow-sm ring-2 ring-slate-200"
+                      : "bg-white border-gray-200 hover:border-gray-300"
+                  }`}
+                  onClick={() => handleBookingSelection(booking._id)}
+                >
+                  {/* Selection Checkbox */}
+                  <div className="absolute top-3 right-3">
+                    <input 
+                      type="checkbox" 
+                      checked={selectedBookings.includes(booking._id)} 
+                      onChange={() => handleBookingSelection(booking._id)} 
+                      className="w-4 h-4 text-slate-600 bg-white border-gray-300 rounded focus:ring-slate-500"
+                    />
+                  </div>
+                  
+                  {/* Booking Details */}
+                  <div className="space-y-3 pr-6">
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <div className="flex items-center space-x-2 mb-1">
+                          <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                          <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Pickup</p>
+                        </div>
+                        <p className="text-sm font-medium text-gray-900 truncate">{booking.pickupLocation}</p>
+                      </div>
+                      
+                      <div>
+                        <div className="flex items-center space-x-2 mb-1">
+                          <div className="w-2 h-2 bg-red-500 rounded-full"></div>
+                          <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Drop</p>
+                        </div>
+                        <p className="text-sm font-medium text-gray-900 truncate">{booking.location}</p>
+                      </div>
+                    </div>
+                    
+                    <div className="pt-2 border-t border-gray-100">
+                      <div className="grid grid-cols-2 gap-3 text-xs">
+                        <div>
+                          <p className="text-gray-500 font-medium">User</p>
+                          <p className="text-gray-900 font-medium truncate">{booking.userId?.username || "N/A"}</p>
+                        </div>
+                        <div>
+                          <p className="text-gray-500 font-medium">Members</p>
+                          <p className="text-gray-900 font-medium">{booking.members || "N/A"}</p>
+                        </div>
+                        <div>
+                          <p className="text-gray-500 font-medium">Duration</p>
+                          <p className="text-gray-900 font-medium">{booking.duration ? `${booking.duration}h` : "N/A"}</p>
+                        </div>
+                        <div>
+                          <p className="text-gray-500 font-medium">Time</p>
+                          <p className="text-gray-900 font-medium">{new Date(booking.scheduledAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</p>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div className="pt-2">
+                      <p className="text-xs text-gray-500 font-medium">Reason</p>
+                      <p className="text-sm text-gray-900 truncate">{booking.reason || "N/A"}</p>
+                    </div>
+                  </div>
+                </div>
+              ))}
             </div>
           )}
         </div>
-
       </div>
       
       <div className="mt-6 flex justify-end">

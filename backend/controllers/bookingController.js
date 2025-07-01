@@ -9,15 +9,16 @@ const sendMsg91SMS = require("../service/sendMsg91SMS");
 // ✅ Create a new booking
 const createBooking = async (req, res) => {
   try {
-    const { location, reason, scheduledAt, duration, members } = req.body;
+    const { location, reason, scheduledAt, duration, members,pickupLocation } = req.body;
 
-    if (!location || !scheduledAt || !reason || !duration || !members) {
-      return res.status(400).json({ message: 'All fields are required (location, reason, scheduledAt, duration, members).' });
+    if (!location || !scheduledAt || !reason || !duration || !members || !pickupLocation) {
+      return res.status(400).json({ message: 'All fields are required (location, reason, scheduledAt, duration, members, pickupLocation).' });
     }
 
     const newBooking = new Booking({
       userId: req.userId,
       location,
+      pickupLocation,
       reason,
       status: 'pending',
       scheduledAt,
@@ -568,6 +569,7 @@ const getUserBookings = async (req, res) => {
             username: passenger.username || userDoc?.username || "Unknown User",
             number: passenger.number || userDoc?.number || "N/A",
             location: passenger.location || userDoc?.location || "N/A",
+            pickupLocation: passenger.pickupLocation || userDoc?.pickupLocation || "N/A",
             reason: passenger.reason || "N/A",
             bookingTime: passenger.bookingTime || booking.createdAt || "N/A",
             duration: passenger.duration ?? 1,
@@ -692,6 +694,7 @@ const mergeRide = async (req, res) => {
         passengers.push({
           username: booking.userId?.username || "Unknown",
           number: booking.userId?.number || "N/A",
+          pickupLocation: booking.pickupLocation || "N/A",
           location: booking.location || booking.userId?.location || "N/A",
           reason: booking.reason || "N/A",
           members,
@@ -706,6 +709,7 @@ const mergeRide = async (req, res) => {
     
     const mergedBooking = new Booking({
       userId: primaryBooking.userId,
+      pickupLocation: primaryBooking.pickupLocation,
       location: primaryBooking.location,
       vehicleId: primaryBooking.vehicleId,
       vehicleName: primaryBooking.vehicleName,
@@ -844,16 +848,61 @@ const getBookingsByVehicles = async (req, res) => {
 
 const editRide = async (req, res) => {
   try {
-    const { bookingId, driverName, driverNumber, vehicleName, scheduledAt } = req.body;
+    // Get bookingId from URL parameter OR request body
+    const bookingId = req.params.bookingId || req.body.bookingId;
+    const { 
+      driverName, 
+      driverNumber, 
+      vehicleName, 
+      vehicleId, 
+      scheduledAt, 
+      members, 
+      location,
+      // Guest booking specific fields
+      guestName,
+      guestPhone,
+      pickupLocation,
+      reason,
+      duration
+    } = req.body;
+
+    console.log('Received edit request:', {
+      bookingId,
+      body: req.body,
+      params: req.params
+    });
 
     // Input validation
     if (!bookingId) {
       return res.status(400).json({ message: 'Booking ID is required' });
     }
 
-    // Validate at least one field is provided for update
-    if (!driverName && !driverNumber && !vehicleName && !scheduledAt) {
-      return res.status(400).json({ message: 'At least one field must be provided for update' });
+    // Validate at least one field is provided for update - Simplest approach
+    const validUpdateFields = [
+      'driverName', 'driverNumber', 'vehicleName', 'vehicleId', 
+      'scheduledAt', 'members', 'location', 'guestName', 
+      'guestPhone', 'pickupLocation', 'reason', 'duration'
+    ];
+    
+    // Check if any valid update field exists in the request body
+    const fieldsToUpdate = Object.keys(req.body).filter(key => 
+      key !== 'bookingId' && validUpdateFields.includes(key)
+    );
+    
+    console.log('Validation check:', {
+      allBodyKeys: Object.keys(req.body),
+      fieldsToUpdate,
+      hasFields: fieldsToUpdate.length > 0,
+      requestBody: req.body
+    });
+    
+    if (fieldsToUpdate.length === 0) {
+      return res.status(400).json({ 
+        message: 'At least one valid update field must be provided',
+        validFields: validUpdateFields,
+        receivedFields: Object.keys(req.body),
+        fieldsToUpdate: fieldsToUpdate
+      });
     }
 
     // Find the booking first
@@ -862,30 +911,90 @@ const editRide = async (req, res) => {
       return res.status(404).json({ message: 'Booking not found' });
     }
 
-    // Only allow edit for shared or approved bookings
+    // Only allow edit for shared, approved, or confirmed bookings
     if (!['shared', 'approved', 'confirmed'].includes(booking.status)) {
       return res.status(400).json({ 
-        message: 'Only shared or approved bookings can be edited',
+        message: 'Only shared, approved, or confirmed bookings can be edited',
         currentStatus: booking.status 
       });
     }
 
+    // Check if this is a guest booking (confirmed status)
+    const isGuestBooking = booking.status === 'confirmed';
+
     // Validate scheduledAt if provided
-    if (scheduledAt) {
+    if (scheduledAt !== undefined && scheduledAt !== null) {
       const scheduledDate = new Date(scheduledAt);
       if (isNaN(scheduledDate.getTime())) {
         return res.status(400).json({ message: 'Invalid scheduled date format' });
       }
       
-      // Check if scheduled time is in the future
       if (scheduledDate <= new Date()) {
         return res.status(400).json({ message: 'Scheduled time must be in the future' });
       }
     }
 
+    // Validate members if provided
+    if (members !== undefined && members !== null) {
+      const membersNum = parseInt(members);
+      if (isNaN(membersNum) || membersNum < 1) {
+        return res.status(400).json({ message: 'Members must be a valid number greater than 0' });
+      }
+    }
+
+    // Validate duration if provided (only for guest bookings)
+    if (duration !== undefined && duration !== null) {
+      if (!isGuestBooking) {
+        return res.status(400).json({ message: 'Duration field is only applicable for guest bookings' });
+      }
+      const durationNum = parseFloat(duration);
+      if (isNaN(durationNum) || durationNum <= 0) {
+        return res.status(400).json({ message: 'Duration must be a valid number greater than 0' });
+      }
+    }
+
+    // Validate location if provided
+    if (location !== undefined && location !== null && location.trim().length === 0) {
+      return res.status(400).json({ message: 'Location cannot be empty' });
+    }
+
+    // Validate pickup location if provided (only for regular bookings)
+    if (pickupLocation !== undefined && pickupLocation !== null) {
+      if (isGuestBooking) {
+        return res.status(400).json({ message: 'Pickup location field is not applicable for guest bookings' });
+      }
+      if (pickupLocation.trim().length === 0) {
+        return res.status(400).json({ message: 'Pickup location cannot be empty' });
+      }
+    }
+
     // Validate driver number format if provided
-    if (driverNumber && !/^\d{10}$/.test(driverNumber.replace(/\s+/g, ''))) {
+    if (driverNumber !== undefined && driverNumber !== null && 
+        !/^\d{10}$/.test(driverNumber.replace(/\s+/g, ''))) {
       return res.status(400).json({ message: 'Driver number must be a valid 10-digit phone number' });
+    }
+
+    // Validate guest-specific fields (only for guest bookings)
+    if (guestPhone !== undefined && guestPhone !== null) {
+      if (!isGuestBooking) {
+        return res.status(400).json({ message: 'Guest phone field is only applicable for guest bookings' });
+      }
+      if (!/^\d{10}$/.test(guestPhone.replace(/\s+/g, ''))) {
+        return res.status(400).json({ message: 'Guest phone must be a valid 10-digit phone number' });
+      }
+    }
+
+    if (guestName !== undefined && guestName !== null) {
+      if (!isGuestBooking) {
+        return res.status(400).json({ message: 'Guest name field is only applicable for guest bookings' });
+      }
+      if (guestName.trim().length === 0) {
+        return res.status(400).json({ message: 'Guest name cannot be empty' });
+      }
+    }
+
+    if (reason !== undefined && reason !== null && !isGuestBooking) {
+      return res.status(400).json({ message: 'Reason field is only applicable for guest bookings' });
     }
 
     // Store original values for logging/audit
@@ -893,50 +1002,114 @@ const editRide = async (req, res) => {
       driverName: booking.driverName,
       driverNumber: booking.driverNumber,
       vehicleName: booking.vehicleName,
-      scheduledAt: booking.scheduledAt
+      vehicleId: booking.vehicleId,
+      scheduledAt: booking.scheduledAt,
+      members: booking.members,
+      location: booking.location,
+      guestName: booking.guestName,
+      guestPhone: booking.guestPhone,
+      pickupLocation: booking.pickupLocation,
+      reason: booking.reason,
+      duration: booking.duration
     };
 
-    // Update driver/vehicle fields locally in booking only
-    if (driverName !== undefined) booking.driverName = driverName.trim();
-    if (driverNumber !== undefined) booking.driverNumber = driverNumber.replace(/\s+/g, '');
-    if (vehicleName !== undefined) booking.vehicleName = vehicleName.trim();
-    if (scheduledAt !== undefined) booking.scheduledAt = new Date(scheduledAt);
+    // Update common fields - Allow any field to be updated
+    if (driverName !== undefined && driverName !== null) booking.driverName = driverName.trim();
+    if (driverNumber !== undefined && driverNumber !== null) booking.driverNumber = driverNumber.replace(/\s+/g, '');
+    if (vehicleName !== undefined && vehicleName !== null) booking.vehicleName = vehicleName.trim();
+    if (vehicleId !== undefined && vehicleId !== null) booking.vehicleId = vehicleId;
+    if (scheduledAt !== undefined && scheduledAt !== null) booking.scheduledAt = new Date(scheduledAt);
+    if (members !== undefined && members !== null) booking.members = parseInt(members);
+    if (location !== undefined && location !== null) booking.location = location.trim();
+
+    // Update fields based on booking type
+    if (isGuestBooking) {
+      // Guest booking: only location, no pickupLocation
+      if (guestName !== undefined && guestName !== null) booking.guestName = guestName.trim();
+      if (guestPhone !== undefined && guestPhone !== null) booking.guestPhone = guestPhone.replace(/\s+/g, '');
+      if (reason !== undefined && reason !== null) booking.reason = reason.trim();
+      if (duration !== undefined && duration !== null) booking.duration = parseFloat(duration);
+    } else {
+      // Regular booking: both location and pickupLocation allowed
+      if (pickupLocation !== undefined && pickupLocation !== null) booking.pickupLocation = pickupLocation.trim();
+    }
 
     // Add edit timestamp and manager info if available
     booking.lastEditedAt = new Date();
     if (req.user && req.user.id) {
-      booking.lastEditedBy = req.user.id; // Assuming user info is available in req
+      booking.lastEditedBy = req.user.id;
     }
 
     await booking.save();
 
     // Log the changes for audit trail
-    console.log('Booking edited:', {
+    console.log('Booking edited successfully:', {
       bookingId,
+      bookingType: isGuestBooking ? 'guest' : 'regular',
       editedBy: req.user?.id || 'Unknown',
       originalValues,
       newValues: {
         driverName: booking.driverName,
         driverNumber: booking.driverNumber,
         vehicleName: booking.vehicleName,
-        scheduledAt: booking.scheduledAt
+        vehicleId: booking.vehicleId,
+        scheduledAt: booking.scheduledAt,
+        members: booking.members,
+        location: booking.location,
+        guestName: booking.guestName,
+        guestPhone: booking.guestPhone,
+        pickupLocation: booking.pickupLocation,
+        reason: booking.reason,
+        duration: booking.duration
       },
       timestamp: new Date()
     });
 
+    // Prepare updated fields response
+    const updatedFields = {};
+    if (driverName !== undefined && driverName !== null) updatedFields.driverName = booking.driverName;
+    if (driverNumber !== undefined && driverNumber !== null) updatedFields.driverNumber = booking.driverNumber;
+    if (vehicleName !== undefined && vehicleName !== null) updatedFields.vehicleName = booking.vehicleName;
+    if (vehicleId !== undefined && vehicleId !== null) updatedFields.vehicleId = booking.vehicleId;
+    if (scheduledAt !== undefined && scheduledAt !== null) updatedFields.scheduledAt = booking.scheduledAt;
+    if (members !== undefined && members !== null) updatedFields.members = booking.members;
+    if (location !== undefined && location !== null) updatedFields.location = booking.location;
+    
+    // Include fields based on booking type
+    if (isGuestBooking) {
+      if (guestName !== undefined && guestName !== null) updatedFields.guestName = booking.guestName;
+      if (guestPhone !== undefined && guestPhone !== null) updatedFields.guestPhone = booking.guestPhone;
+      if (reason !== undefined && reason !== null) updatedFields.reason = booking.reason;
+      if (duration !== undefined && duration !== null) updatedFields.duration = booking.duration;
+    } else {
+      if (pickupLocation !== undefined && pickupLocation !== null) updatedFields.pickupLocation = booking.pickupLocation;
+    }
+
     return res.status(200).json({ 
       message: 'Booking updated successfully',
-      updatedFields: {
-        ...(driverName !== undefined && { driverName: booking.driverName }),
-        ...(driverNumber !== undefined && { driverNumber: booking.driverNumber }),
-        ...(vehicleName !== undefined && { vehicleName: booking.vehicleName }),
-        ...(scheduledAt !== undefined && { scheduledAt: booking.scheduledAt })
-      }
+      bookingType: isGuestBooking ? 'guest' : 'regular',
+      booking: {
+        _id: booking._id,
+        driverName: booking.driverName,
+        driverNumber: booking.driverNumber,
+        vehicleName: booking.vehicleName,
+        vehicleId: booking.vehicleId,
+        scheduledAt: booking.scheduledAt,
+        members: booking.members,
+        location: booking.location,
+        guestName: booking.guestName,
+        guestPhone: booking.guestPhone,
+        pickupLocation: booking.pickupLocation,
+        reason: booking.reason,
+        duration: booking.duration,
+        status: booking.status,
+        lastEditedAt: booking.lastEditedAt
+      },
+      updatedFields
     });
   } catch (err) {
     console.error('Error in editRide:', err);
     
-    // Handle specific MongoDB errors
     if (err.name === 'ValidationError') {
       return res.status(400).json({ 
         message: 'Validation error', 
@@ -952,6 +1125,127 @@ const editRide = async (req, res) => {
   }
 };
 
+const removePassenger = async (req, res) => {
+  const { bookingId, passengerIndex } = req.body;
+  
+  try {
+    const sharedBooking = await Booking.findById(bookingId).populate("userId");
+    
+    if (!sharedBooking || sharedBooking.status !== 'shared') {
+      return res.status(400).json({ error: "Shared booking not found." });
+    }
+
+    if (!sharedBooking.passengers || passengerIndex >= sharedBooking.passengers.length) {
+      return res.status(400).json({ error: "Invalid passenger index." });
+    }
+
+    const passengerToRemove = sharedBooking.passengers[passengerIndex];
+    
+    // Create individual booking for removed passenger
+    const individualBooking = new Booking({
+      userId: sharedBooking.userId, // You might want to find the actual userId for this passenger
+      pickupLocation: passengerToRemove.pickupLocation,
+      location: passengerToRemove.location,
+      reason: passengerToRemove.reason,
+      members: passengerToRemove.members,
+      duration: passengerToRemove.duration,
+      scheduledAt: passengerToRemove.bookingTime,
+      status: "approved", // Set as approved since it was part of shared ride
+      isActive: true,
+      restoredFrom: bookingId
+    });
+
+    await individualBooking.save();
+
+    // Remove passenger from shared booking
+    sharedBooking.passengers.splice(passengerIndex, 1);
+    
+    // Update total members
+    const newTotalMembers = sharedBooking.passengers.reduce((sum, p) => sum + (p.members || 1), 0);
+    sharedBooking.members = newTotalMembers;
+
+    // If only one passenger left, convert back to individual booking
+    if (sharedBooking.passengers.length === 1) {
+      const lastPassenger = sharedBooking.passengers[0];
+      
+      // Update the shared booking to individual
+      sharedBooking.status = "approved";
+      sharedBooking.isSharedRide = false;
+      sharedBooking.pickupLocation = lastPassenger.pickupLocation;
+      sharedBooking.location = lastPassenger.location;
+      sharedBooking.reason = lastPassenger.reason;
+      sharedBooking.members = lastPassenger.members;
+      sharedBooking.duration = lastPassenger.duration;
+      sharedBooking.scheduledAt = lastPassenger.bookingTime;
+      sharedBooking.passengers = [];
+    }
+
+    await sharedBooking.save();
+
+    res.status(200).json({
+      message: "Passenger removed successfully",
+      individualBooking,
+      updatedSharedBooking: sharedBooking
+    });
+
+  } catch (err) {
+    console.error("Remove passenger failed:", err);
+    res.status(500).json({ error: "Failed to remove passenger.", details: err.message });
+  }
+};
+
+const unmergeRide = async (req, res) => {
+  const { bookingId } = req.body;
+  
+  try {
+    const sharedBooking = await Booking.findById(bookingId).populate("userId");
+    
+    if (!sharedBooking || sharedBooking.status !== 'shared') {
+      return res.status(400).json({ error: "Shared booking not found." });
+    }
+
+    const restoredBookings = [];
+
+    // Create individual bookings for each passenger
+    for (const passenger of sharedBooking.passengers) {
+      const individualBooking = new Booking({
+        userId: sharedBooking.userId, // You might want to find actual userIds
+        pickupLocation: passenger.pickupLocation,
+        location: passenger.location,
+        reason: passenger.reason,
+        members: passenger.members,
+        duration: passenger.duration,
+        scheduledAt: passenger.bookingTime,
+        status: "approved",
+        isActive: true,
+        restoredFrom: bookingId
+      });
+
+      await individualBooking.save();
+      restoredBookings.push(individualBooking);
+    }
+
+    // Mark shared booking as inactive
+    sharedBooking.status = "unmerged";
+    sharedBooking.isActive = false;
+    await sharedBooking.save();
+
+    // Release the vehicle
+    if (sharedBooking.vehicleId) {
+      await Vehicle.findByIdAndUpdate(sharedBooking.vehicleId, { status: 'available' });
+    }
+
+    res.status(200).json({
+      message: "Shared ride unmerged successfully",
+      restoredBookings,
+      unmergedBooking: sharedBooking
+    });
+
+  } catch (err) {
+    console.error("Unmerge failed:", err);
+    res.status(500).json({ error: "Failed to unmerge ride.", details: err.message });
+  }
+};
 
 // ✅ Export the functions
 module.exports = {
@@ -969,5 +1263,7 @@ module.exports = {
   getBookingsByVehicles,
   getById,
   editRide,
-  getApproveBookings
+  getApproveBookings,
+  removePassenger,
+  unmergeRide
 };

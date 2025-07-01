@@ -49,6 +49,11 @@ const bookingSchema = new mongoose.Schema({
     required: true,
     trim: true 
   },
+  pickupLocation: { 
+    type: String, 
+    required: false,
+    trim: true 
+  },
   status: { 
     type: String, 
     enum: ["pending", "approved", "completed", "cancelled", "merged", "shared", "confirmed"], 
