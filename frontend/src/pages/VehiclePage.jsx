@@ -8,6 +8,7 @@ import {
   LogOut,
   CrossIcon,
   LayoutDashboard,
+  User2Icon,
  } from "lucide-react";
 import { Alert, AlertDescription } from '@/components/ui/alert';
 
@@ -399,6 +400,7 @@ const VehiclePage = () => {
     { name: "Dashboard", path: "/manager", icon: <LayoutDashboard size={20} /> },
     { name: "Guest Booking", path: "/guest-booking", icon: <Calendar size={20} /> },
     { name: "Vehicles", path: "/get-vehicles", icon: <Car size={20} /> },
+    { name: "Profile", path: "/profile", icon: <User2Icon size={20} /> }
   ];
 
   const toggleSidebar = () => {

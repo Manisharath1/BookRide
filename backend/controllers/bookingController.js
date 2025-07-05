@@ -1247,6 +1247,108 @@ const unmergeRide = async (req, res) => {
   }
 };
 
+const getBookingStatistics = async (req, res) => {
+  // console.log('=== BOOKING STATS DEBUG START ===');
+  // console.log('Timestamp:', new Date().toISOString());
+  // console.log('Request method:', req.method);
+  // console.log('Request URL:', req.originalUrl);
+  // console.log('User from auth middleware:', {
+  //   userId: req.userId,
+  //   userRole: req.userRole || req.role
+  // });
+  
+  try {
+    // console.log('Step 1: Checking Booking model...');
+    if (!Booking) {
+      throw new Error('Booking model is not imported or undefined');
+    }
+    // console.log('✓ Booking model exists');
+    
+    // console.log('Step 2: Attempting database query...');
+    const startTime = Date.now();
+    const allBookings = await Booking.find({});
+    const queryTime = Date.now() - startTime;
+    // console.log(`✓ Database query completed in ${queryTime}ms`);
+    // console.log(`✓ Found ${allBookings.length} total bookings`);
+    
+    if (allBookings.length > 0) {
+      // console.log('Step 3: Analyzing booking structure...');
+      const sampleBooking = allBookings[0];
+      // console.log('Sample booking keys:', Object.keys(sampleBooking.toObject ? sampleBooking.toObject() : sampleBooking));
+      // console.log('Sample booking status:', sampleBooking.status);
+      // console.log('Sample booking isSharedRide:', sampleBooking.isSharedRide);
+      
+      // Check all unique statuses in the database
+      const uniqueStatuses = [...new Set(allBookings.map(b => b.status))];
+      // console.log('Unique statuses found:', uniqueStatuses);
+    }
+    
+    // console.log('Step 4: Calculating statistics...');
+    
+    // Calculate with detailed logging
+    const pending = allBookings.filter(booking => {
+      const isPending = booking.status === 'pending';
+      return isPending;
+    });
+    // console.log(`Pending bookings: ${pending.length}`);
+    
+    const approved = allBookings.filter(booking => booking.status === 'approved');
+    // console.log(`Approved bookings: ${approved.length}`);
+    
+    const confirmed = allBookings.filter(booking => booking.status === 'confirmed');
+    // console.log(`Confirmed bookings: ${confirmed.length}`);
+    
+    const cancelled = allBookings.filter(booking => booking.status === 'cancelled');
+    // console.log(`Cancelled bookings: ${cancelled.length}`);
+    
+    const completed = allBookings.filter(booking => booking.status === 'completed');
+    // console.log(`Completed bookings: ${completed.length}`);
+    
+    const shared = allBookings.filter(booking => booking.isSharedRide === true);
+    // console.log(`Shared bookings: ${shared.length}`);
+    
+    const stats = {
+      total: allBookings.length,
+      pending: pending.length,
+      approved: approved.length,
+      confirmed: confirmed.length,
+      cancelled: cancelled.length,
+      completed: completed.length,
+      shared: shared.length
+    };
+    
+    // console.log('Step 5: Final statistics calculated:', stats);
+    // console.log('=== SENDING SUCCESSFUL RESPONSE ===');
+    
+    res.status(200).json(stats);
+    
+  } catch (err) {
+    // console.log('=== ERROR OCCURRED IN STATS ENDPOINT ===');
+    // console.error('Error type:', err.constructor.name);
+    // console.error('Error message:', err.message);
+    // console.error('Error code:', err.code);
+    
+    if (err.name === 'MongoError' || err.name === 'MongooseError') {
+      // console.error('Database Error Details:', {
+      //   name: err.name,
+      //   code: err.code,
+      //   codeName: err.codeName
+      // });
+    }
+    
+    // console.error('Full error stack:', err.stack);
+    // console.log('=== ERROR END ===');
+    
+    res.status(500).json({ 
+      error: 'Failed to fetch booking statistics',
+      message: err.message,
+      type: err.constructor.name
+    });
+  }
+};
+
+
+
 // ✅ Export the functions
 module.exports = {
   createBooking,
@@ -1265,5 +1367,6 @@ module.exports = {
   editRide,
   getApproveBookings,
   removePassenger,
-  unmergeRide
+  unmergeRide,
+  getBookingStatistics
 };

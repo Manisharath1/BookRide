@@ -7,7 +7,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import DatePicker from "react-datepicker";
-import { X, Split } from 'lucide-react';
+import { X, Split, User2Icon } from 'lucide-react';
 import "react-datepicker/dist/react-datepicker.css";
 import axios from "axios";
 import {  
@@ -459,6 +459,7 @@ const ManagerDashboard = () => {
     { name: "Dashboard", path: "/manager", icon: <LayoutDashboard size={20} /> },
     { name: "Guest Booking", path: "/guest-booking", icon: <Calendar size={20} /> },
     { name: "Vehicles", path: "/get-vehicles", icon: <Car size={20} /> },
+    { name: "Profile", path: "/profile", icon: <User2Icon size={20} /> }
   ];
 
   const nonPendingBookings = [
@@ -900,7 +901,7 @@ const ManagerDashboard = () => {
                                       <Button
                                         variant="destructive"
                                         size="sm"
-                                        className="h-8"
+                                        className="h-8 bg-cyan-700"
                                         onClick={() => handleUnmergeRide(booking._id)}
                                       >
                                         <Split className="w-4 h-4 mr-1.5" />

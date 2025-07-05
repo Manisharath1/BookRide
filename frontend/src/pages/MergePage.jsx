@@ -1,4 +1,4 @@
-import { Calendar, Car, Home, LayoutDashboard, LogOut, Users, ChevronRight, Loader, ArrowLeft, RefreshCw, Phone, Check } from "lucide-react";
+import { Calendar, Car, Home, LayoutDashboard, LogOut, Users, ChevronRight, Loader, ArrowLeft, RefreshCw, Phone, Check, User2Icon } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { toast } from "react-toastify";
@@ -104,6 +104,7 @@ const MergePage = () => {
     { name: "Dashboard", path: "/manager", icon: <LayoutDashboard size={20} /> },
     { name: "Guest Booking", path: "/guest-booking", icon: <Calendar size={20} /> },
     { name: "Vehicles", path: "/get-vehicles", icon: <Car size={20} /> },
+    { name: "Profile", path: "/profile", icon: <User2Icon size={20} /> }
   ];
 
   const handleLogout = () => {

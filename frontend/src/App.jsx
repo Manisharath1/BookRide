@@ -13,6 +13,7 @@ import ResetPassword from "./pages/ResetPassword";
 import ApprovalPage from "./pages/ApprovalPage";
 import HomePage from "./pages/HomePage";
 import MergePage from "./pages/MergePage";
+import ManagerProfile from "./pages/ManagerProfile";
 
 
 function App() {
@@ -30,6 +31,7 @@ function App() {
         <Route path="/manager" element={<ManagerDashboard />} />
         <Route path="/guest-booking" element={<GuestBookingPage />} />
         <Route path="/get-vehicles" element={<VehiclePage />} />
+        <Route path="/profile" element={<ManagerProfile />} />
         <Route path="/reset-password" element={<ResetPassword />} />
         <Route path="/manager/approve/:bookingId" element={<ApprovalPage />} />
         <Route path="/manager/merge/:bookingId" element={<MergePage />} />

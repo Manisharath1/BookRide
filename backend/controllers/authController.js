@@ -1,6 +1,7 @@
 const User = require("../models/User");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
+const { hash } = require('bcryptjs');
 // const twilio = require('twilio');
 // const Otp = require('../models/Otp');
 // // const sgMail = require('@sendgrid/mail');
@@ -81,59 +82,60 @@ const register = async (req, res) => {
   const { username, email, number, password } = req.body;
   
   try {
+    // Log the registration attempt (remove in production)
+    console.log('Registration attempt:', { username, email, phoneNumber: number?.substring(0, 5) + '...' });
+    
     // Input validation
     if (!username || username.length < 3) {
       return res.status(400).json({ error: 'Username must be at least 3 characters' });
     }
-
     if (!email) {
       return res.status(400).json({ error: 'Email is required' });
     }
-
     // Validate ILS email
     if (!email.endsWith('@ils.res.in')) {
       return res.status(400).json({ error: 'Only emails with ils.res.in domain are allowed' });
     }
-
     if (!number || number.length < 10) {
       return res.status(400).json({ error: 'Valid phone number is required' });
     }
-
     if (!password || password.length < 6) {
       return res.status(400).json({ error: 'Password must be at least 6 characters' });
     }
 
     // Check if user already exists by email
-    const existingUserByEmail = await findOne({ email });
+    const existingUserByEmail = await User.findOne({ email });
     if (existingUserByEmail) {
       return res.status(400).json({ error: 'User with this email already exists' });
     }
 
     // Check if user already exists by username
-    const existingUserByUsername = await findOne({ username });
+    const existingUserByUsername = await User.findOne({ username });
     if (existingUserByUsername) {
       return res.status(400).json({ error: 'Username already taken' });
     }
 
     // Check if phone number already exists
-    const existingUserByPhone = await findOne({ number });
+    const existingUserByPhone = await User.findOne({ number });
     if (existingUserByPhone) {
       return res.status(400).json({ error: 'Phone number already registered' });
     }
 
     // Hash password
-    const hashedPassword = await hash(password, 12); // Use 12 rounds for better security
+    const hashedPassword = await hash(password, 12);
 
     // Create user with default role 'user'
     const user = new User({
-      username,
-      email,
+      username: username.trim(),
+      email: email.toLowerCase().trim(),
       number,
-      password: hashedPassword,
-      role: 'user'
+      password: hashedPassword
+      // role will default to 'user' automatically
     });
 
     await user.save();
+
+    console.log('User registered successfully:', username);
 
     return res.status(201).json({
       success: true,
@@ -142,6 +144,14 @@ const register = async (req, res) => {
 
   } catch (err) {
     console.error('Registration error:', err);
+    
+    // Handle mongoose validation errors
+    if (err.name === 'ValidationError') {
+      const errors = Object.values(err.errors).map(e => e.message);
+      return res.status(400).json({
+        error: `Validation failed: ${errors.join(', ')}`
+      });
+    }
     
     // Handle duplicate key errors (if you have unique indexes)
     if (err.code === 11000) {

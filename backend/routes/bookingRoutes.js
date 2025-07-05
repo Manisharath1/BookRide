@@ -28,12 +28,14 @@ router.post("/merge", authMiddleware, bookingController.mergeRide);
 router.put("/editRide", authMiddleware, bookingController.editRide);
 
 router.get('/view', bookingController.getBookingsByVehicles);
-
+router.get('/stats', authMiddleware, bookingController.getBookingStatistics);
 router.get('/:id',  bookingController.getById);
 
 // Add to your booking routes file
 router.post('/removePassenger', authMiddleware, bookingController.removePassenger);
 router.post('/unmerge', authMiddleware, bookingController.unmergeRide);
+
+
 
 
 // Route to get bookings for a specific vehicle

@@ -29,10 +29,7 @@ const userSchema = new mongoose.Schema({
   role: {
     type: String,
     enum: ['user', 'manager'],
-    required: function () {
-      return !this.googleId;
-    },
-    default: 'user'
+        default: 'user'
   }
 });
 
