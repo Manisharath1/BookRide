@@ -69,7 +69,7 @@ const HomePage = () => {
 
 
   const navigate = useNavigate();
-  // eslint-disable-next-line no-unused-vars
+  
   const { apiCall } = useAPI();
 
   useEffect(() => {
