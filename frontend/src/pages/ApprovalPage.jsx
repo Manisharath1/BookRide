@@ -133,6 +133,12 @@ const ApprovalPage = () => {
     loadData();
   }, [bookingId, navigate]);
 
+  useEffect(() => {
+    if (selectedTime && booking?.duration) {
+      setHighlightTrigger(prev => prev + 1);
+    }
+  }, [selectedTime, booking?.duration]);
+
   // Function to trigger calendar highlighting
   const triggerCalendarHighlight = () => {
     if (selectedTime && booking?.duration) {
@@ -282,6 +288,8 @@ const ApprovalPage = () => {
     );
   }
 
+  
+
   return (
     <div className="flex flex-col min-h-screen">
       
@@ -335,33 +343,7 @@ const ApprovalPage = () => {
         <div className="flex-1 overflow-y-auto">
           <div className="w-full max-w-full mx-auto p-3 sm:p-6">
             <h1 className="text-xl sm:text-2xl font-bold text-blue-800 mb-4">Approve Booking</h1>
-            
-            {/* Time Slot Section with data attribute for scrolling */}
-            <div className="bg-pink-50 shadow rounded-lg p-3 sm:p-4 border border-blue-100 mb-4" data-calendar-section>
-              <div className="mb-3">
-                <h3 className="text-lg font-semibold text-gray-800 mb-2">Select Time Slot</h3>
-                <p className="text-sm text-gray-600">
-                  Choose a time slot for this booking. Red events show existing approved bookings.
-                </p>
-                {selectedTime && booking?.duration && (
-                  <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded-md">
-                    <p className="text-sm text-green-700">
-                      <strong>Selected:</strong> {selectedTime.toLocaleString()} 
-                      <span className="ml-2">({booking.duration}h duration)</span>
-                    </p>
-                  </div>
-                )}
-              </div>
-              <FullCalendarSelector 
-                selectedTime={selectedTime} 
-                setSelectedTime={setSelectedTime} 
-                existingEvents={existingEvents}
-                defaultTime={booking?.scheduledAt ? new Date(booking.scheduledAt) : null}
-                booking={booking}
-                scrollToTime={selectedTime}
-                highlightTrigger={highlightTrigger} // Pass the trigger to force re-highlighting
-              />
-            </div>
+
 
             <div className="flex flex-col md:flex-row gap-4 mb-4">
               {/* Booking Info Section */}
@@ -599,6 +581,22 @@ const ApprovalPage = () => {
                 </div>
               </div>
             </div>
+            
+            {/* Time Slot Section with data attribute for scrolling */}
+            <div className=" shadow rounded-lg p-3 sm:p-4 border border-blue-100 mb-3" data-calendar-section>
+              <h3 className="text-lg font-semibold text-gray-800 mb-2">Select Time Slot</h3>
+              <FullCalendarSelector 
+                selectedTime={selectedTime} 
+                setSelectedTime={setSelectedTime} 
+                existingEvents={existingEvents}
+                defaultTime={booking?.scheduledAt ? new Date(booking.scheduledAt) : null}
+                booking={booking}
+                scrollToTime={selectedTime}
+                highlightTrigger={highlightTrigger} // Pass the trigger to force re-highlighting
+              />
+            </div>
+
+            
             
             {/* Action Buttons */}
             <div className="flex justify-end gap-2 sm:gap-3 mt-6">

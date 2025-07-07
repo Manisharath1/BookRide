@@ -1,6 +1,6 @@
 /* eslint-disable react/prop-types */
 import { useState, useRef, useEffect } from 'react';
-import { Calendar, Clock, ChevronLeft, ChevronRight, Trash, X, Check, Edit, Plus, Users, MapPin, Car } from 'lucide-react';
+import { Calendar, Clock, ChevronLeft, ChevronRight, Trash, X,  Edit, Plus, Users, MapPin, Car } from 'lucide-react';
 
 // eslint-disable-next-line react/prop-types
 const CalendarSelector = ({ setSelectedTime, existingEvents, selectedTime, defaultTime, booking, calendarConfig, scrollToTime, highlightTrigger }) => {
@@ -12,6 +12,7 @@ const CalendarSelector = ({ setSelectedTime, existingEvents, selectedTime, defau
   const [showSharedRideModal, setShowSharedRideModal] = useState(false);
   const [selectedSharedRide, setSelectedSharedRide] = useState(null);
   const [eventName, setEventName] = useState('');
+  // eslint-disable-next-line no-unused-vars
   const [eventType, setEventType] = useState('individual'); // 'individual' or 'shared'
   const [events, setEvents] = useState([]);
   const [editingEvent, setEditingEvent] = useState(null);
@@ -24,9 +25,11 @@ const CalendarSelector = ({ setSelectedTime, existingEvents, selectedTime, defau
   const [showTooltip, setShowTooltip] = useState(false);
   const [tooltipPosition, setTooltipPosition] = useState({ x: 0, y: 0 });
   const [tooltipContent, setTooltipContent] = useState('');
-  // Add this state
+  
   // eslint-disable-next-line no-unused-vars
   const [highlightedSlots, setHighlightedSlots] = useState(new Set());
+
+  const [eventsInitialized, setEventsInitialized] = useState(false);
 
   
   // Refs for time grid and container
@@ -43,11 +46,16 @@ const CalendarSelector = ({ setSelectedTime, existingEvents, selectedTime, defau
 
   // Load events from localStorage on component mount
   useEffect(() => {
+
+    if (!existingEvents) {
+      console.log('No existingEvents, skipping...');
+      return;
+    } // Prevent re-running
+  
     const savedEvents = localStorage.getItem('calendarEvents');
     let parsedLocalEvents = [];
     if (savedEvents) {
       try {
-        // eslint-disable-next-line no-unused-vars
         parsedLocalEvents = JSON.parse(savedEvents).map(event => ({
           ...event,
           date: new Date(event.date)
@@ -56,43 +64,49 @@ const CalendarSelector = ({ setSelectedTime, existingEvents, selectedTime, defau
         console.error('Failed to parse saved events:', e);
       }
     }
-  
-    // let formattedExternalEvents = [];
-    if (existingEvents && Array.isArray(existingEvents)) {
-    const formattedExternalEvents = existingEvents.map(ev => {
-      const startDate = new Date(ev.start);
-      const endDate = new Date(ev.end);
-      
-      return {
-        id: ev.id,
-        title: ev.title,
-        date: startDate,
-        startTime: `${startDate.getHours().toString().padStart(2, '0')}:${startDate.getMinutes().toString().padStart(2, '0')}`,
-        endTime: `${endDate.getHours().toString().padStart(2, '0')}:${endDate.getMinutes().toString().padStart(2, '0')}`,
-        type: ev.extendedProps?.type || 'individual',
-        status: ev.extendedProps?.status || 'pending',
-        participantCount: ev.extendedProps?.participantCount,
-        destinations: ev.extendedProps?.destinations,
-        bookings: ev.extendedProps?.bookings,
-        pickupLocation: ev.extendedProps?.pickupLocation,
-        destination: ev.extendedProps?.dropLocation,
-        color: 'bg-green-500 text-white',
-        readOnly: true
-      };
-    });
-
-    setEvents(prev => {
-      const localEvents = prev.filter(e => !e.readOnly);
-      return [...localEvents, ...formattedExternalEvents];
-    });
-  }
-}, [existingEvents]);
     
-  // Save events to localStorage whenever they change
-  useEffect(() => {
-    localStorage.setItem('calendarEvents', JSON.stringify(events));
-  }, [events]);
+    let formattedExternalEvents = [];
+    if (existingEvents && Array.isArray(existingEvents)) {
+      formattedExternalEvents = existingEvents.map(ev => {
+        const startDate = new Date(ev.start);
+        const endDate = new Date(ev.end);
+        
+        return {
+          id: ev.id,
+          title: ev.title,
+          date: startDate,
+          startTime: `${startDate.getHours().toString().padStart(2, '0')}:${startDate.getMinutes().toString().padStart(2, '0')}`,
+          endTime: `${endDate.getHours().toString().padStart(2, '0')}:${endDate.getMinutes().toString().padStart(2, '0')}`,
+          type: ev.extendedProps?.type || 'individual',
+          status: ev.extendedProps?.status || 'pending',
+          participantCount: ev.extendedProps?.participantCount,
+          destinations: ev.extendedProps?.destinations,
+          bookings: ev.extendedProps?.bookings,
+          pickupLocation: ev.extendedProps?.pickupLocation,
+          destination: ev.extendedProps?.dropLocation,
+          color: 'bg-green-500 text-white',
+          readOnly: true
+        };
+      });
+    }
 
+    // Combine both arrays directly - no functional update
+    const allEvents = [...parsedLocalEvents, ...formattedExternalEvents];
+    setEvents(allEvents);
+    setEventsInitialized(true);
+  }, [existingEvents, eventsInitialized]);
+    
+    // Save events to localStorage whenever they change
+  useEffect(() => {
+    // Don't save if events array is empty and we're expecting external events
+    if (events.length === 0 && existingEvents && existingEvents.length > 0) {
+      console.log('Skipping save - events cleared but external events exist');
+      return;
+    }
+    const localEvents = events.filter(event => !event.readOnly);
+    localStorage.setItem('calendarEvents', JSON.stringify(localEvents));
+  }, [events, existingEvents]);
+  
   // Effect to handle container heights
   useEffect(() => {
     const adjustHeight = () => {
@@ -211,53 +225,51 @@ const CalendarSelector = ({ setSelectedTime, existingEvents, selectedTime, defau
     }
     }, [selectedTime, events]);
 
-    useEffect(() => {
-      if (defaultTime && booking?.duration) {
+  useEffect(() => {
+    const effectiveTime = selectedTime || defaultTime;
+    if (effectiveTime && booking?.duration) {
         setCurrentView('day');
-        setCurrentDate(new Date(defaultTime));
-        setSelectedDate(new Date(defaultTime));
+        setCurrentDate(new Date(effectiveTime));
+        setSelectedDate(new Date(effectiveTime));
         
-        const startHour = defaultTime.getHours();
-        const startMinute = defaultTime.getMinutes();
+        const startHour = effectiveTime.getHours();
+        const startMinute = effectiveTime.getMinutes();
         const durationHours = booking.duration;
-        
-        // Auto-select this time slot for the parent
+
         if (setSelectedTime && !selectedTime) {
-          setSelectedTime(new Date(defaultTime));
+            setSelectedTime(new Date(effectiveTime));
         }
 
-        // Calculate end time
-        const endTime = new Date(defaultTime.getTime() + (durationHours * 60 * 60 * 1000));
+        const endTime = new Date(effectiveTime.getTime() + durationHours * 60 * 60 * 1000);
         const endHour = endTime.getHours();
         const endMinute = endTime.getMinutes();
 
-        // Create the event
         const requestedTimeBlock = {
-          id: 'requested-booking-time',
-          title: `${booking.reason || 'Booking Request'} (${durationHours}h)`,
-          date: new Date(defaultTime),
-          startTime: `${startHour.toString().padStart(2, '0')}:${startMinute.toString().padStart(2, '0')}`,
-          endTime: `${endHour.toString().padStart(2, '0')}:${endMinute.toString().padStart(2, '0')}`,
-          color: 'bg-gradient-to-r from-green-500 to-green-600 text-white shadow-lg border-2 border-green-700',
-          readOnly: true,
-          type: 'booking-request'
+            id: 'requested-booking-time',
+            title: `${booking.reason || 'Booking Request'} (${durationHours}h)`,
+            date: new Date(effectiveTime),
+            startTime: `${startHour.toString().padStart(2, '0')}:${startMinute.toString().padStart(2, '0')}`,
+            endTime: `${endHour.toString().padStart(2, '0')}:${endMinute.toString().padStart(2, '0')}`,
+            color: 'bg-gradient-to-r from-green-500 to-green-600 text-white shadow-lg border-2 border-green-700',
+            readOnly: true,
+            type: 'booking-request'
         };
 
         setEvents(prev => {
-          const filtered = prev.filter(e => e.id !== 'requested-booking-time');
-          return [...filtered, requestedTimeBlock];
+            const filtered = prev.filter(e => e.id !== 'requested-booking-time');
+            return [...filtered, requestedTimeBlock];
         });
 
-        // Scroll and highlight after DOM updates - reduced delay and no automatic highlighting
         setTimeout(() => {
-          const scrollTime = startMinute >= 30 ? `${startHour}:30` : `${startHour}:00`;
-          const timeElement = document.querySelector(`[data-time="${scrollTime}"]`);
-          if (timeElement) {
-            timeElement.scrollIntoView({ behavior: "smooth", block: "center" });
-          }
-        }, 800); // Increased delay to ensure rendering is complete
-      }
-    }, [defaultTime, booking]);
+            const scrollTime = startMinute >= 30 ? `${startHour}:30` : `${startHour}:00`;
+            const timeElement = document.querySelector(`[data-time="${scrollTime}"]`);
+            if (timeElement) {
+                timeElement.scrollIntoView({ behavior: "smooth", block: "center" });
+            }
+        }, 800);
+    }
+  }, [selectedTime, defaultTime, booking]);
+
 
   // Add this effect to handle the highlight trigger from parent
   useEffect(() => {
@@ -410,19 +422,12 @@ const CalendarSelector = ({ setSelectedTime, existingEvents, selectedTime, defau
   };
 
   const handleEventClick = (event) => {
-
-    if (setSelectedTime) {
-      const eventDateTime = new Date(
-        event.date.toISOString().split('T')[0] + 'T' + event.startTime + ':00'
-      );
-      setSelectedTime(eventDateTime);
-    }
-
     // If it's the requested booking, highlight it again
     if (event.type === 'booking-request' && booking?.duration) {
       const startTime = new Date(event.date.toISOString().split('T')[0] + 'T' + event.startTime + ':00');
       highlightTimeSlots(startTime.getHours(), startTime.getMinutes(), booking.duration);
     }
+    
     // If parent has custom event click handler, use it
     if (window.parentEventClickHandler && event.readOnly) {
       const mockInfo = {
@@ -449,54 +454,17 @@ const CalendarSelector = ({ setSelectedTime, existingEvents, selectedTime, defau
     if (event.type === 'shared') {
       showSharedRideDetails(event);
     } else {
+      // Only call setSelectedTime once, here
       if (setSelectedTime) {
-        setSelectedTime(new Date(
+        const eventDateTime = new Date(
           event.date.toISOString().split('T')[0] + 'T' + event.startTime + ':00'
-        ));
+        );
+        setSelectedTime(eventDateTime);
       }
       handleEditEvent(event);
     }
   };
-
-  const handleSaveEvent = () => {
-    if (!eventName || !timeRange.start || !timeRange.end) return;
-
-    if (editingEvent) {
-      setEvents(prev => prev.map(e => 
-        e.id === editingEvent.id
-          ? { 
-              ...e, 
-              title: eventName, 
-              startTime: timeRange.start,
-              endTime: timeRange.end 
-            }
-          : e
-      ));
-    } else {
-      const newEvent = {
-        id: Date.now().toString(),
-        title: eventName,
-        date: selectedDate,
-        startTime: timeRange.start,
-        endTime: timeRange.end,
-        color: getRandomColor()
-      };
-      setEvents([...events, newEvent]);
-    }
-
-    setShowModal(false);
-    setEventName('');
-    setTimeRange({ start: '', end: '' });
-    setEditingEvent(null);
-
-    if (setSelectedTime) {
-      setSelectedTime(
-        new Date(
-          selectedDate.toISOString().split('T')[0] + 'T' + timeRange.start + ':00'
-        )
-      );
-    }
-  };
+  
 
   const handleDeleteEvent = () => {
     if (editingEvent) {
@@ -506,17 +474,17 @@ const CalendarSelector = ({ setSelectedTime, existingEvents, selectedTime, defau
     setEditingEvent(null);
   };
 
-  const getRandomColor = () => {
-    const colors = [
-      'bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-md',
-      'bg-gradient-to-r from-green-500 to-green-600 text-white shadow-md',
-      'bg-gradient-to-r from-purple-500 to-purple-600 text-white shadow-md',
-      'bg-gradient-to-r from-orange-500 to-orange-600 text-white shadow-md',
-      'bg-gradient-to-r from-pink-500 to-pink-600 text-white shadow-md',
-      'bg-gradient-to-r from-indigo-500 to-indigo-600 text-white shadow-md'
-    ];
-    return colors[Math.floor(Math.random() * colors.length)];
-  };
+  // const getRandomColor = () => {
+  //   const colors = [
+  //     'bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-md',
+  //     'bg-gradient-to-r from-green-500 to-green-600 text-white shadow-md',
+  //     'bg-gradient-to-r from-purple-500 to-purple-600 text-white shadow-md',
+  //     'bg-gradient-to-r from-orange-500 to-orange-600 text-white shadow-md',
+  //     'bg-gradient-to-r from-pink-500 to-pink-600 text-white shadow-md',
+  //     'bg-gradient-to-r from-indigo-500 to-indigo-600 text-white shadow-md'
+  //   ];
+  //   return colors[Math.floor(Math.random() * colors.length)];
+  // };
 
   const getEventColor = (event) => {
     if (event.type === 'booking-request') {
@@ -533,48 +501,30 @@ const CalendarSelector = ({ setSelectedTime, existingEvents, selectedTime, defau
   const highlightTimeSlots = (startHour, startMinute, durationHours) => {
     console.log('Highlighting slots:', { startHour, startMinute, durationHours });
     
-    // Clear existing highlights first
-    setHighlightedSlots(new Set());
-    
-    // Create a visual highlight block similar to events
-    requestAnimationFrame(() => {
-      const timeHeight = 40;
-      const startPos = ((startHour * 60 + startMinute) / 30) * timeHeight;
-      const eventHeight = (durationHours * 60 / 30) * timeHeight;
-      
-      // Remove any existing highlight block
-      const existingHighlight = document.getElementById('time-highlight-block');
-      if (existingHighlight) {
-        existingHighlight.remove();
-      }
-      
-      // Create new highlight block
-      const highlightBlock = document.createElement('div');
-      highlightBlock.id = 'time-highlight-block';
-      highlightBlock.className = 'absolute ml-2 mr-1 px-2 py-1 rounded-md pointer-events-none z-30 ';
-      highlightBlock.style.cssText = `
-        top: ${startPos}px;
-        height: ${eventHeight}px;
-        left: 0%;
-        width: calc(100% - 16px);
-      `;
-          
-      // Add to the events container
-      const eventsContainer = document.querySelector('.absolute.top-0.left-24');
-      if (eventsContainer) {
-        eventsContainer.appendChild(highlightBlock);
-      }
-      
-      // Clear highlight after 4 seconds
-      setTimeout(() => {
-        console.log('Clearing highlights');
-        const highlightToRemove = document.getElementById('time-highlight-block');
-        if (highlightToRemove) {
-          highlightToRemove.remove();
+    // Calculate start and end minutes
+    const totalMinutes = startHour * 60 + startMinute;
+    const endMinutes = totalMinutes + durationHours * 60;
+
+    // Select all slots
+    const slots = document.querySelectorAll('[data-time]');
+
+    // Add highlight classes to slots in range
+    slots.forEach(slot => {
+        const [hourStr, minStr] = slot.dataset.time.split(':');
+        const slotMinutes = parseInt(hourStr) * 60 + parseInt(minStr);
+        if (slotMinutes >= totalMinutes && slotMinutes < endMinutes) {
+            slot.classList.add('bg-green-100', 'border-l-4', 'border-green-500', 'transition-all', 'duration-500');
         }
-      }, 4000);
     });
+
+    // Remove highlight after 4 seconds
+    setTimeout(() => {
+        slots.forEach(slot => {
+            slot.classList.remove('bg-green-100', 'border-l-4', 'border-green-500', 'transition-all', 'duration-500');
+        });
+    }, 4000);
   };
+
 
   const getEventIcon = (event) => {
     if (event.type === 'shared') {
@@ -867,7 +817,7 @@ const CalendarSelector = ({ setSelectedTime, existingEvents, selectedTime, defau
     });
 
     return (
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100" onMouseMove={handleMouseMove}>
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 ove" onMouseMove={handleMouseMove}>
         <div className="flex border-b border-gray-200">
           <div className="w-20 flex flex-col border-r border-gray-200">
             <div className="h-16 flex items-center justify-center text-sm font-semibold text-gray-600 bg-gray-50 rounded-tl-xl">
@@ -1080,6 +1030,14 @@ const CalendarSelector = ({ setSelectedTime, existingEvents, selectedTime, defau
     }
   }, [scrollToTime, currentView]);
 
+  const handleCancel = () => {
+    setShowModal(false);
+    // Refresh the entire page
+    window.location.reload();
+  };
+    
+  
+
   return (
     <div className="min-h-screen overflow-hidden">
       <div className="max-w-full mx-auto p-4 sm:p-6">
@@ -1198,7 +1156,7 @@ const CalendarSelector = ({ setSelectedTime, existingEvents, selectedTime, defau
                   </p>
                 </div>
                 <button 
-                  onClick={() => setShowModal(false)}
+                  onClick={handleCancel} 
                   className="p-2 text-gray-400 hover:text-gray-600 hover:bg-white/60 rounded-xl transition-all duration-200"
                 >
                   <X size={20} />
@@ -1219,37 +1177,6 @@ const CalendarSelector = ({ setSelectedTime, existingEvents, selectedTime, defau
                   placeholder="Enter event name"
                 />
               </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Event Type
-                </label>
-                <div className="flex space-x-4">
-                  <label className="flex items-center">
-                    <input
-                      type="radio"
-                      value="individual"
-                      checked={eventType === 'individual'}
-                      onChange={(e) => setEventType(e.target.value)}
-                      className="mr-2"
-                    />
-                    <Car size={16} className="mr-1" />
-                    Individual Ride
-                  </label>
-                  <label className="flex items-center">
-                    <input
-                      type="radio"
-                      value="shared"
-                      checked={eventType === 'shared'}
-                      onChange={(e) => setEventType(e.target.value)}
-                      className="mr-2"
-                    />
-                    <Users size={16} className="mr-1" />
-                    Shared Ride
-                  </label>
-                </div>
-              </div>
-              
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
                   Date
@@ -1322,19 +1249,19 @@ const CalendarSelector = ({ setSelectedTime, existingEvents, selectedTime, defau
               
               <div className="flex items-center gap-3">
                 <button 
-                  onClick={() => setShowModal(false)}
+                  onClick={handleCancel} 
                   className="px-6 py-2 border border-gray-300 rounded-xl hover:bg-gray-50 transition-all duration-200 font-medium text-gray-700"
                 >
                   Cancel
                 </button>
-                <button 
+                {/* <button 
                   onClick={handleSaveEvent}
                   className="flex items-center px-6 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl hover:from-blue-700 hover:to-indigo-700 transition-all duration-200 font-medium shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
                   disabled={!eventName || !timeRange.start || !timeRange.end}
                 >
                   <Check size={16} className="mr-2" />
                   {editingEvent ? 'Update Event' : 'Create Event'}
-                </button>
+                </button> */}
               </div>
             </div>
           </div>

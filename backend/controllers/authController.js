@@ -180,6 +180,8 @@ const login = async (req, res) => {
     const token = jwt.sign({ userId: user._id, role: user.role }, process.env.JWT_SECRET, {
       expiresIn: "1h",
     });
+
+    await autoCompleteBookings();
     res.json({ token, role: user.role });
   } catch (err) {
     res.status(500).json({ error: err.message });

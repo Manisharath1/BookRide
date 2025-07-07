@@ -65,6 +65,8 @@ const HomePage = () => {
   const [selectedTime, setSelectedTime] = useState(null);
   const [existingEvents, setExistingEvents] = useState([]);
   const [bookingList, setBookingList] = useState([]);
+  const [booking, setBooking] = useState(null);
+
 
   const navigate = useNavigate();
   // eslint-disable-next-line no-unused-vars
@@ -259,15 +261,18 @@ const HomePage = () => {
     // Handle click events differently for shared vs individual rides
     eventClick: function(info) {
       const { event } = info;
-      
+
       if (event.extendedProps.type === 'shared') {
-        // Show detailed modal for shared rides
-        showSharedRideDetails(event.extendedProps);
+          showSharedRideDetails(event.extendedProps);
       } else {
-        // Regular individual ride handling
-        setSelectedTime(new Date(event.start));
+          // Regular individual ride handling
+          setSelectedTime(new Date(event.start));
+
+          // 🩹 ADD:
+          setBooking(event.extendedProps.booking); 
       }
     },
+
     
     // Limit events per day to avoid overcrowding
     dayMaxEvents: 6,
@@ -389,6 +394,7 @@ const HomePage = () => {
                   setSelectedTime={setSelectedTime} 
                   existingEvents={existingEvents} 
                   calendarConfig={calendarConfig}
+                  booking={booking}
                 />
               </div>
             </div>
