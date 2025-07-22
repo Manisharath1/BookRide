@@ -1,3 +1,4 @@
+/* eslint-disable react/no-unknown-property */
 import { useState } from "react";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -9,11 +10,34 @@ import { Button } from "@/components/ui/button";
 const Login = () => {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
-  const [showPassword, setShowPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
-  
+  const [isFormVisible, setIsFormVisible] = useState(false);
+  const [mouseLeaveTimeout, setMouseLeaveTimeout] = useState(null);
+
+  const handleMouseEnter = () => {
+    if (mouseLeaveTimeout) {
+      clearTimeout(mouseLeaveTimeout);
+      setMouseLeaveTimeout(null);
+    }
+    setIsFormVisible(true);
+  };
+
+  const handleMouseLeave = () => {
+    const timeout = setTimeout(() => {
+      setIsFormVisible(false);
+    }, 600);
+    setMouseLeaveTimeout(timeout);
+  };
+
+  const handleFormMouseEnter = () => {
+    if (mouseLeaveTimeout) {
+      clearTimeout(mouseLeaveTimeout);
+      setMouseLeaveTimeout(null);
+    }
+  };
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -55,26 +79,250 @@ const Login = () => {
       setIsLoading(false);
     }
   };
-
-  // const handleGoogleSignIn = () => {
-  //   window.location.href = `${import.meta.env.VITE_API_BASE_URL}/api/auth/google`;
-  // };
   
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-200 via-blue-50 to-purple-200 p-4 relative overflow-hidden">
-      <div className="w-full max-w-md relative z-10">
-        <div className="relative">
-          <Card className="w-full border-none shadow-2xl backdrop-blur-sm bg-white/90 pt-12 overflow-hidden">
+    <div className="min-h-screen relative overflow-hidden cursor-pointer">
+      <style jsx>{`
+        @import url('https://fonts.googleapis.com/css?family=Raleway:400,700');
+        
+        .animated-bg {
+          position: fixed;
+          width: 100vw;
+          height: 100vh;
+          overflow: hidden;
+          top: 0;
+          left: 0;
+          z-index: 1;
+        }
+        
+        .animated-bg:hover .top:before,
+        .animated-bg:hover .top:after,
+        .animated-bg:hover .bottom:before,
+        .animated-bg:hover .bottom:after,
+        .form-visible .top:before,
+        .form-visible .top:after,
+        .form-visible .bottom:before,
+        .form-visible .bottom:after {
+          margin-left: 200px;
+          transform-origin: -200px 50%;
+          transition-delay: 0s;
+        }
+        
+        .animated-bg:hover .login-card,
+        .form-visible .login-card {
+          opacity: 1;
+          transform: translate(-50%, -50%) scale(1);
+          transition-delay: 0.2s;
+        }
+        
+        .animated-bg:hover .hover-text,
+        .form-visible .hover-text {
+          opacity: 0;
+          transition-delay: 0s;
+        }
+        
+        .top:before, .top:after,
+        .bottom:before, .bottom:after {
+          content: '';
+          display: block;
+          position: fixed;
+          width: 200vmax;
+          height: 200vmax;
+          top: 50%;
+          left: 50%;
+          margin-top: -100vmax;
+          transform-origin: 0 50%;
+          transition: all 0.5s cubic-bezier(0.445, 0.05, 0, 1);
+          z-index: 2;
+          opacity: 0.75;
+          transition-delay: 0.2s;
+        }
+        
+        .top:before {
+          transform: rotate(45deg);
+          background: linear-gradient(135deg, #e46569, #ff6b6b);
+        }
+        
+        .top:after {
+          transform: rotate(135deg);
+          background: linear-gradient(135deg, #ecaf81, #ffd93d);
+        }
+        
+        .bottom:before {
+          transform: rotate(-45deg);
+          background: linear-gradient(135deg, #60b8d4, #4ecdc4);
+        }
+        
+        .bottom:after {
+          transform: rotate(-135deg);
+          background: linear-gradient(135deg, #3745b5, #667eea);
+        }
+        
+        .login-card {
+          position: absolute;
+          top: 50%;
+          left: 50%;
+          transform: translate(-50%, -50%) scale(0.8);
+          z-index: 10;
+          opacity: 0;
+          transition: all 0.5s cubic-bezier(0.445, 0.05, 0, 1);
+          transition-delay: 0s;
+          width: 100%;
+          max-width: 420px;
+          padding: 0 1rem;
+        }
+        
+        .hover-image {
+          position: absolute;
+          top: 50%;
+          left: 50%;
+          transform: translate(-50%, -50%);
+          z-index: 5;
+          transition: opacity 0.3s ease;
+          pointer-events: none;
+          text-align: center;
+          filter: drop-shadow(2px 2px 8px rgba(0,0,0,0.3));
+        }
+        
+        .hover-image img {
+          max-width: 280px;
+          width: 100%;
+          height: auto;
+          object-fit: contain;
+        }
+        
+        .hover-text-sub {
+          position: absolute;
+          top: 65%;
+          left: 50%;
+          transform: translate(-50%, -50%);
+          z-index: 5;
+          color: rgba(255, 255, 255, 0.9);
+          font-family: 'Raleway', sans-serif;
+          font-size: 1.2rem;
+          font-weight: 400;
+          text-shadow: 1px 1px 4px rgba(0,0,0,0.3);
+          transition: opacity 0.3s ease;
+          pointer-events: none;
+          text-align: center;
+        }
+        
+        .animated-bg:hover .hover-image,
+        .animated-bg:hover .hover-text-sub,
+        .form-visible .hover-image,
+        .form-visible .hover-text-sub {
+          opacity: 0;
+        }
+        
+        .custom-card {
+          background: rgba(255, 255, 255, 0.95);
+          backdrop-filter: blur(20px);
+          border: 1px solid rgba(255, 255, 255, 0.2);
+          box-shadow: 0 25px 50px rgba(0, 0, 0, 0.15);
+        }
+        
+        .floating-icon {
+          background: linear-gradient(135deg, #667eea, #764ba2);
+          box-shadow: 0 10px 30px rgba(102, 126, 234, 0.4);
+          animation: float 3s ease-in-out infinite;
+        }
+        
+        @keyframes float {
+          0%, 100% { transform: translateY(0px); }
+          50% { transform: translateY(-5px); }
+        }
+        
+        .gradient-text {
+          background: linear-gradient(135deg, #667eea, #764ba2);
+          -webkit-background-clip: text;
+          -webkit-text-fill-color: transparent;
+          background-clip: text;
+        }
+        
+        .custom-input {
+          background: rgba(249, 250, 251, 0.8);
+          backdrop-filter: blur(10px);
+          border: 1px solid rgba(209, 213, 219, 0.5);
+          transition: all 0.3s ease;
+        }
+        
+        .custom-input:focus {
+          background: rgba(255, 255, 255, 0.95);
+          border-color: #667eea;
+          box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+        
+        .custom-button {
+          background: linear-gradient(135deg, #667eea, #764ba2);
+          transition: all 0.3s ease;
+          position: relative;
+          overflow: hidden;
+        }
+        
+        .custom-button:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 15px 35px rgba(102, 126, 234, 0.3);
+        }
+        
+        .custom-button:before {
+          content: '';
+          position: absolute;
+          top: 0;
+          left: -100%;
+          width: 100%;
+          height: 100%;
+          background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+          transition: left 0.6s ease;
+        }
+        
+        .custom-button:hover:before {
+          left: 100%;
+        }
+        
+        @media (max-width: 640px) {
+          .hover-image img {
+            max-width: 200px;
+          }
+          .hover-text-sub {
+            font-size: 1rem;
+          }
+        }
+      `}</style>
+      
+      {/* Animated Background */}
+      <div 
+        className={`animated-bg ${isFormVisible ? 'form-visible' : ''}`}
+        onMouseEnter={handleMouseEnter}
+      >
+        <div className="top"></div>
+        <div className="bottom"></div>
+        
+        {/* Hover Image/Logo */}
+        <div className="hover-image">
+          <img 
+            src="/pic/logo.png"
+            alt="Vehicle Booking Logo" 
+            className="w-64 h-auto object-contain"
+          />
+        </div>
+        
+        {/* Login Card */}
+        <div 
+          className="login-card"
+          onMouseLeave={handleMouseLeave}
+          onMouseEnter={handleFormMouseEnter}
+        >
+          <Card className="custom-card border-none shadow-2xl pt-12 overflow-hidden">
             {/* Gradient header bar */}
             <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-purple-500 via-pink-500 to-indigo-500"></div>
             
-            {/* Floating icon with glassmorphism effect */}
-            <div className="absolute -top-10 left-1/2 transform -translate-x-1/2 w-20 h-20 bg-gradient-to-br from-purple-600 to-pink-600 rounded-2xl flex items-center justify-center shadow-2xl backdrop-blur-sm border border-white/20">
+            {/* Floating icon */}
+            <div className="floating-icon absolute -top-10 left-40 transform -translate-x-1/2 w-20 h-20 rounded-2xl flex items-center justify-center border border-white/20">
               <Lock className="h-10 w-10 text-white drop-shadow-lg" />
             </div>
             
             <CardHeader className="space-y-2 pt-8 text-center">
-              <CardTitle className="text-3xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
+              <CardTitle className="text-3xl font-bold gradient-text">
                 Welcome
               </CardTitle>
               <CardDescription className="text-gray-600 text-sm font-medium">
@@ -83,7 +331,7 @@ const Login = () => {
             </CardHeader>
             
             <CardContent className="pb-6">
-              <form onSubmit={handleLogin} className="space-y-6">
+              <div className="space-y-6">
                 {error && (
                   <Alert variant="destructive" className="mb-6 bg-red-50/80 backdrop-blur-sm border border-red-200/50 text-red-800 rounded-xl">
                     <div className="flex items-center">
@@ -103,7 +351,7 @@ const Login = () => {
                       placeholder="Enter your username"
                       value={username}
                       onChange={(e) => setUsername(e.target.value)}
-                      className="pl-12 bg-gray-50/50 border-gray-200 focus:bg-white focus:border-purple-400 focus:ring-purple-400 rounded-xl h-12 text-gray-700 placeholder-gray-400 transition-all duration-200"
+                      className="custom-input pl-12 rounded-xl h-12 text-gray-700 placeholder-gray-400"
                       required
                     />
                   </div>
@@ -128,7 +376,7 @@ const Login = () => {
                       placeholder="Enter your password" 
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
-                      className="pl-12 pr-12 bg-gray-50/50 border-gray-200 focus:bg-white focus:border-purple-400 focus:ring-purple-400 rounded-xl h-12 text-gray-700 placeholder-gray-400 transition-all duration-200"
+                      className="custom-input pl-12 pr-12 rounded-xl h-12 text-gray-700 placeholder-gray-400"
                       required
                     />
                     <button
@@ -159,42 +407,20 @@ const Login = () => {
 
                 <Button 
                   type="submit" 
-                  className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 text-white py-3 rounded-lg font-semibold hover:from-indigo-700 hover:to-purple-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transform hover:scale-[1.02] transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+                  onClick={handleLogin}
+                  className="custom-button w-full text-white py-3 rounded-lg font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none border-none"
                   disabled={isLoading}
                 >
                   {isLoading ? (
                     <>
-                      <Loader2 className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      <Loader2 className="w-5 h-5 mr-2 animate-spin" />
                       <span>Signing you in...</span>
                     </>
                   ) : (
-                    <>
-                      <span>Login</span>
-                      {/* <ArrowRight className="ml-3 h-5 w-5 transition-transform group-hover:translate-x-1" /> */}
-                    </>
+                    <span>Login</span>
                   )}
                 </Button>
-
-                {/* Social login option - commented out but redesigned */}
-                {/* <div className="relative flex items-center my-6">
-                      <div className="flex-grow border-t border-gray-200"></div>
-                      <span className="flex-shrink mx-4 text-gray-500 text-sm font-medium">Or continue with</span>
-                      <div className="flex-grow border-t border-gray-200"></div>
-                    </div>
-                
-                <button
-                  type="button"
-                  className="w-full bg-white border-2 border-gray-200 text-gray-700 py-3 px-4 rounded-xl hover:bg-gray-50 hover:border-gray-300 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-purple-500 flex items-center justify-center h-12 text-base font-medium shadow-sm"
-                >
-                  <svg className="w-5 h-5 mr-3" viewBox="0 0 24 24">
-                    <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-                    <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-                    <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
-                    <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
-                  </svg>
-                  Continue with Google
-                </button> */}
-              </form>
+              </div>
             </CardContent>
             
             <CardFooter className="flex flex-col items-center space-y-4 pb-8 pt-4">
@@ -211,10 +437,10 @@ const Login = () => {
               </div>
             </CardFooter>
           </Card>
-        </div>
-        
-        <div className="text-center mt-6 text-sm text-gray-600 font-medium backdrop-blur-sm">
-          © 2025 Vehicle Booking System. All rights reserved.
+          
+          <div className="text-center mt-6 text-sm text-gray-600 font-medium backdrop-blur-sm">
+            © 2025 Vehicle Booking System. All rights reserved.
+          </div>
         </div>
       </div>
     </div>
