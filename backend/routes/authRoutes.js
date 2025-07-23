@@ -3,6 +3,7 @@ const { login, register, logout, verifyUsername, resetPassword, updateProfile } 
 const authMiddleware = require("../middleware/authMiddleware");
 const User = require("../models/User");
 const rateLimit = require('express-rate-limit');
+// const authController = require("../controllers/authController");
 
 
 const router = express.Router();

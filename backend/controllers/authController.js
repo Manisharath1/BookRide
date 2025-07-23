@@ -2,10 +2,7 @@ const User = require("../models/User");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const { hash } = require('bcryptjs');
-// const twilio = require('twilio');
-// const Otp = require('../models/Otp');
-// // const sgMail = require('@sendgrid/mail');
-// const { sendOtpSMS, verifyOtp } = require('../utils/messageCentral');
+const autoCompleteBookings = require("./autoComplete");
 
 
 // const API_KEY = process.env.SENDGRID_API_KEY;
@@ -328,23 +325,25 @@ const verifyUsername = async (req, res) => {
   if (!username) return res.status(400).json({ message: 'Username is required' });
   
   try {
-      const user = await findOne({ username });
+      const user = await User.findOne({ username });
       if (!user) return res.status(404).json({ message: 'Username not found' });
 
       return res.status(200).json({ message: 'Username verified' });
   } catch (err) {
+      console.error('verifyUsername error:', err);
       return res.status(500).json({ message: 'Server error', error: err.message });
   }
 };
+
 
 const resetPassword = async (req, res) => {
   const { username, newPassword } = req.body;
   if (!username || !newPassword) return res.status(400).json({ message: 'All fields are required' }); 
   try {
-    const user = await findOne({ username });
+    const user = await User.findOne({ username });
     if (!user) return res.status(404).json({ message: 'User not found' });
 
-    const salt = await genSalt(10);
+    const salt = await bcrypt.genSalt(10);
     user.password = await hash(newPassword, salt);
     await user.save();
 

@@ -1,6 +1,6 @@
 const mongoose = require("mongoose");
-const Booking = require("../models/bookingModel");
-const Vehicle = require("../models/vehicleModel");
+const Booking = require("../models/Booking");
+const Vehicle = require("../models/Vehicle");
 
 const autoCompleteBookings = async () => {
     try {
