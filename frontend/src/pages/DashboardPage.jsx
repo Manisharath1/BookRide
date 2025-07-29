@@ -26,13 +26,14 @@ const DashboardPage = () => {
     const [bookingStatus, setBookingStatus] = useState([]);
     const [recentBookings, setRecentBookings] = useState([]);
     const [isMobile, setIsMobile] = useState(false);
+    const [vehicles, setVehicles] = useState([]);
 
     const navItems = [
         { name: "Dashboard", path: "/dashboard", icon: <LayoutDashboardIcon size={20} /> },
         { name: "View Bookings", path: "/view", icon: <ViewIcon size={20} /> },
     ];
 
-    const [timeRange, setTimeRange] = useState('weekly');
+    const [timeRange, setTimeRange] = useState('monthly');
 
     // Custom colors for charts
     const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8', '#d88488'];
@@ -41,11 +42,11 @@ const DashboardPage = () => {
         'assigned': '#2196F3',
         'in service': '#FF9800',
         'pending': '#FFC107',
-        'approved': '#4CAF50',
-        'completed': '#2196F3',
+        'approved': '#2196F3',
+        'completed': '#4CAF50',
         'confirmed': '#BCAF59',
         'cancelled': '#F44336',
-        'merged': '#9C27B0'
+        'shared': '#9C27B0'
     };
 
     // Fetch data from API or use mock data
@@ -64,14 +65,16 @@ const DashboardPage = () => {
             driversRes, 
             vehicleUtilRes, 
             bookingStatusRes,
-            recentBookingsRes
+            recentBookingsRes,
+            vehiclesRes  
             ] = await Promise.all([
             fetch(`${import.meta.env.VITE_API_BASE_URL}/api/dashboard/stats`),
             fetch(`${import.meta.env.VITE_API_BASE_URL}/api/dashboard/bookings-by-day?timeRange=${timeRange}`),
             fetch(`${import.meta.env.VITE_API_BASE_URL}/api/dashboard/driver-activity`),
             fetch(`${import.meta.env.VITE_API_BASE_URL}/api/dashboard/vehicle-utilization`),
             fetch(`${import.meta.env.VITE_API_BASE_URL}/api/dashboard/booking-status?timeRange=${timeRange}`),
-            fetch(`${import.meta.env.VITE_API_BASE_URL}/api/dashboard/recent-bookings`)
+            fetch(`${import.meta.env.VITE_API_BASE_URL}/api/dashboard/recent-bookings`),
+            fetch(`${import.meta.env.VITE_API_BASE_URL}/api/vehicles/getVehiclesDash`)
             ]);
             
             // Check for response errors
@@ -81,6 +84,7 @@ const DashboardPage = () => {
             if (!vehicleUtilRes.ok) throw new Error(`Vehicle API error: ${vehicleUtilRes.status}`);
             if (!bookingStatusRes.ok) throw new Error(`Booking status API error: ${bookingStatusRes.status}`);
             if (!recentBookingsRes.ok) throw new Error(`Recent bookings API error: ${recentBookingsRes.status}`);
+            if (!vehiclesRes.ok) throw new Error(`Vehicles API error: ${vehiclesRes.status}`);
             
             // Parse responses
             const statsData = await statsRes.json();
@@ -89,6 +93,7 @@ const DashboardPage = () => {
             const vehicleUtilData = await vehicleUtilRes.json();
             const bookingStatusData = await bookingStatusRes.json();
             const recentBookingsData = await recentBookingsRes.json();
+            const vehiclesData = await vehiclesRes.json();
             
             // Update state with fetched data
             setStats(statsData);
@@ -97,6 +102,7 @@ const DashboardPage = () => {
             setVehicleUtilization(vehicleUtilData);
             setBookingStatus(bookingStatusData);
             setRecentBookings(recentBookingsData);
+            setVehicles(vehiclesData);
             
         } catch (err) {
             console.error('Error fetching dashboard data:', err);
@@ -294,7 +300,7 @@ const DashboardPage = () => {
                                         <p className="text-xl md:text-3xl font-bold text-gray-800 mt-1 md:mt-2">{card.value}</p>
                                     </div>
                                 ))}
-                            </div>
+                            </div> 
 
                             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
                                 {/* Bookings Per Day - Line Chart */}
@@ -450,7 +456,7 @@ const DashboardPage = () => {
                             {/* Recent Bookings */}
                             <div className="bg-white rounded-xl shadow p-4 md:p-6">
                                 <div className="flex justify-between items-center mb-3 md:mb-4">
-                                    <h3 className="text-base md:text-lg font-semibold">Recent Bookings {getTimeRangeTitle()}</h3>
+                                    <h3 className="text-base md:text-lg font-semibold">Recent Booking Requests {getTimeRangeTitle()}</h3>
                                     <Link to="/view" className="text-blue-600 hover:text-blue-800 flex items-center gap-1 text-xs md:text-sm">
                                         <span>View all</span>
                                         <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 md:h-4 md:w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -522,6 +528,218 @@ const DashboardPage = () => {
                                 ) : (
                                     <div className="flex justify-center items-center h-20">
                                         <p className="text-gray-500">No recent bookings</p>
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* All Vehicles */}
+                            <div className="bg-white rounded-xl shadow p-4 md:p-6">
+                                <div className="flex justify-between items-center mb-3 md:mb-4">
+                                    <h3 className="text-base md:text-lg font-semibold">All Vehicles</h3>
+                                    <span className="text-sm text-gray-500">{vehicles.length} vehicles</span>
+                                </div>
+
+                                {/* Document Status Legend */}
+                                <div className="mb-4 p-3 bg-gray-50 rounded-lg">
+                                    <p className="text-sm font-medium text-gray-700 mb-2">Document Status Legend:</p>
+                                    <div className="flex flex-wrap gap-4 text-xs">
+                                    <div className="flex items-center">
+                                        <div className="w-3 h-3 rounded-full bg-green-400 mr-2"></div>
+                                        <span>Valid</span>
+                                    </div>
+                                    <div className="flex items-center">
+                                        <div className="w-3 h-3 rounded-full bg-red-400 mr-2"></div>
+                                        <span>Expired</span>
+                                    </div>
+                                    <div className="flex items-center">
+                                        <div className="w-3 h-3 rounded-full bg-gray-400 mr-2"></div>
+                                        <span>Not Available</span>
+                                    </div>
+                                    </div>
+                                </div>
+
+                                {vehicles.length > 0 ? (
+                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                    {vehicles.map((vehicle) => {
+                                        // Helper function to get document status
+                                        const getDocumentStatus = (validTill) => {
+                                        if (!validTill) return 'missing';
+                                        return new Date(validTill) > new Date() ? 'valid' : 'expired';
+                                        };
+
+                                        // Helper function to get status color
+                                        const getStatusColor = (status) => {
+                                        switch(status) {
+                                            case 'valid': return 'bg-green-400';
+                                            case 'expired': return 'bg-red-400';
+                                            case 'missing': return 'bg-gray-400';
+                                            default: return 'bg-gray-400';
+                                        }
+                                        };
+
+                                        return (
+                                        <div key={vehicle._id} className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
+                                            {/* Header with Image on Right */}
+                                            <div className="flex justify-between items-start mb-3 gap-3">
+                                            {/* Left side - Vehicle info and status */}
+                                                <div className="flex-1">
+                                                    <div className="flex justify-between items-start mb-2">
+                                                    <div>
+                                                        <h4 className="font-semibold text-gray-900">{vehicle.name}</h4>
+                                                        <p className="text-xs text-gray-500">ID: {vehicle.vehicleID}</p>
+                                                        
+                                                        <span className={`px-2 py-1 text-xs rounded-sm font-medium ${
+                                                            vehicle.status === 'available' ? 'bg-green-100 text-green-800' :
+                                                            vehicle.status === 'assigned' ? 'bg-blue-100 text-blue-800' :
+                                                            vehicle.status === 'in service' ? 'bg-orange-100 text-orange-800' :
+                                                            'bg-gray-100 text-gray-800'
+                                                            }`}>
+                                                            {vehicle.status}
+                                                        </span>
+                                                    </div> 
+                                                    </div>
+                                                </div>
+                                            
+                                                {/* Right side - Vehicle Image */}
+                                                {vehicle.imagePath && (
+                                                    <div className="flex-shrink-0">
+                                                        <img 
+                                                        src={`${import.meta.env.VITE_API_BASE_URL}/uploads/vehicles/${vehicle.imagePath.split('/').pop()}`}
+                                                        alt={vehicle.name}
+                                                        className="w-20 h-20 object-cover rounded-md"
+                                                        onError={(e) => {
+                                                        e.target.src = '/placeholder-vehicle.png'; // Fallback image
+                                                        e.target.onerror = null; // Prevent infinite loop
+                                                        }}
+                                                        /> 
+                                                    </div>
+                                                )}
+                                            </div>
+
+                                            {/* Basic Details */}
+                                            <div className="space-y-2 text-sm">
+                                                <div className="grid grid-cols-2 gap-2">
+                                                    <div>
+                                                    <p className="text-gray-500">Vehicle Number</p>
+                                                    <p className="font-medium">{vehicle.number}</p>
+                                                    </div>
+                                                    <div>
+                                                    <p className="text-gray-500">Chassis No.</p>
+                                                    <p className="font-medium text-xs">{vehicle.chassisNumber}</p>
+                                                    </div>
+                                                </div>
+
+                                                {/* Driver Details */}
+                                                <div className="border-t pt-2">
+                                                    <p className="text-gray-500 mb-1">Driver Information</p>
+                                                    <p className="font-medium">{vehicle.driverName}</p>
+                                                    <p className="text-xs text-gray-600">{vehicle.driverNumber}</p>
+                                                </div>
+
+                                                {/* Document Status */}
+                                                <div className="border-t pt-2">
+                                                    <p className="text-gray-500 mb-2">Document Status</p>
+                                                    <div className="grid grid-cols-2 gap-1 text-xs">
+                                                    {/* Insurance Status */}
+                                                        <div className="flex items-center">
+                                                            <div className={`w-2 h-2 rounded-full mr-1 ${
+                                                            getStatusColor(getDocumentStatus(vehicle.insuranceDetails?.validTill))
+                                                            }`}></div>
+                                                            <span>Insurance</span>
+                                                        </div>
+
+                                                        {/* RC Status */}
+                                                        <div className="flex items-center">
+                                                            <div className={`w-2 h-2 rounded-full mr-1 ${
+                                                            getStatusColor(getDocumentStatus(vehicle.rcValidity))
+                                                            }`}></div>
+                                                            <span>RC</span>
+                                                        </div>
+
+                                                        {/* MV Tax Status */}
+                                                        <div className="flex items-center">
+                                                            <div className={`w-2 h-2 rounded-full mr-1 ${
+                                                            getStatusColor(getDocumentStatus(vehicle.mvTaxPeriod?.to))
+                                                            }`}></div>
+                                                            <span>MV Tax</span>
+                                                        </div>
+
+                                                        {/* Pollution Status */}
+                                                        <div className="flex items-center">
+                                                            <div className={`w-2 h-2 rounded-full mr-1 ${
+                                                            getStatusColor(getDocumentStatus(vehicle.pollutionClearance?.validTill))
+                                                            }`}></div>
+                                                            <span>Pollution</span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                {/* Expandable Details */}
+                                                <div className="border-t pt-2">
+                                                    <details className="cursor-pointer">
+                                                        <summary className="text-blue-600 hover:text-blue-800 font-medium">View More Details</summary>
+                                                            <div className="mt-2 space-y-2 text-xs">
+                                                                {/* Insurance Details */}
+                                                                <div>
+                                                                <p className="font-medium text-gray-700">Insurance</p>
+                                                                {vehicle.insuranceDetails?.provider ? (
+                                                                    <p>Provider: {vehicle.insuranceDetails.provider}</p>
+                                                                ) : (
+                                                                    <p className="text-gray-500">Provider: Not specified</p>
+                                                                )}
+                                                                {vehicle.insuranceDetails?.validFrom && (
+                                                                    <p>Valid from: {new Date(vehicle.insuranceDetails.validFrom).toLocaleDateString()}</p>
+                                                                )}
+                                                                {vehicle.insuranceDetails?.validTill ? (
+                                                                    <p>Valid till: {new Date(vehicle.insuranceDetails.validTill).toLocaleDateString()}</p>
+                                                                ) : (
+                                                                    <p className="text-red-500">Valid till: Not specified</p>
+                                                                )}
+                                                                </div>
+
+                                                                {/* RC Validity */}
+                                                                <div>
+                                                                <p className="font-medium text-gray-700">RC Validity</p>
+                                                                {vehicle.rcValidity ? (
+                                                                    <p>Valid till: {new Date(vehicle.rcValidity).toLocaleDateString()}</p>
+                                                                ) : (
+                                                                    <p className="text-red-500">Valid till: Not specified</p>
+                                                                )}
+                                                                </div>
+
+                                                                {/* MV Tax */}
+                                                                <div>
+                                                                <p className="font-medium text-gray-700">MV Tax Period</p>
+                                                                {vehicle.mvTaxPeriod?.from && vehicle.mvTaxPeriod?.to ? (
+                                                                    <p>{new Date(vehicle.mvTaxPeriod.from).toLocaleDateString()} - {new Date(vehicle.mvTaxPeriod.to).toLocaleDateString()}</p>
+                                                                ) : (
+                                                                    <p className="text-red-500">Period: Not specified</p>
+                                                                )}
+                                                                </div>
+
+                                                                {/* Pollution Clearance */}
+                                                                <div>
+                                                                <p className="font-medium text-gray-700">Pollution Clearance</p>
+                                                                {vehicle.pollutionClearance?.validFrom && (
+                                                                    <p>Valid from: {new Date(vehicle.pollutionClearance.validFrom).toLocaleDateString()}</p>
+                                                                )}
+                                                                {vehicle.pollutionClearance?.validTill ? (
+                                                                    <p>Valid till: {new Date(vehicle.pollutionClearance.validTill).toLocaleDateString()}</p>
+                                                                ) : (
+                                                                    <p className="text-red-500">Valid till: Not specified</p>
+                                                                )}
+                                                                </div>
+                                                            </div>
+                                                    </details>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        );
+                                    })}
+                                    </div>
+                                ) : (
+                                    <div className="flex justify-center items-center h-20">
+                                    <p className="text-gray-500">No vehicles available</p>
                                     </div>
                                 )}
                             </div>

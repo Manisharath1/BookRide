@@ -365,10 +365,24 @@ const VehiclePage = () => {
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    setCurrentVehicle({
-      ...currentVehicle,
-      [name]: value
-    });
+    
+    // Handle nested names like "insuranceDetails.provider"
+    if (name.includes(".")) {
+      const [parentKey, childKey] = name.split(".");
+      setCurrentVehicle(prev => ({
+        ...prev,
+        [parentKey]: {
+          ...prev[parentKey],
+          [childKey]: value
+        }
+      }));
+    } else {
+      // Handle regular fields
+      setCurrentVehicle(prev => ({
+        ...prev,
+        [name]: value
+      }));
+    }
   };
 
   const handleImageChange = (e) => {
@@ -983,7 +997,7 @@ const VehiclePage = () => {
                     type="text"
                     name="chassisNumber"
                     value={currentVehicle.chassisNumber || ""}
-                    onChange={handleAddInputChange}
+                    onChange={handleInputChange}
                     className="w-full p-2 border border-gray-300 rounded"
                     required
                   />
@@ -995,7 +1009,7 @@ const VehiclePage = () => {
                     type="text"
                     name="insuranceDetails.provider"
                     value={currentVehicle.insuranceDetails?.provider || ""}
-                    onChange={handleAddInputChange}
+                    onChange={handleInputChange}
                     className="w-full p-2 border border-gray-300 rounded"
                   />
                 </div>
@@ -1008,7 +1022,7 @@ const VehiclePage = () => {
                     type="date"
                     name="insuranceDetails.validFrom"
                     value={currentVehicle.insuranceDetails?.validFrom || ""}
-                    onChange={handleAddInputChange}
+                    onChange={handleInputChange}
                     className="w-full p-2 border border-gray-300 rounded"
                   />
                 </div>
@@ -1018,7 +1032,7 @@ const VehiclePage = () => {
                     type="date"
                     name="insuranceDetails.validTill"
                     value={currentVehicle.insuranceDetails?.validTill || ""}
-                    onChange={handleAddInputChange}
+                    onChange={handleInputChange}
                     className="w-full p-2 border border-gray-300 rounded"
                   />
                 </div>
@@ -1032,7 +1046,7 @@ const VehiclePage = () => {
                     type="date"
                     name="mvTaxPeriod.from"
                     value={currentVehicle.mvTaxPeriod?.from || ""}
-                    onChange={handleAddInputChange}
+                    onChange={handleInputChange}
                     className="w-full p-2 border border-gray-300 rounded"
                   />
                 </div>
@@ -1042,7 +1056,7 @@ const VehiclePage = () => {
                     type="date"
                     name="mvTaxPeriod.to"
                     value={currentVehicle.mvTaxPeriod?.to || ""}
-                    onChange={handleAddInputChange}
+                    onChange={handleInputChange}
                     className="w-full p-2 border border-gray-300 rounded"
                   />
                 </div>
@@ -1056,7 +1070,7 @@ const VehiclePage = () => {
                     type="date"
                     name="pollutionClearance.validFrom"
                     value={currentVehicle.pollutionClearance?.validFrom || ""}
-                    onChange={handleAddInputChange}
+                    onChange={handleInputChange}
                     className="w-full p-2 border border-gray-300 rounded"
                   />
                 </div>
@@ -1066,7 +1080,7 @@ const VehiclePage = () => {
                     type="date"
                     name="pollutionClearance.validTill"
                     value={currentVehicle.pollutionClearance?.validTill || ""}
-                    onChange={handleAddInputChange}
+                    onChange={handleInputChange}
                     className="w-full p-2 border border-gray-300 rounded"
                   />
                 </div>
@@ -1081,7 +1095,7 @@ const VehiclePage = () => {
                     type="date"
                     name="rcValidity"
                     value={currentVehicle.rcValidity || ""}
-                    onChange={handleAddInputChange}
+                    onChange={handleInputChange}
                     className="w-full p-2 border border-gray-300 rounded"
                   />
                 </div>

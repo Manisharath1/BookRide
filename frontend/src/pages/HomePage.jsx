@@ -69,7 +69,7 @@ const HomePage = () => {
 
 
   const navigate = useNavigate();
-  
+
   const { apiCall } = useAPI();
 
   useEffect(() => {

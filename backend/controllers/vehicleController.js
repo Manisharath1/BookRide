@@ -274,6 +274,15 @@ const releaseVehicle = async (req, res) => {
   }
 };
 
+const getVehiclesDash = async (req, res) => {
+  try {
+    const vehicles = await Vehicle.find();
+    res.json(vehicles);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
 
 module.exports = {
   addVehicle,
@@ -282,5 +291,6 @@ module.exports = {
   deleteVehicle,
   uploadVehicleImage,
   getDrivers,
-  releaseVehicle
+  releaseVehicle,
+  getVehiclesDash
 };

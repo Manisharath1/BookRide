@@ -6,6 +6,7 @@ const router = express.Router();
 
 router.post("/newVehicle", authMiddleware, vehicleController.uploadVehicleImage, vehicleController.addVehicle);
 router.get("/getVehicles", authMiddleware, vehicleController.getVehicles);
+router.get("/getVehiclesDash", vehicleController.getVehiclesDash);
 router.put("/:id", authMiddleware, vehicleController.uploadVehicleImage, vehicleController.updateVehicle);
 router.delete("/:id", authMiddleware, vehicleController.deleteVehicle);
 router.get("/drivers", vehicleController.getDrivers);

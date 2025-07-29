@@ -337,8 +337,8 @@ exports.getBookingStatusDistribution = async (req, res) => {
  */
 exports.getRecentBookings = async (req, res) => {
   try {
-    // Get the 5 most recent bookings
-    const recentBookings = await Booking.find()
+    // Get the 5 most recent pending bookings
+    const recentBookings = await Booking.find({ status: 'pending' })
       .sort({ createdAt: -1 })
       .limit(5)
       .select('location status scheduledAt vehicleName driverName isGuestBooking guestName userId')
@@ -357,7 +357,7 @@ exports.getRecentBookings = async (req, res) => {
 
     res.status(200).json(formattedBookings);
   } catch (error) {
-    console.error('Error fetching recent bookings:', error);
-    res.status(500).json({ message: 'Failed to fetch recent bookings', error: error.message });
+    console.error('Error fetching recent pending bookings:', error);
+    res.status(500).json({ message: 'Failed to fetch recent pending bookings', error: error.message });
   }
 };

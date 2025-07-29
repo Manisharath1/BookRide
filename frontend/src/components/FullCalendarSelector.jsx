@@ -1,8 +1,8 @@
 /* eslint-disable react/prop-types */
 import { useState, useRef, useEffect } from 'react';
-import { Calendar, Clock, ChevronLeft, ChevronRight, Trash, X,  Edit, Plus, Users, MapPin, Car } from 'lucide-react';
+import { Calendar, Clock, ChevronLeft, ChevronRight, Trash, X,  Edit, Plus, Users, MapPin, Car, Check } from 'lucide-react';
 
-// eslint-disable-next-line react/prop-types
+
 const CalendarSelector = ({ setSelectedTime, existingEvents, selectedTime, defaultTime, booking, calendarConfig, scrollToTime, highlightTrigger }) => {
   // State for tracking dates and selections
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -474,17 +474,17 @@ const CalendarSelector = ({ setSelectedTime, existingEvents, selectedTime, defau
     setEditingEvent(null);
   };
 
-  // const getRandomColor = () => {
-  //   const colors = [
-  //     'bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-md',
-  //     'bg-gradient-to-r from-green-500 to-green-600 text-white shadow-md',
-  //     'bg-gradient-to-r from-purple-500 to-purple-600 text-white shadow-md',
-  //     'bg-gradient-to-r from-orange-500 to-orange-600 text-white shadow-md',
-  //     'bg-gradient-to-r from-pink-500 to-pink-600 text-white shadow-md',
-  //     'bg-gradient-to-r from-indigo-500 to-indigo-600 text-white shadow-md'
-  //   ];
-  //   return colors[Math.floor(Math.random() * colors.length)];
-  // };
+  const getRandomColor = () => {
+    const colors = [
+      'bg-gradient-to-r from-blue-100 to-blue-200 text-white shadow-md',
+      'bg-gradient-to-r from-green-100 to-green-200 text-white shadow-md',
+      'bg-gradient-to-r from-purple-100 to-purple-200 text-white shadow-md',
+      'bg-gradient-to-r from-orange-100 to-orange-200 text-white shadow-md',
+      'bg-gradient-to-r from-pink-100 to-pink-200 text-white shadow-md',
+      'bg-gradient-to-r from-indigo-100 to-indigo-200 text-white shadow-md'
+    ];
+    return colors[Math.floor(Math.random() * colors.length)];
+  };
 
   const getEventColor = (event) => {
     if (event.type === 'booking-request') {
@@ -1036,6 +1036,45 @@ const CalendarSelector = ({ setSelectedTime, existingEvents, selectedTime, defau
     window.location.reload();
   };
     
+   const handleSaveEvent = () => {
+    if (!eventName || !timeRange.start || !timeRange.end) return;
+
+    if (editingEvent) {
+      setEvents(prev => prev.map(e => 
+        e.id === editingEvent.id
+          ? { 
+              ...e, 
+              title: eventName, 
+              startTime: timeRange.start,
+              endTime: timeRange.end 
+            }
+          : e
+      ));
+    } else {
+      const newEvent = {
+        id: Date.now().toString(),
+        title: eventName,
+        date: selectedDate,
+        startTime: timeRange.start,
+        endTime: timeRange.end,
+        color: getRandomColor()
+      };
+      setEvents([...events, newEvent]);
+    }
+
+    setShowModal(false);
+    setEventName('');
+    setTimeRange({ start: '', end: '' });
+    setEditingEvent(null);
+
+    if (setSelectedTime) {
+      setSelectedTime(
+        new Date(
+          selectedDate.toISOString().split('T')[0] + 'T' + timeRange.start + ':00'
+        )
+      );
+    }
+  };
   
 
   return (
@@ -1254,14 +1293,14 @@ const CalendarSelector = ({ setSelectedTime, existingEvents, selectedTime, defau
                 >
                   Cancel
                 </button>
-                {/* <button 
+                <button 
                   onClick={handleSaveEvent}
                   className="flex items-center px-6 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl hover:from-blue-700 hover:to-indigo-700 transition-all duration-200 font-medium shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
                   disabled={!eventName || !timeRange.start || !timeRange.end}
                 >
                   <Check size={16} className="mr-2" />
                   {editingEvent ? 'Update Event' : 'Create Event'}
-                </button> */}
+                </button>
               </div>
             </div>
           </div>
@@ -1361,7 +1400,6 @@ const CalendarSelector = ({ setSelectedTime, existingEvents, selectedTime, defau
           </div>
         </div>
       )}
-      
     </div>
   );
 };

@@ -19,7 +19,7 @@ const sendMsg91SMS = async (mobile, driverName, vehicleName ) => {
       }
     );
 
-    console.log("MSG91 response:", response.data);
+    // console.log("MSG91 response:", response.data);
     return response.data;
   } catch (error) {
     console.error("MSG91 SMS failed:", error.response?.data || error.message);

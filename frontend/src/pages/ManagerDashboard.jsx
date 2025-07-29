@@ -938,7 +938,7 @@ const ManagerDashboard = () => {
                                             <div className="p-4 space-y-2 text-xs sm:text-sm text-left">
                                               {[
                                                 { label: "Contact", value: passenger.number },
-                                                { label: "Pickup Location", value: passenger.pickupLocation },
+                                                // { label: "Pickup Location", value: passenger.pickupLocation },
                                                 { label: "Drop Location", value: passenger.location },
                                                 { label: "Reason", value: passenger.reason },
                                                 { label: "Members", value: passenger.members },
