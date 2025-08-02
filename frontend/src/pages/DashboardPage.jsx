@@ -197,7 +197,7 @@ const DashboardPage = () => {
         <div className="min-h-screen flex flex-col bg-gray-50">
             {/* Navbar */}
             <div className="sticky top-0 w-full z-10">
-                <div className="bg-gradient-to-r from-pink-500 via-purple-500 to-blue-500 h-16 md:h-20">
+                <div className="bg-backBlue h-16 md:h-20">
                     <div className="mx-auto flex justify-between items-center h-full px-4">
                         <h2 className="text-white font-semibold text-lg md:text-2xl truncate">Vehicle Booking System</h2>
                         <div className="space-x-2 md:space-x-4 flex items-center">
@@ -220,7 +220,7 @@ const DashboardPage = () => {
                 {mobileMenuOpen && (
                     <div className="fixed inset-0 z-40 bg-black bg-opacity-50" onClick={toggleMobileMenu}>
                         <div 
-                            className="fixed top-16 left-0 bottom-0 w-64 bg-blue-950 text-white flex-shrink-0 overflow-y-auto z-50"
+                            className="fixed top-16 left-0 bottom-0 w-64 bg-customBlue text-white flex-shrink-0 overflow-y-auto z-50"
                             onClick={(e) => e.stopPropagation()}
                         >
                             <nav className="py-2">
@@ -244,7 +244,7 @@ const DashboardPage = () => {
                 )}
 
                 {/* Desktop Sidebar */}
-                <div className="hidden md:flex flex-col w-64 bg-blue-950 text-white flex-shrink-0 overflow-y-auto">
+                <div className="hidden md:flex flex-col w-64 bg-customBlue text-white flex-shrink-0 overflow-y-auto">
                     <nav className="py-2">
                         <ul className="space-y-1">
                         {navItems.map((item) => (
@@ -749,7 +749,7 @@ const DashboardPage = () => {
             </div>
 
             {/* Footer */}
-            <footer className="bg-gray-800 text-white p-3 md:p-4 text-center text-xs md:text-sm">
+            <footer className="bg-backBlue text-white p-3 md:p-4 text-center text-xs md:text-sm">
                 <p>© {new Date().getFullYear()} Vehicle Booking System. All rights reserved.</p>
             </footer>
         </div>

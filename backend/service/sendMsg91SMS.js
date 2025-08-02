@@ -1,6 +1,6 @@
 const axios = require("axios");
 
-const sendMsg91SMS = async (mobile, driverName, vehicleName ) => {
+const sendMsg91SMS = async (mobile, driverName, vehicleName, driverNumber ) => {
   try {
     const response = await axios.post(
       "https://api.msg91.com/api/v5/flow/",
@@ -8,7 +8,7 @@ const sendMsg91SMS = async (mobile, driverName, vehicleName ) => {
         flow_id: "6853f8b4d6fc0521bd27af62",
         sender: "INSTLS", // your DLT-approved Sender ID
         mobiles: mobile, // ensure 91 prefix without '+'
-        var1: driverName,
+        var1: `${driverName} (Contact: ${driverNumber})`,
         var2: vehicleName
       },
       {

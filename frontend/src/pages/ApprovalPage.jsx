@@ -295,7 +295,7 @@ const ApprovalPage = () => {
       
       {/* Responsive Header */}
       <div className="sticky top-0 w-full z-30">
-        <div className="absolute inset-0 bg-gradient-to-r from-pink-500 via-purple-500 to-blue-500">
+        <div className="absolute inset-0 bg-backBlue">
           <svg 
             className="absolute bottom-0 w-full"
             xmlns="http://www.w3.org/2000/svg" 
@@ -312,7 +312,7 @@ const ApprovalPage = () => {
 
       <div className="flex flex-1 overflow-hidden">
         {/* Desktop Sidebar */}
-        <div className="hidden md:flex flex-col w-64 bg-blue-950 text-white flex-shrink-0 overflow-y-auto z-20">
+        <div className="hidden md:flex flex-col w-64 bg-customBlue text-white flex-shrink-0 overflow-y-auto z-20">
           <nav className="py-2">
             <ul className="space-y-1">
               {navItems.map((item) => (
@@ -653,7 +653,7 @@ const ApprovalPage = () => {
       <div 
         className={`fixed inset-y-0 left-0 transform ${
           sidebarOpen ? "translate-x-0" : "-translate-x-full"
-        } md:hidden transition duration-200 ease-in-out z-40 w-64 bg-blue-950 shadow-md`}
+        } md:hidden transition duration-200 ease-in-out z-40 w-64 bg-customBlue shadow-md`}
       >
         <div className="p-4">
           <div className="flex items-center mb-4 border-b pb-2">
@@ -706,7 +706,7 @@ const ApprovalPage = () => {
       )}
       
       {/* Responsive Footer */}
-      <footer className="bg-gray-800 text-white p-2 sm:p-4 text-center text-xs sm:text-sm">
+      <footer className="bg-backBlue text-white p-2 sm:p-4 text-center text-xs sm:text-sm">
         <p>© {new Date().getFullYear()} Vehicle Booking System. All rights reserved.</p>
       </footer>
     </div>

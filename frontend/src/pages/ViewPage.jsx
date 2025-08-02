@@ -128,7 +128,7 @@ const ViewPage = () => {
     <div className="min-h-screen flex flex-col bg-gray-50">
       {/* Navbar */}
       <div className="relative w-full z-10">
-        <div className="bg-gradient-to-r from-pink-500 via-purple-500 to-blue-500 h-20">
+        <div className="h-20 bg-customBlue ">
           <div className="mx-auto flex justify-between items-center h-full px-4">
             <div className="flex justify-between items-center">
               <h2 className="text-white font-semibold text-2xl">Vehicle Booking System</h2>
@@ -143,7 +143,7 @@ const ViewPage = () => {
 
       <div className="flex flex-1">
         {/* Desktop Sidebar */}
-        <div className="hidden md:flex flex-col w-64 bg-blue-950 text-white flex-shrink-0 overflow-y-auto">
+        <div className="hidden md:flex flex-col w-64 bg-customBlue text-white flex-shrink-0 overflow-y-auto">
           <nav className="py-2">
             <ul className="space-y-1">
               {navItems.map((item) => (
@@ -380,7 +380,7 @@ const ViewPage = () => {
       {sidebarOpen && (
         <div className="fixed inset-0 z-50 bg-black bg-opacity-40 md:hidden" onClick={toggleSidebar}>
           <div 
-            className="absolute top-0 left-0 w-64 h-full bg-blue-950 shadow-lg p-4"
+            className="absolute top-0 left-0 w-64 h-full bg-customBlue shadow-lg p-4"
             onClick={(e) => e.stopPropagation()}
           >
             <nav className="mt-6">

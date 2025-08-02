@@ -302,7 +302,7 @@ const HomePage = () => {
     <div className="flex flex-col min-h-screen bg-gradient-to-br from-gray-50 via-blue-50 to-indigo-50">
       
       {/* Header - Improved mobile spacing */}
-      <header className="sticky top-0 w-full z-30 backdrop-blur-md bg-gradient-to-r from-pink-500 via-purple-500 to-blue-500 shadow-xl border-b border-white/20">
+      <header className="sticky top-0 w-full z-30 backdrop-blur-md bg-backBlue shadow-xl border-b border-white/20">
         <div className="px-3 py-3 sm:px-6 sm:py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3">
@@ -333,7 +333,7 @@ const HomePage = () => {
       <div className="flex flex-1 relative">
         
         {/* Sidebar (Desktop) */}
-        <aside className="hidden md:flex flex-col w-64 bg-blue-950 text-white shadow-lg">
+        <aside className="hidden md:flex flex-col w-64 bg-customBlue text-white shadow-lg">
           <div className="p-4 space-y-2">
            
             {navItems.map((item) => (
@@ -355,7 +355,7 @@ const HomePage = () => {
         )}
 
         {/* Mobile Sidebar Drawer */}
-        <aside className={`fixed inset-y-0 left-0 transform ${sidebarOpen ? "translate-x-0" : "-translate-x-full"} md:hidden transition-transform duration-300 ease-in-out z-50 w-72 bg-blue-950 shadow-2xl mobile-sidebar`}>
+        <aside className={`fixed inset-y-0 left-0 transform ${sidebarOpen ? "translate-x-0" : "-translate-x-full"} md:hidden transition-transform duration-300 ease-in-out z-50 w-72 bg-customBlue shadow-2xl mobile-sidebar`}>
           <div className="p-4 h-full overflow-y-auto">
             <div className="flex justify-between items-center text-white border-b border-blue-800 pb-4 mb-6">
               <h2 className="text-xl font-bold">Navigation</h2>
@@ -505,7 +505,7 @@ const HomePage = () => {
       </div>
 
       {/* Footer - Better mobile spacing */}
-      <footer className="bg-gray-900 text-white p-3 sm:p-4 text-center text-xs sm:text-sm">
+      <footer className="bg-backBlue text-white p-3 sm:p-4 text-center text-xs sm:text-sm">
         <p>© {new Date().getFullYear()} Vehicle Booking System. All rights reserved.</p>
       </footer>
     </div>

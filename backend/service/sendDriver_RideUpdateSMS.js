@@ -1,6 +1,6 @@
 const axios = require("axios");
 
-const sendDriverRideAssignmentSMS = async (mobile, destination, pickupLocation, time, customerName, customerContact, vehicleName) => {
+const sendDriver_RideUpdateSMS = async (mobile, destination, pickupLocation, time, customerName, customerContact, vehicleName) => {
   try {
     // Handle undefined/null pickupLocation
     let destinationText;
@@ -11,18 +11,18 @@ const sendDriverRideAssignmentSMS = async (mobile, destination, pickupLocation, 
     }
 
     const payload = {
-      flow_id: "6882206fd6fc055877557162", // Replace with your actual flow ID for driver notifications
+      flow_id: "688ca7bea6afa70a843ab2e2", // Replace with your actual flow ID for driver ride updates
       sender: "INSTLS",
       mobiles: mobile,
-      // For template: "You have a new ride to {#var1#} at {#var2#}. Customer: {#var3#}, Contact: {#var4#}, Vehicle: {#var5#}. Institute of Life Sciences."
+      // Template: "Your ride assignment has been updated. Destination: ##var1## at ##var2##. Customer: ##var3##, Contact: ##var4##, Vehicle: ##var5##. Institute of Life Sciences"
       var1: destinationText,     // Destination (with pickup only if available)
       var2: time,                // Scheduled time
       var3: customerName,        // Customer name
       var4: customerContact,     // Customer contact number
-      var5: vehicleName          // Vehicle name and number
+      var5: vehicleName          // Vehicle name
     };
 
-    console.log("Driver Ride Assignment SMS payload:", JSON.stringify(payload, null, 2));
+    console.log("Driver Ride Update SMS payload:", JSON.stringify(payload, null, 2));
 
     const response = await axios.post(
       "https://api.msg91.com/api/v5/flow/",
@@ -35,12 +35,12 @@ const sendDriverRideAssignmentSMS = async (mobile, destination, pickupLocation, 
       }
     );
 
-    console.log("MSG91 driver ride assignment SMS response:", response.data);
+    console.log("MSG91 driver ride update SMS response:", response.data);
     return response.data;
   } catch (error) {
-    console.error("Failed to send Driver Ride Assignment SMS:", error.response?.data || error.message);
+    console.error("Failed to send Driver Ride Update SMS:", error.response?.data || error.message);
     throw error;
   }
 };
 
-module.exports = sendDriverRideAssignmentSMS;
+module.exports = sendDriver_RideUpdateSMS;

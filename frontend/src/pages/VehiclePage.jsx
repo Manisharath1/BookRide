@@ -450,7 +450,7 @@ const VehiclePage = () => {
   return (
     <div className="flex flex-col min-h-screen bg-gray-100">
       <div className="relative w-full z-10">
-        <div className="bg-gradient-to-r from-pink-500 via-purple-500 to-blue-500 h-20">
+        <div className="bg-backBlue h-20">
           <div className="mx-auto flex justify-between items-center h-full px-4">
             
             {/* Sidebar Toggle (Mobile Only) */}
@@ -486,7 +486,7 @@ const VehiclePage = () => {
       
       <div className="flex flex-1">
         {/* Sidebar */}
-        <div className="hidden md:flex flex-col w-64 bg-blue-950 text-white flex-shrink-0 overflow-y-auto">
+        <div className="hidden md:flex flex-col w-64 bg-customBlue text-white flex-shrink-0 overflow-y-auto">
           <nav className="py-2">
             <ul className="space-y-1">
               {navItems.map((item) => (
@@ -507,7 +507,7 @@ const VehiclePage = () => {
         {sidebarOpen && (
           <div className="fixed inset-0 z-50 bg-black bg-opacity-40 md:hidden" onClick={toggleSidebar}>
             <div 
-              className="absolute top-0 left-0 w-64 h-full bg-blue-950 shadow-lg p-4"
+              className="absolute top-0 left-0 w-64 h-full bg-customBlue shadow-lg p-4"
               onClick={(e) => e.stopPropagation()} >
                 <nav className="mt-6">
                   <h2 className="text-2xl text-white text-center mb-10 font-bold">Dashboard</h2>

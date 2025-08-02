@@ -307,7 +307,7 @@ const BookForGuestPage = () => {
     <div className="flex flex-col min-h-screen bg-gray-100">
       {/* Header/Navbar - Full width at the top */}
       <div className="relative w-full z-10">
-        <div className="bg-gradient-to-r from-pink-500 via-purple-500 to-blue-500 h-20">
+        <div className="bg-backBlue h-20">
           <div className="mx-auto flex justify-between items-center h-full px-4">
             <div className="flex justify-between items-center">
               <div className="bg-blue-500 rounded-full p-1 mr-2">
@@ -331,7 +331,7 @@ const BookForGuestPage = () => {
       {/* Main content area with sidebar and content */}
       <div className="flex flex-1">
         {/* Sidebar - Now positioned below navbar */}
-        <div className="hidden md:flex flex-col w-64 bg-blue-950 text-white flex-shrink-0 overflow-y-auto">
+        <div className="hidden md:flex flex-col w-64 bg-customBlue text-white flex-shrink-0 overflow-y-auto">
           <nav className="py-2">
             <ul className="space-y-1">
               {navItems.map((item) => (
@@ -661,7 +661,7 @@ const BookForGuestPage = () => {
                     <Button 
                       type="submit" 
                       disabled={isSubmitting || vehicles.length === 0 || loading}
-                      className="px-8 py-2 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 transition-all shadow-lg"
+                      className="px-8 py-2 bg-customBlue transition-all shadow-lg"
                     >
                       {isSubmitting ? (
                         <>
@@ -702,9 +702,9 @@ const BookForGuestPage = () => {
       
       {/* Mobile sidebar */}
       {sidebarOpen && (
-        <div className="fixed inset-0 z-50 bg-black bg-opacity-40 md:hidden" onClick={toggleSidebar}>
+        <div className="fixed inset-0 z-50 bg-customBlue bg-opacity-40 md:hidden" onClick={toggleSidebar}>
           <div 
-            className="absolute top-0 left-0 w-64 h-full bg-blue-950 shadow-lg p-4"
+            className="absolute top-0 left-0 w-64 h-full bg-customBlue shadow-lg p-4"
             onClick={(e) => e.stopPropagation()}
           >
             <nav className="mt-6">
@@ -728,7 +728,7 @@ const BookForGuestPage = () => {
         </div>
       )}
       
-      <footer className="bg-gray-800 text-white p-4 text-center text-sm">
+      <footer className="bg-backBlue text-white p-4 text-center text-sm">
         <p>© {new Date().getFullYear()} Vehicle Booking System. All rights reserved.</p>
       </footer>
     </div>

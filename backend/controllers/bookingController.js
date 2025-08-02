@@ -8,6 +8,12 @@ const sendRideCancelledUserSMS = require("../service/sendRideCancelledUserSMS");
 const sendNewRideRequestManagerSMS = require("../service/sendNewRideRequestManagerSMS");
 const sendDriverRideAssignmentSMS = require("../service/sendDriverRideAssignmentSMS");
 const sendRideMergeNotificationSMS = require("../service/sendRideMergeNotificationSMS");
+const sendRide_UpdateNotificationSMS = require("../service/sendRide_UpdateNotificationSMS");
+const sendDriverRide_CancelSMS = require("../service/sendDriverRide_CancelSMS");
+const sendPassenger_RemovedSMS = require("../service/sendPassenger_RemovedSMS");
+const sendDriver_RideUpdateSMS = require("../service/sendDriver_RideUpdateSMS");
+const RideCompletionManager_SMS = require("../service/SendRideCompletionManager");
+const RideCompletionUser_SMS = require("../service/RideCompletionUser_SMS");
 
 
 // ✅ Create a new booking
@@ -378,7 +384,7 @@ const approveBooking = async (req, res) => {
         // console.log("Sending to:", populatedBooking.userId.number);
         // console.log("Final format:", `91${number}`);
 
-        await sendMsg91SMS(`91${number}`, booking.driverName, booking.vehicleName);
+        await sendMsg91SMS(`91${number}`, booking.driverName, booking.driverNumber, booking.vehicleName);
       } catch (smsErr) {
         console.error("Failed to send user SMS:", smsErr.message);
       }
@@ -399,6 +405,7 @@ const approveBooking = async (req, res) => {
           }
 
           const destination = booking.location || "Destination";
+          const pickupLocation = booking.pickupLocation || "Pickup Location";
           const time = new Date(scheduledAt).toLocaleString("en-IN", { 
             timeZone: "Asia/Kolkata" 
           });
@@ -410,6 +417,7 @@ const approveBooking = async (req, res) => {
             driverNumber: cleanDriverNumber,
             driverName,
             destination,
+            pickupLocation,
             time,
             customerName,
             customerContact,
@@ -418,14 +426,15 @@ const approveBooking = async (req, res) => {
 
           await sendDriverRideAssignmentSMS(
             cleanDriverNumber, 
-            destination, 
+            destination,
+            pickupLocation, 
             time, 
             customerName, 
             customerContact, 
             vehicleName
           );
           
-          console.log("✅ Driver SMS sent successfully");
+          // console.log("✅ Driver SMS sent successfully");
         }
       } catch (driverSmsErr) {
         console.error("❌ Failed to send driver SMS:", driverSmsErr.message);
@@ -487,7 +496,7 @@ const getAllBookings = async (req, res) => {
   }
 };
 
-//complete booking 
+
 const completeBooking = async (req, res) => {
   const { bookingId } = req.body;
 
@@ -503,7 +512,7 @@ const completeBooking = async (req, res) => {
       return res.status(400).json({ error: "Only approved, shared, or confirmed bookings can be marked as completed" });
     }
 
-
+    // Update booking status
     booking.status = "completed";
     booking.completedAt = new Date();
     await booking.save();
@@ -514,8 +523,118 @@ const completeBooking = async (req, res) => {
       vehicle.status = "available";
       await vehicle.save();
     }
-    const populatedBooking = await Booking.findById(bookingId).populate("userId", "username");
-    res.json({ message: "Booking marked as completed successfully", booking: populatedBooking });
+
+    // Get populated booking data for response and SMS
+    const populatedBooking = await Booking.findById(bookingId).populate("userId", "username number");
+    
+    // Prepare SMS notification data
+    const isGuestBooking = booking.status === "completed" && booking.guestName; // Check if it was a guest booking
+    let userName, userMobile;
+    
+    if (isGuestBooking) {
+      userName = booking.guestName || "Guest User";
+      userMobile = booking.guestPhone;
+    } else {
+      userName = populatedBooking.userId?.username || "User";
+      userMobile = populatedBooking.userId?.number;
+    }
+
+    const scheduledTime = new Date(booking.scheduledAt).toLocaleString("en-IN", { 
+      timeZone: "Asia/Kolkata" 
+    });
+
+    // Send SMS notification to all managers
+    try {
+      // Find all users with manager role
+      const managers = await User.find({ role: 'manager' }).select('number username');
+      
+      console.log("Found managers for SMS notification:", {
+        managersCount: managers.length,
+        managers: managers.map(m => ({ username: m.username, number: m.number }))
+      });
+
+      if (managers.length > 0) {
+        // Send SMS to each manager
+        const managerSMSPromises = managers.map(async (manager) => {
+          if (manager.number) {
+            try {
+              let cleanManagerMobile = manager.number.toString().replace(/\D/g, '');
+              
+              if (cleanManagerMobile.startsWith('91')) {
+                cleanManagerMobile = cleanManagerMobile;
+              } else if (cleanManagerMobile.length === 10) {
+                cleanManagerMobile = `91${cleanManagerMobile}`;
+              } else {
+                cleanManagerMobile = `91${cleanManagerMobile.replace(/^91/, "")}`;
+              }
+
+              console.log(`Sending ride completion SMS to manager ${manager.username}:`, {
+                managerMobile: cleanManagerMobile,
+                userName,
+                scheduledTime,
+                bookingId: booking._id
+              });
+
+              await RideCompletionManager_SMS(
+                cleanManagerMobile,
+                userName,
+                scheduledTime
+              );
+
+              console.log(`✅ Ride completion SMS sent successfully to manager ${manager.username}`);
+            } catch (managerSmsError) {
+              console.error(`❌ Failed to send SMS to manager ${manager.username}:`, managerSmsError.message);
+            }
+          } else {
+            console.warn(`⚠️ Manager ${manager.username} has no phone number`);
+          }
+        });
+
+        // Wait for all manager SMS to complete
+        await Promise.allSettled(managerSMSPromises);
+        console.log("✅ All manager SMS notifications processed");
+      } else {
+        console.warn("⚠️ No managers found in the system");
+      }
+    } catch (smsError) {
+      console.error("❌ Failed to send ride completion SMS to managers:", smsError.message);
+      // Don't fail the completion if SMS fails - just log the error
+    }
+
+    // Send completion confirmation to customer/user
+    if (userMobile) {
+      try {
+        let cleanUserMobile = userMobile.toString().replace(/\D/g, '');
+        
+        if (cleanUserMobile.startsWith('91')) {
+          cleanUserMobile = cleanUserMobile;
+        } else if (cleanUserMobile.length === 10) {
+          cleanUserMobile = `91${cleanUserMobile}`;
+        } else {
+          cleanUserMobile = `91${cleanUserMobile.replace(/^91/, "")}`;
+        }
+
+        console.log("Sending ride completion SMS to user:", {
+          customerMobile: cleanUserMobile,
+          userName,
+          scheduledTime,
+          bookingType: isGuestBooking ? 'guest' : 'regular'
+        });
+
+        await RideCompletionUser_SMS(cleanUserMobile, userName, scheduledTime);
+        
+        console.log("✅ Ride completion user SMS sent successfully");
+        
+      } catch (customerSmsError) {
+        console.error("❌ Failed to send completion SMS to customer:", customerSmsError.message);
+      }
+    }
+
+    res.json({ 
+      message: "Booking marked as completed successfully", 
+      booking: populatedBooking 
+    });
+
   } catch (err) {
     console.error("Error completing booking:", err);
     res.status(500).json({ error: err.message });
@@ -527,7 +646,10 @@ const cancelBooking = async (req, res) => {
   const { bookingId } = req.body;
 
   try {
-    const booking = await Booking.findById(bookingId);
+    
+    const booking = await Booking.findById(bookingId)
+      .populate("vehicleId");
+    
     if (!booking) {
       return res.status(404).json({ error: "Booking not found" });
     }
@@ -543,11 +665,18 @@ const cancelBooking = async (req, res) => {
 
     let modified = false;
     let shouldSendSMS = false;
+    let shouldNotifyDriver = false;
     let bookingOwner = null;
 
     // Get the booking owner details for SMS
     if (booking.userId) {
       bookingOwner = await User.findById(booking.userId);
+    }
+
+    // Check if booking has a driver assigned (for driver notification)
+    // Since driverId might be a simple field, check if it exists
+    if (booking.driverId && booking.status === "approved") {
+      shouldNotifyDriver = true;
     }
 
     // Allow managers to cancel anything
@@ -608,6 +737,12 @@ const cancelBooking = async (req, res) => {
         modified = true;
         // When passenger cancels, send SMS to booking owner
         shouldSendSMS = true;
+        // Don't notify driver for individual passenger cancellation unless it's the last passenger
+        if (booking.passengers.length === 0) {
+          shouldNotifyDriver = true;
+        } else {
+          shouldNotifyDriver = false;
+        }
       } else {
         return res.status(403).json({ error: "You are not part of this booking." });
       }
@@ -615,6 +750,11 @@ const cancelBooking = async (req, res) => {
 
     if (modified) {
       await booking.save();
+
+      // Release vehicle if booking is fully cancelled
+      if (booking.status === "cancelled" && booking.vehicleId) {
+        await Vehicle.findByIdAndUpdate(booking.vehicleId, { status: 'available' });
+      }
 
       // Send SMS to the booking owner (the person who created the booking)
       if (shouldSendSMS && bookingOwner && bookingOwner.number) {
@@ -638,30 +778,107 @@ const cancelBooking = async (req, res) => {
             ? new Date(booking.scheduledAt).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" })
             : "N/A";
 
-          console.log("Sending Ride Cancelled SMS to booking owner:", { 
-            mobile: ownerMobile, 
-            ownerName, 
-            destination, 
-            time,
-            cancelledBy: username,
-            cancelledByRole: user.role === "manager" ? "manager" : (booking.userId?.toString?.() === userIdStr ? "owner" : "passenger")
-          });
+          // console.log("Sending Ride Cancelled SMS to booking owner:", { 
+          //   mobile: ownerMobile, 
+          //   ownerName, 
+          //   destination, 
+          //   time,
+          //   cancelledBy: username,
+          //   cancelledByRole: user.role === "manager" ? "manager" : (booking.userId?.toString?.() === userIdStr ? "owner" : "passenger")
+          // });
 
           await sendRideCancelledUserSMS(ownerMobile, ownerName, destination, time);
-          console.log("✅ Ride Cancelled SMS sent successfully");
+          // console.log("✅ Ride Cancelled SMS sent to owner successfully");
         } catch (smsErr) {
-          console.error("❌ Failed to send Ride Cancelled SMS:", smsErr.message);
+          console.error("❌ Failed to send Ride Cancelled SMS to owner:", smsErr.message);
           // Don't fail the entire operation if SMS fails
         }
       } else {
-        console.log("SMS not sent - conditions not met:", {
-          shouldSendSMS,
-          hasBookingOwner: !!bookingOwner,
-          hasOwnerNumber: !!(bookingOwner?.number)
+        // console.log("Owner SMS not sent - conditions not met:", {
+        //   shouldSendSMS,
+        //   hasBookingOwner: !!bookingOwner,
+        //   hasOwnerNumber: !!(bookingOwner?.number)
+        // });
+      }
+
+      // Send SMS to driver if ride is cancelled and driver was assigned
+      // Since we can't populate driverId, we need to get driver info from the vehicle
+      if (shouldNotifyDriver && booking.vehicleId) {
+        try {
+          // Get driver mobile from the vehicle record
+          const driverMobile = booking.vehicleId.driverNumber;
+          
+          if (driverMobile) {
+            // Clean and format driver mobile number
+            let cleanDriverMobile = driverMobile.toString().replace(/\D/g, '');
+            
+            if (cleanDriverMobile.startsWith('91')) {
+              cleanDriverMobile = cleanDriverMobile;
+            } else if (cleanDriverMobile.length === 10) {
+              cleanDriverMobile = `91${cleanDriverMobile}`;
+            } else {
+              console.warn(`Invalid driver mobile number format: ${driverMobile}`);
+              cleanDriverMobile = `91${cleanDriverMobile.replace(/^91/, "")}`;
+            }
+
+            const destination = booking.location || "Destination";
+            const time = booking.scheduledAt
+              ? new Date(booking.scheduledAt).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" })
+              : "N/A";
+            
+            // For shared rides, get all customer names; for individual rides, get the owner name
+            let customerName;
+            if (booking.isSharedRide && booking.passengers && booking.passengers.length > 0) {
+              customerName = booking.passengers
+                .map(p => p.name || p.passengerName || "Passenger")
+                .join(", ");
+            } else {
+              customerName = bookingOwner?.username || "Customer";
+            }
+
+            const vehicleName = booking.vehicleId?.number || 
+                               booking.vehicleId?.name || 
+                               "Vehicle";
+
+            console.log("Sending Driver Ride Cancel SMS:", {
+              mobile: cleanDriverMobile,
+              destination,
+              time,
+              customerName,
+              vehicleName,
+              bookingId: booking._id
+            });
+
+            await sendDriverRide_CancelSMS(
+              cleanDriverMobile,
+              destination,
+              time,
+              customerName,
+              vehicleName
+            );
+            console.log("✅ Driver Ride Cancel SMS sent successfully");
+          } else {
+            console.log("Driver mobile number not found in vehicle record");
+          }
+        } catch (driverSmsErr) {
+          console.error("❌ Failed to send Driver Ride Cancel SMS:", driverSmsErr.message);
+          // Don't fail the entire operation if SMS fails
+        }
+      } else {
+        console.log("Driver SMS not sent - conditions not met:", {
+          shouldNotifyDriver,
+          hasVehicle: !!booking.vehicleId,
+          bookingStatus: booking.status
         });
       }
 
-      return res.json({ message: "Booking cancelled successfully." });
+      return res.json({ 
+        message: "Booking cancelled successfully.",
+        notificationsSent: {
+          ownerNotified: shouldSendSMS && !!bookingOwner?.number,
+          driverNotified: shouldNotifyDriver && !!booking.vehicleId?.driverNumber
+        }
+      });
     } else {
       return res.status(400).json({ error: "No changes were made to the booking." });
     }
@@ -1348,6 +1565,257 @@ const editRide = async (req, res) => {
     }
 
     await booking.save();
+      
+    try {
+      // Check if vehicle/driver was changed
+      const vehicleChanged = (
+        vehicleId !== undefined && 
+        vehicleId !== originalValues.vehicleId?.toString()
+      );
+
+      const driverChanged = (
+        driverName !== undefined && 
+        driverName !== originalValues.driverName
+      ) || (
+        driverNumber !== undefined && 
+        driverNumber !== originalValues.driverNumber
+      );
+
+      // Prepare common ride details
+      const destination = booking.location || "destination";
+      const time = new Date(booking.scheduledAt).toLocaleString("en-IN", { 
+        timeZone: "Asia/Kolkata" 
+      });
+
+      // Get customer details based on booking type
+      let customerName, customerContact;
+      
+      if (isGuestBooking) {
+        customerName = booking.guestName || "Guest Customer";
+        customerContact = booking.guestPhone || "Contact not available";
+      } else {
+        // For regular bookings, populate userId if needed
+        const populatedBooking = await Booking.findById(bookingId).populate("userId", "username number");
+        customerName = populatedBooking.userId?.username || "Customer";
+        customerContact = populatedBooking.userId?.number || "Contact not available";
+      }
+
+      // 1. Handle vehicle/driver change scenario
+      if (vehicleChanged || driverChanged) {
+        
+        // Send "NEW ASSIGNMENT" message to old driver (reusing existing template)
+        // This effectively cancels their previous assignment
+        if (originalValues.driverNumber) {
+          try {
+            let oldDriverMobile = originalValues.driverNumber.toString().replace(/\D/g, '');
+            
+            if (oldDriverMobile.startsWith('91')) {
+              oldDriverMobile = oldDriverMobile;
+            } else if (oldDriverMobile.length === 10) {
+              oldDriverMobile = `91${oldDriverMobile}`;
+            } else {
+              oldDriverMobile = `91${oldDriverMobile.replace(/^91/, "")}`;
+            }
+
+            console.log("Sending cancellation SMS to old driver:", {
+              oldDriverNumber: oldDriverMobile,
+              oldDriverName: originalValues.driverName,
+              destination,
+              time,
+              customerName,
+              oldVehicleName: originalValues.vehicleName
+            });
+
+            // Use your new driver cancel template
+            await sendDriverRide_CancelSMS(
+              oldDriverMobile,
+              destination,
+              time,
+              customerName,
+              originalValues.vehicleName || "Vehicle"
+            );
+
+            // console.log("✅ Old driver cancellation SMS sent successfully");
+          } catch (oldDriverSmsErr) {
+            console.error("❌ Failed to send cancellation SMS to old driver:", oldDriverSmsErr.message);
+          }
+        }
+
+      // 1. When sending to NEW driver 
+      if (booking.driverNumber) {
+        try {
+          let newDriverMobile = booking.driverNumber.toString().replace(/\D/g, '');
+          
+          if (newDriverMobile.startsWith('91')) {
+            newDriverMobile = newDriverMobile;
+          } else if (newDriverMobile.length === 10) {
+            newDriverMobile = `91${newDriverMobile}`;
+          } else {
+            newDriverMobile = `91${newDriverMobile.replace(/^91/, "")}`;
+          }
+
+          const newVehicleName = booking.vehicleName || "Vehicle";
+          
+          // 🔥 FIX: Handle pickupLocation properly based on booking type
+          let effectivePickupLocation;
+          if (isGuestBooking) {
+            effectivePickupLocation = null; // Guest bookings don't have pickup location
+          } else {
+            effectivePickupLocation = booking.pickupLocation || "To be confirmed";
+          }
+
+          console.log("Sending new assignment SMS to new driver:", {
+            newDriverNumber: newDriverMobile,
+            newDriverName: booking.driverName,
+            destination,
+            pickupLocation: effectivePickupLocation,
+            time,
+            customerName,
+            customerContact,
+            newVehicleName
+          });
+
+          await sendDriverRideAssignmentSMS(
+            newDriverMobile,
+            destination,
+            effectivePickupLocation, // 🔥 FIX: Pass proper pickup location
+            time,
+            customerName,
+            customerContact,
+            newVehicleName
+          );
+
+          console.log("✅ New driver assignment SMS sent successfully");
+        } catch (newDriverSmsErr) {
+          console.error("❌ Failed to send assignment SMS to new driver:", newDriverSmsErr.message);
+        }
+      }
+
+      } else {
+        // 2. Handle other updates (time, location, etc.) - send assignment message to same driver
+        const criticalDetailsChanged = (
+          scheduledAt !== undefined || 
+          location !== undefined ||
+          (isGuestBooking && (guestName !== undefined || guestPhone !== undefined))
+        );
+
+        // 2. When sending UPDATE to current driver (around line 280):
+        if (criticalDetailsChanged && booking.driverNumber) {
+          try {
+            let driverMobile = booking.driverNumber.toString().replace(/\D/g, '');
+            
+            if (driverMobile.startsWith('91')) {
+              driverMobile = driverMobile;
+            } else if (driverMobile.length === 10) {
+              driverMobile = `91${driverMobile}`;
+            } else {
+              driverMobile = `91${driverMobile.replace(/^91/, "")}`;
+            }
+
+            const vehicleName = booking.vehicleName || "Vehicle";
+            
+            // 🔥 FIX: Handle pickupLocation properly based on booking type
+            let effectivePickupLocation;
+            if (isGuestBooking) {
+              effectivePickupLocation = null; // Guest bookings don't have pickup location
+            } else {
+              effectivePickupLocation = booking.pickupLocation || "To be confirmed";
+            }
+
+            console.log("Sending updated assignment SMS to current driver:", {
+              driverNumber: driverMobile,
+              destination,
+              pickupLocation: effectivePickupLocation,
+              time,
+              customerName,
+              customerContact,
+              vehicleName,
+              reason: "Booking details updated"
+            });
+
+            await sendDriver_RideUpdateSMS(
+              driverMobile,
+              destination,
+              effectivePickupLocation,
+              time,
+              customerName,
+              customerContact,
+              vehicleName
+            );
+
+            console.log("✅ Driver update SMS sent successfully");
+          } catch (updateSmsErr) {
+            console.error("❌ Failed to send update SMS to driver:", updateSmsErr.message);
+          }
+        }
+      }
+
+      // 3. Notify customer if critical details changed
+      const customerCriticalDetailsChanged = (
+        scheduledAt !== undefined || 
+        location !== undefined || 
+        driverName !== undefined || 
+        driverNumber !== undefined ||
+        vehicleChanged
+      );
+      if (customerCriticalDetailsChanged) {
+        let customerMobile;
+
+        if (isGuestBooking) {
+          customerMobile = booking.guestPhone;
+        } else {
+          const populatedBooking = await Booking.findById(bookingId).populate("userId", "username number");
+          customerMobile = populatedBooking.userId?.number;
+        }
+
+        if (customerMobile) {
+          try {
+            let cleanCustomerMobile = customerMobile.toString().replace(/\D/g, '');
+            
+            if (cleanCustomerMobile.startsWith('91')) {
+              cleanCustomerMobile = cleanCustomerMobile;
+            } else if (cleanCustomerMobile.length === 10) {
+              cleanCustomerMobile = `91${cleanCustomerMobile}`;
+            } else {
+              cleanCustomerMobile = `91${cleanCustomerMobile.replace(/^91/, "")}`;
+            }
+
+            const driverName = booking.driverName || "Driver";
+            const driverContact = booking.driverNumber || "Contact not available"; // 🔥 FIX: Use booking.driverNumber, not undefined driverContact
+            const vehicleName = booking.vehicleName || "Vehicle";
+            const pickupLocation = booking.pickupLocation || "Pickup location"; // 🔥 FIX: Define pickupLocation
+
+            console.log("Sending booking update SMS to customer:", {
+              customerMobile: cleanCustomerMobile,
+              customerName,
+              driverName,
+              driverContact, // Now properly defined
+              vehicleName,
+              pickupLocation, // Now properly defined
+              reason: "Booking details updated"
+            });
+
+            // 🔥 FIX: Pass all required parameters in correct order
+            await sendRide_UpdateNotificationSMS(
+              cleanCustomerMobile,
+              destination,
+              time,
+              driverName,
+              driverContact, // Now properly defined
+              vehicleName,
+              pickupLocation // Now properly defined
+            );
+            
+            console.log("✅ Customer update notification SMS sent successfully");
+          } catch (customerSmsErr) {
+            console.error("❌ Failed to send customer update SMS:", customerSmsErr.message);
+          }
+        }
+      }
+    } catch (smsError) {
+      console.error("❌ Failed to send SMS notifications:", smsError.message);
+      // Don't fail the edit operation if SMS fails - just log the error
+    }
 
     // Log the changes for audit trail
     console.log('Booking edited successfully:', {
@@ -1372,7 +1840,7 @@ const editRide = async (req, res) => {
       timestamp: new Date()
     });
 
-    // Prepare updated fields response
+    
     const updatedFields = {};
     if (driverName !== undefined && driverName !== null) updatedFields.driverName = booking.driverName;
     if (driverNumber !== undefined && driverNumber !== null) updatedFields.driverNumber = booking.driverNumber;
@@ -1381,7 +1849,7 @@ const editRide = async (req, res) => {
     if (scheduledAt !== undefined && scheduledAt !== null) updatedFields.scheduledAt = booking.scheduledAt;
     if (members !== undefined && members !== null) updatedFields.members = booking.members;
     if (location !== undefined && location !== null) updatedFields.location = booking.location;
-    
+      
     // Include fields based on booking type
     if (isGuestBooking) {
       if (guestName !== undefined && guestName !== null) updatedFields.guestName = booking.guestName;
@@ -1448,6 +1916,13 @@ const removePassenger = async (req, res) => {
 
     const passengerToRemove = sharedBooking.passengers[passengerIndex];
     
+    // Format scheduled time for SMS
+    const scheduledTime = new Date(sharedBooking.scheduledAt || passengerToRemove.bookingTime).toLocaleString('en-IN', {
+      timeZone: 'Asia/Kolkata',
+      dateStyle: 'short',
+      timeStyle: 'short'
+    });
+    
     // Create individual booking for removed passenger
     const individualBooking = new Booking({
       userId: sharedBooking.userId, // You might want to find the actual userId for this passenger
@@ -1464,6 +1939,25 @@ const removePassenger = async (req, res) => {
 
     await individualBooking.save();
 
+    // Send SMS notification to removed passenger
+    let smsNotificationSent = false;
+    try {
+      if (passengerToRemove.mobile) {
+        await sendPassenger_RemovedSMS(
+          passengerToRemove.mobile,
+          passengerToRemove.name || passengerToRemove.passengerName || "Passenger",
+          scheduledTime
+        );
+        console.log(`Passenger removed SMS sent to: ${passengerToRemove.mobile}`);
+        smsNotificationSent = true;
+      } else {
+        console.warn("No mobile number found for removed passenger");
+      }
+    } catch (smsError) {
+      console.error(`Failed to send passenger removed SMS to ${passengerToRemove.mobile}:`, smsError);
+      // Continue processing even if SMS fails
+    }
+
     // Remove passenger from shared booking
     sharedBooking.passengers.splice(passengerIndex, 1);
     
@@ -1472,6 +1966,7 @@ const removePassenger = async (req, res) => {
     sharedBooking.members = newTotalMembers;
 
     // If only one passenger left, convert back to individual booking
+    let convertedToIndividual = false;
     if (sharedBooking.passengers.length === 1) {
       const lastPassenger = sharedBooking.passengers[0];
       
@@ -1485,6 +1980,9 @@ const removePassenger = async (req, res) => {
       sharedBooking.duration = lastPassenger.duration;
       sharedBooking.scheduledAt = lastPassenger.bookingTime;
       sharedBooking.passengers = [];
+      convertedToIndividual = true;
+      
+      console.log("Shared ride converted to individual booking as only one passenger remains");
     }
 
     await sharedBooking.save();
@@ -1492,7 +1990,14 @@ const removePassenger = async (req, res) => {
     res.status(200).json({
       message: "Passenger removed successfully",
       individualBooking,
-      updatedSharedBooking: sharedBooking
+      updatedSharedBooking: sharedBooking,
+      removedPassenger: {
+        name: passengerToRemove.name || passengerToRemove.passengerName,
+        mobile: passengerToRemove.mobile,
+        smsNotificationSent
+      },
+      convertedToIndividual,
+      remainingPassengers: sharedBooking.passengers.length
     });
 
   } catch (err) {
@@ -1530,16 +2035,50 @@ const unmergeRide = async (req, res) => {
 
       await individualBooking.save();
       restoredBookings.push(individualBooking);
+
+      try {
+        if (passenger.mobile) {
+          await sendSharedRide_UnmergedSMS(
+            passenger.mobile,
+            passenger.name || passenger.passengerName || "Passenger",
+            scheduledTime
+          );
+          console.log(`Unmerged SMS sent to passenger: ${passenger.mobile}`);
+        }
+      } catch (smsError) {
+        console.error(`Failed to send unmerged SMS to passenger ${passenger.mobile}:`, smsError);
+        // Continue processing even if SMS fails
+      }
     }
 
     // Mark shared booking as inactive
-    sharedBooking.status = "unmerged";
+    sharedBooking.status = "cancelled";
     sharedBooking.isActive = false;
     await sharedBooking.save();
 
     // Release the vehicle
     if (sharedBooking.vehicleId) {
       await Vehicle.findByIdAndUpdate(sharedBooking.vehicleId, { status: 'available' });
+    }
+
+    if (sharedBooking.driverId && sharedBooking.driverId.mobile) {
+      try {
+        const customerNames = sharedBooking.passengers
+          .map(p => p.name || p.passengerName || "Passenger")
+          .join(", ");
+        
+        await sendDriverRide_CancelSMS(
+          sharedBooking.driverId.mobile,
+          sharedBooking.location || "Destination", // Use actual destination
+          scheduledTime,
+          customerNames,
+          sharedBooking.vehicleId?.vehicleNumber || sharedBooking.vehicleId?.name || "Vehicle"
+        );
+        console.log(`Driver cancellation SMS sent to: ${sharedBooking.driverId.mobile}`);
+      } catch (smsError) {
+        console.error(`Failed to send driver cancellation SMS:`, smsError);
+        // Continue processing even if SMS fails
+      }
     }
 
     res.status(200).json({

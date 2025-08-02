@@ -243,8 +243,8 @@ const ManagerDashboard = () => {
     try {
       const token = localStorage.getItem("token");
 
-      console.log("🛠 Original updatedData received:", updatedData);
-      console.log("📋 Booking ID:", bookingId);
+      // console.log("🛠 Original updatedData received:", updatedData);
+      // console.log("📋 Booking ID:", bookingId);
 
       // Prepare the payload with all possible fields
       const payload = {
@@ -266,7 +266,7 @@ const ManagerDashboard = () => {
         duration: updatedData.duration
       };
 
-      console.log("📦 Full payload before cleaning:", payload);
+      // console.log("📦 Full payload before cleaning:", payload);
 
       // Remove undefined fields to avoid sending unnecessary data
       const cleanPayload = Object.fromEntries(
@@ -282,7 +282,7 @@ const ManagerDashboard = () => {
         })
       );
 
-      console.log("🛠 Sending cleaned payload:", cleanPayload);
+      // console.log("🛠 Sending cleaned payload:", cleanPayload);
 
       // Validate that we have at least one field to update besides bookingId
       const updateFields = Object.keys(cleanPayload).filter(key => key !== 'bookingId');
@@ -291,7 +291,7 @@ const ManagerDashboard = () => {
         return;
       }
 
-      console.log("✅ Fields being updated:", updateFields);
+      // console.log("✅ Fields being updated:", updateFields);
 
       const response = await axios.put(
         `${import.meta.env.VITE_API_BASE_URL}/api/bookings/editRide`,
@@ -303,7 +303,7 @@ const ManagerDashboard = () => {
         }
       );
 
-      console.log("✅ Backend response:", response.data);
+      // console.log("✅ Backend response:", response.data);
 
       // Update local state to reflect the change
       setBookings(prev => {
@@ -571,7 +571,7 @@ const ManagerDashboard = () => {
   return (
     <div className="flex flex-col min-h-screen bg-gray-100">
       <div className="sticky top-0 w-full h-20 overflow-hidden z-30">
-        <div className="absolute inset-0 bg-gradient-to-r from-pink-500 via-purple-500 to-blue-500">
+        <div className="absolute inset-0 bg-backBlue">
           <svg 
             className="absolute bottom-0 w-full"
             xmlns="http://www.w3.org/2000/svg" 
@@ -595,7 +595,7 @@ const ManagerDashboard = () => {
       
       <div className="flex flex-1 overflow-hidden">
         {/* Sidebar - now below navbar */}
-        <div className="hidden md:flex flex-col w-64 bg-blue-950 text-white flex-shrink-0 overflow-y-auto z-20">
+        <div className="hidden md:flex flex-col w-64 bg-customBlue text-white flex-shrink-0 overflow-y-auto z-20">
           <nav className="py-2">
             <ul className="space-y-1">
               {navItems.map((item) => (
@@ -791,15 +791,14 @@ const ManagerDashboard = () => {
                                   </TooltipProvider>
                                 </td>
                                 <td className="px-2 sm:px-4 py-2 sm:py-3 text-center break-words">
-                                  {booking.status === 'shared' ? (
+                                  {(booking.status === 'shared' || (booking.isSharedRide && booking.passengers?.length > 0)) ? (
                                     <p className="space-y-1">Multiple Destinations</p>
                                   ) : booking.status === 'approved' ? (
                                     <div className="text-xs">
                                       {booking.pickupLocation && booking.location ? (
                                         <span>
                                           <span className="text-blue-600">Pickup: {booking.pickupLocation}</span>
-                                          <span className="mx-1 font-bold">--→
-                                          </span>
+                                          <span className="mx-1 font-bold">--→</span>
                                           <span className="text-green-600">Drop: {booking.location}</span>
                                         </span>
                                       ) : (
@@ -1114,7 +1113,7 @@ const ManagerDashboard = () => {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-60 backdrop-blur-sm p-4 overflow-hidden">
           <div className="bg-white rounded-lg shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto relative border border-gray-200">
             {/* Header */}
-            <div className="bg-gray-900 text-white p-6 rounded-t-lg sticky top-0 z-10">
+            <div className="bg-backBlue text-white p-6 rounded-t-lg sticky top-0 z-10">
               <div className="flex items-center justify-between">
                 <div>
                   <h2 className="text-xl font-semibold">
@@ -1503,7 +1502,7 @@ const ManagerDashboard = () => {
                   className={`px-5 py-2.5 rounded-md font-medium focus:outline-none focus:ring-2 transition-all duration-200 shadow-sm ${
                     selectedBooking.status === 'confirmed'
                       ? 'bg-blue-600 text-white hover:bg-blue-700 focus:ring-blue-500'
-                      : 'bg-gray-900 text-white hover:bg-gray-800 focus:ring-gray-500'
+                      : 'bg-backBlue text-white hover:bg-gray-800 focus:ring-gray-500'
                   }`}
                 >
                   {selectedBooking.status === 'confirmed' ? 'Update Guest Booking' : 'Save Changes'}
@@ -1533,7 +1532,7 @@ const ManagerDashboard = () => {
       <div 
         className={`fixed inset-y-0 left-0 transform ${
           sidebarOpen ? "translate-x-0" : "-translate-x-full"
-        } md:hidden transition duration-200 ease-in-out z-40 w-64 bg-blue-950 shadow-md`}
+        } md:hidden transition duration-200 ease-in-out z-40 w-64 bg-customBlue shadow-md`}
       >
         <div className="p-4">
           <div className="text-center mb-6 border-b pb-2">
@@ -1567,7 +1566,7 @@ const ManagerDashboard = () => {
         </div>
       </div>
       
-      <footer className="bg-gray-800 text-white p-4 text-center text-sm">
+      <footer className="bg-backBlue text-white p-4 text-center text-sm">
         <p>© {new Date().getFullYear()} Vehicle Booking System. All rights reserved.</p>
       </footer>
     </div>

@@ -26,7 +26,7 @@ const autoCompleteBookings = async () => {
                     await vehicle.save();
                 }
 
-                console.log(`✅ Auto-completed booking ${booking._id}`);
+                // console.log(`✅ Auto-completed booking ${booking._id}`);
             }
         }
     } catch (err) {

@@ -481,7 +481,7 @@ const UserDashboard = () => {
   return (
     <div className="flex flex-col min-h-screen bg-gray-100">
       <div className="sticky top-0 w-full h-20 overflow-hidden z-30">
-        <div className="absolute inset-0 bg-gradient-to-r from-pink-500 via-purple-500 to-blue-500">
+        <div className="absolute inset-0 bg-backBlue">
           <svg 
             className="absolute bottom-0 w-full"
             xmlns="http://www.w3.org/2000/svg" 
@@ -521,7 +521,7 @@ const UserDashboard = () => {
 
         {/* Sidebar - always visible on md screens and larger, toggle on smaller screens */}
         <aside
-          className={`fixed md:sticky top-0 left-0 h-100  z-40 w-64 bg-blue-950 text-white transition-transform duration-300 ease-in-out overflow-y-auto flex-shrink-0
+          className={`fixed md:sticky top-0 left-0 h-100  z-40 w-64 bg-customBlue text-white transition-transform duration-300 ease-in-out overflow-y-auto flex-shrink-0
             ${sidebarOpen ? "translate-x-0" : "-translate-x-full"} md:translate-x-0`}
         >
           {/* Close button for mobile */}
@@ -534,10 +534,10 @@ const UserDashboard = () => {
           </button>
 
           <div className="flex flex-col h-full py-6 px-4">
-            <div className="mb-8 border-b border-blue-800 pb-4 flex items-center gap-2">
+            {/* <div className="mb-8 border-b border-blue-800 pb-4 flex items-center gap-2">
               <Home size={24} />
               <h2 className="text-xl font-bold">Dashboard</h2>
-            </div>
+            </div> */}
 
             <nav className="flex-1">
               <ul className="space-y-2">
@@ -1210,7 +1210,7 @@ const UserDashboard = () => {
       
       {/* Booking Modal */}
       {showModal && (
-        <div className="fixed inset-0 bg-gray-900 bg-opacity-50 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
+        <div className="fixed inset-0 bg-backBlue bg-opacity-50 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
           <div className="bg-white rounded-xl w-full max-w-lg max-h-[90vh] overflow-hidden shadow-xl border border-gray-200">
             {/* Header */}
             <div className="bg-slate-50 border-b border-gray-200 p-6">
@@ -1391,7 +1391,7 @@ const UserDashboard = () => {
       )}
       
       
-      <footer className="bg-gray-800 text-white p-3 text-center text-xs sm:text-sm">
+      <footer className="bg-backBlue text-white p-3 text-center text-xs sm:text-sm">
         <p>© {new Date().getFullYear()} Vehicle Booking System. All rights reserved.</p>
       </footer>
     </div>
